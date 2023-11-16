@@ -41,15 +41,16 @@ namespace dynamic_tracker
     void DynamicTracker::init(const ros::NodeHandle &nh)
     {
         node_ = nh;
-        node_.param("dynamicTracking/tracking_update_timeout_", tracking_update_timeout_, 1.0);
-        node_.param("dynamicTracking/tracking_update_rate", tracking_update_rate_, 10.0);
-        node_.param("dynamicTracking/tracking_ts", ts_, 0.35);
+        node_.param("dynamic_tracking/tracking_update_timeout_", tracking_update_timeout_, 1.0);
+        node_.param("dynamic_tracking/tracking_update_rate", tracking_update_rate_, 10.0);
+        node_.param("dynamic_tracking/tracking_ts", ts_, 0.35);
+        node_.param("dynamic_tracking/pose_type",pose_type_,1);
         last_tracking_update_time_.fromSec(0);
         tracking_need_update_ = false;
 
         /* 初始化聚类器 */
-        node_.param("dynamicTracking/cluster_pts", minPts_, 4);
-        node_.param("dynamicTracking/epsilon", eps_, 0.5);
+        node_.param("dynamic_tracking/cluster_pts", minPts_, 4);
+        node_.param("dynamic_tracking/epsilon", eps_, 0.5);
         cluster_ptr_->init(minPts_, eps_);
 
         /* 初始化随机器 */
@@ -64,6 +65,21 @@ namespace dynamic_tracker
         
         // xi[k+1] = A * xi[k] + N(0,Q);
         // zi[k] = H * xi[k] + N(0,R); 
+
+        /* init callback */
+        cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "dynamoc_trakcing/cloud", 1));
+        if(pose_type_ == POSE_STAMPED)
+        {
+            pose_sub_.reset(new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "dynamic_tracking/pose", 1));
+            sync_cloud_pose_.reset(new message_filters::Synchronizer<SyncPolicyCloudPose>(SyncPolicyCloudPose(10), *cloud_sub_,*pose_sub_));
+            sync_cloud_pose_->registerCallback(boost::bind(&DynamicTracker::cloudPoseCallback, this, _1,_2));
+        }
+        else if(pose_type_ == ODOMETRY)
+        {
+            odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "dynamic_tracking/odom", 1));
+            sync_cloud_odom_.reset(new message_filters::Synchronizer<SyncPolicyCloudOdom>(SyncPolicyCloudOdom(10), *cloud_sub_,*odom_sub_));
+            sync_cloud_odom_->registerCallback(boost::bind(&DynamicTracker::cloudOdomCallback, this, _1,_2));
+        }
 
 
         /* 雷达相对于机身的位置 */

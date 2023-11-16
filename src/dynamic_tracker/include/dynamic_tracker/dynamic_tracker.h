@@ -61,16 +61,21 @@ namespace dynamic_tracker
         Vector4d predict(int timestep); // 预测timestep步
 
     };
-    
+
     class DynamicTracker
     {
-
 
 
         public:
             DynamicTracker();
             ~DynamicTracker();
             void init(const ros::NodeHandle& nh);
+            enum
+            {
+                POSE_STAMPED = 1,
+                ODOMETRY = 2,
+                INVALID_IDX = -10000
+            };
 
         private:
             /**
@@ -130,6 +135,8 @@ namespace dynamic_tracker
         private:   
 
             ros::NodeHandle node_; // 句柄
+            int pose_type_; // 
+
 
             /* timeout */
             double tracking_update_timeout_;
@@ -151,11 +158,17 @@ namespace dynamic_tracker
 
 
             /* ros publisher subscribe timer */
-            typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> syncPolicyCloudOdom;
-            typedef std::unique_ptr<message_filters::Synchronizer<syncPolicyCloudOdom>> synchronizerCloudOdom;
-            std::unique_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> cloud_sub;
-            std::unique_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odom_sub;
-            synchronizerCloudOdom sync_cloud_odom_;
+            typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> SyncPolicyCloudOdom;
+            typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, geometry_msgs::PoseStamped> SyncPolicyCloudPose;
+
+            typedef std::unique_ptr<message_filters::Synchronizer<SyncPolicyCloudOdom>> SynchronizerCloudOdom;
+            typedef std::unique_ptr<message_filters::Synchronizer<SyncPolicyCloudPose>> SynchronizerCloudPose;
+
+            std::unique_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> cloud_sub_;
+            std::unique_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odom_sub_;
+            std::unique_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> pose_sub_;
+            SynchronizerCloudOdom sync_cloud_odom_;
+            SynchronizerCloudPose sync_cloud_pose_;
             
             ros::Publisher dynamic_object_pub_,dynamic_cloud_pub_,dynamic_traj_pub_;
             ros::Timer update_timer_;
