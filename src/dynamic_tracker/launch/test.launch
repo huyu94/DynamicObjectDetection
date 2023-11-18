@@ -1,0 +1,9 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<launch>
+    <node pkg="dynamic_tracker" name="dynamic_tracker" type="main_node" output="screen" />
+
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find dynamic_tracker)/config/default.rviz" />
+
+    <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/huyu/bags/gazebo2long.bag"/>
+
+</launch>

@@ -10,10 +10,14 @@
 #include "dbscan_cluster.h"
 #include <ros/ros.h>
 #include <ros/console.h>
+#include <munkres.h>
+
+
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
+
 
 #include <Eigen/Eigen>
 #include <unsupported/Eigen/MatrixFunctions>
@@ -22,54 +26,82 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/common/transforms.h>
-
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/time_synchronizer.h>
 
+
+using VectorXd = Eigen::VectorXd;
+using MatrixXd = Eigen::MatrixXd;
+using Matrix4d = Eigen::Matrix4d;
+using Quaterniond = Eigen::Quaterniond;
+using Vector3d = Eigen::Vector3d;
+using ClusterPtr = dbscan::DBSCANCluster::Ptr;
+using Vector4d = Eigen::Vector4d;
+using Vector2d = Eigen::Vector2d;
+using Vector6d = Eigen::Matrix<double,6,1>;
+using Matrix6d = Eigen::Matrix<double,6,6>;
+
 namespace dynamic_tracker
 {
-    using VectorXd = Eigen::VectorXd;
-    using MatrixXd = Eigen::MatrixXd;
-    using Matrix4d = Eigen::Matrix4d;
-    using Quaterniond = Eigen::Quaterniond;
-    using Vector3d = Eigen::Vector3d;
-    using ClusterPtr = dbscan::DBSCANCluster::Ptr;
-    using Vector4d = Eigen::Vector4d;
-    using Vector2d = Eigen::Vector2d;
-    using Vector6d = Eigen::Matrix<double,6,1>;
+
+    struct EllipsoidFeature
+    {
+        EllipsoidFeature(Vector6d state, Vector3d axis, Matrix6d P):state_(state),axis_(axis),P_(P){};
+        ~EllipsoidFeature(){};
+        Vector6d state_;   // 6x1   [x,y,z,vx,vy,vz]
+        Vector3d axis_;   // 椭球三个轴的长度
+        Matrix6d P_;
+        bool is_alive_; // 是否还存活
+        int disappear_time_;// 消失时间
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_; // 存储点云
+        std::queue<Vector3d> history_traj_;
+    };
 
     class KalmanFilter
     {
-        Vector4d state_last_; // 4x1
-        Matrix4d A_; // 4x4
-        Matrix4d P_last_; // 4x4 
-        Matrix4d Rc_; // 4x4
-        Matrix4d Qc_; // 4x4
-        Matrix4d H_; // 4x4
+    public:
+        Matrix6d A_; // 6x6
+        Matrix6d Rc_; // 6x6
+        Matrix6d Qc_; // 6x6
+        Matrix6d H_; // 6x6
         double ts_;
-        
         /* 初始化 */
-        KalmanFilter(Vector4d& init_state,double ts);
-    public: 
+        KalmanFilter(Matrix6d A, Matrix6d B, Matrix6d C, Matrix6d Q, Matrix6d R, Matrix6d P, double ts)
+        : A_(A), Qc_(Q), Rc_(R), ts_(ts){};
+        KalmanFilter(double ts): ts_(ts){
+            A_ = Matrix6d::Identity();
+            A_(0, 3) = ts_;
+            A_(1, 4) = ts_;
+            A_(2, 5) = ts_;
+            H_ = Matrix6d::Identity();
+            Qc_ = Matrix6d::Identity() * 0.05;
+            Qc_(2, 2) = 0;
+            Qc_(5, 5) = 0;
+            Rc_ = Matrix6d::Identity() * 1;
+            Rc_(2, 2) = 0;
+            Rc_(5, 5) = 0;
+        }
         /* 更新 */
-        Vector4d update(const Vector4d& obs);
+        Vector6d update(Vector6d& state, Matrix6d& P_, const Vector6d &obs);
         /* 预测 */
-        Vector4d predict(); // 预测一步
-        Vector4d predict(int timestep); // 预测timestep步
-
+        Vector6d predict(const Vector6d &state); // 预测一步
+        Vector6d predict(const Vector6d &state, int timestep); // 预测timestep步
+    
+        typedef std::unique_ptr<KalmanFilter> Ptr;
     };
+
+
 
     class DynamicTracker
     {
 
 
-        public:
-            DynamicTracker();
-            ~DynamicTracker();
-            void init(const ros::NodeHandle& nh);
+
             enum
             {
                 POSE_STAMPED = 1,
@@ -82,7 +114,7 @@ namespace dynamic_tracker
              * @brief 根据卡尔曼滤波融合当前帧的簇信息
              * @param predicted_clusters, 之前跟踪的簇传播到当前帧，[x,y,vx,vy]
              */
-            void forwardPropagation(std::vector<Vector4d>& predicted_clusters);
+            void forwardPropagation(std::vector<Vector6d>& predicted_clusters);
             
             /* 聚类 */
             /**
@@ -94,12 +126,12 @@ namespace dynamic_tracker
             */
             void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::Indices& cloud_ids,std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
             
-            /**
-             * @brief 生成移动椭圆 
-             * @param point_clusters, 点云簇
-             * @param ellpsoids, 生成对应椭圆的信息,[x,y,z,axis]
-             */  
-            void generateEllipsoids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& point_clusters,std::vector<Vector6d>& ellpsoids);
+            // /**
+            //  * @brief 生成移动椭圆 
+            //  * @param point_clusters, 点云簇
+            //  * @param ellpsoids, 生成对应椭圆的信息,[x,y,z,axis]
+            //  */  
+            // void generateEllipsoids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& point_clusters,std::vector<Vector6d>& ellpsoids);
 
             /** 
              * @brief match observed points and tracking points
@@ -107,12 +139,13 @@ namespace dynamic_tracker
              * 1. 传入聚类好的点云簇，计算对应的点云质心。
              * 2. 用最近邻匹配算法来匹配当前帧和之前前向传播过来的簇 
              */
-            void match(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters); 
+            void match(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& observed_clusters); 
 
             /* 投票函数，决定簇的速度 */
             void vote();
             /* 核心更新函数，更新所有 */
-            void update(); 
+            void update(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& observed_clusters); 
+
 
 
         private:
@@ -125,11 +158,17 @@ namespace dynamic_tracker
 
             void updateDynamicTrackingCallback(const ros::TimerEvent&);
 
+            void visCallback(const ros::TimerEvent&);
+            void publishCloud();
+
             bool checkCloudOdomNeedUpdate();
             /* 发布跟踪的*/
             
             void publishDynamicObject();
             void publishDynamicEllipsoid();
+
+            static void generateEllipsoid(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, Vector6d &ellipsoid);
+
 
 
         private:   
@@ -144,6 +183,10 @@ namespace dynamic_tracker
             bool tracking_need_update_; // 是否需要更新，有点云和odom数据之后为true，更新完后为false
             int tracking_disappear_remain_frame_threshold; // tracking 丢失，保留的帧数
             double tracking_update_rate_; // 更新周期 
+
+            /* 点云滤波 */
+            double clip_height_;
+
 
             /* 聚类器 */
             ClusterPtr cluster_ptr_; // cluster base on dbscan algorithm 
@@ -171,6 +214,7 @@ namespace dynamic_tracker
             SynchronizerCloudPose sync_cloud_pose_;
             
             ros::Publisher dynamic_object_pub_,dynamic_cloud_pub_,dynamic_traj_pub_;
+            ros::Publisher temp_cloud_pub_;
             ros::Timer update_timer_;
 
 
@@ -178,22 +222,17 @@ namespace dynamic_tracker
             double ts_; // 系统帧的时间
 
             // std::vector<int> observed_cluster_ids; 
-            std::vector<int> tracking_cluster_ids; // 追踪的cluster当前id
-            std::vector<std::queue<Vector2d>> tracking_clusters_traj;  // 追踪簇的状态[x,y,vx,vy], 第一维簇序号，第二维簇历史
+            /* 新一版所需要的变量 */
+            std::vector<EllipsoidFeature> tracking_clusters_; // 维持跟踪的椭球
             
-            std::vector<KalmanFilter> tracking_clusters;
-            std::vector<pcl::PointCloud<pcl::PointXYZ>> tracking_clusters_cloud; // 追踪的动态物体的点云
-            std::vector<Vector3d> tracking_ellipsoids; // 对应簇的三个轴的长度
-            std::vector<int> disappear_frames;
-
-            typedef std::unique_ptr<DynamicTracker> Ptr; // 单例模式
+        public:
+            DynamicTracker(){};
+            ~DynamicTracker(){};
+            void init(const ros::NodeHandle& nh);
             EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+            typedef std::unique_ptr<DynamicTracker> Ptr; 
 
     };
-
-
-
-
 
 }
 

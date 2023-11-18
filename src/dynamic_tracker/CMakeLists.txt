@@ -36,6 +36,11 @@ include_directories(
   ${Eigen3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   )
+include_directories(
+  /usr/local/include/munkres
+)
+set(MunkresLIB /usr/local/lib/libmunkres.a)
+
 
 add_library(dynamic_tracker
   src/dynamic_tracker.cpp
@@ -43,8 +48,28 @@ add_library(dynamic_tracker
 target_link_libraries(dynamic_tracker
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
+  ${MunkresLIB}
   )
 
+add_executable(main_node
+  src/main_node.cpp
+  src/dynamic_tracker.cpp
+  src/dbscan_cluster.cpp
+)
+target_link_libraries(main_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${MunkresLIB}
+)
+
+
+add_executable(test_node
+  src/test_node.cpp
+)
+target_link_libraries(test_node
+  ${catkin_LIBRARIES}
+  ${MunkresLIB}
+)
 
 
 
