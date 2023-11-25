@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  message_filters
 )
 
 
@@ -44,7 +45,10 @@ set(MunkresLIB /usr/local/lib/libmunkres.a)
 
 add_library(dynamic_tracker
   src/dynamic_tracker.cpp
-  src/dbscan_cluster.cpp)
+  src/dbscan_cluster.cpp
+  src/tracking_pool.cpp
+
+  )
 target_link_libraries(dynamic_tracker
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -55,6 +59,7 @@ add_executable(main_node
   src/main_node.cpp
   src/dynamic_tracker.cpp
   src/dbscan_cluster.cpp
+  src/tracking_pool.cpp
 )
 target_link_libraries(main_node
   ${catkin_LIBRARIES}

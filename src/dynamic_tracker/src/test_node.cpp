@@ -4,7 +4,7 @@
 #include <time.h>
 
 int main(){
-
+    /*
     Matrix<float> matrix_cost(6,5);
     matrix_cost(0,0) = 20;
     matrix_cost(0,1) = 1000000;
@@ -36,6 +36,20 @@ int main(){
     matrix_cost(5,2) = 6;
     matrix_cost(5,3) = 21;
     matrix_cost(5,4) = 15;
+    */
+    Matrix<float> matrix_cost(2,6);
+    matrix_cost(0,0) = 20;
+    matrix_cost(0,1) = 1000000;
+    matrix_cost(0,2) = 18;
+    matrix_cost(0,3) = 24;
+    matrix_cost(0,4) = 25;
+    matrix_cost(0,5) = 50;
+    matrix_cost(1,0) = 1000000;
+    matrix_cost(1,1) = 999999;
+    matrix_cost(1,2) = 1000000;
+    matrix_cost(1,3) = 1000000;
+    matrix_cost(1,4) = 1000000;
+    matrix_cost(1,5) = 1000000;
     Munkres<float> munkres_solver;
     clock_t t1,t2;
     t1 = clock();
