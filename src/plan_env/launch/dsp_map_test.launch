@@ -1,0 +1,19 @@
+<launch>
+    <node pkg="plan_env" type="dsp_map_node" name="particle_map" output="screen">
+        <!-- <remap from="/dsp_map/pointcloud" to="/pcl_render_node/cloud"/>
+        <remap from="/dsp_map/pose" to="/odom_visualization/pose"/> -->
+        <param name="pose_type" value="2" type="int"/>
+        <param name="frame_id" value="map" type="string"/>
+        <param name="odom_lidar_timeout" value="0.35" type="double"/>
+        <param name="local_update_range_x" value="5" type="double"/>
+        <param name="local_update_range_y" value="5" type="double"/>
+        <param name="local_update_range_z" value="2" type="double"/>
+        <param name="enable_virtual_wall" value="false" type="bool"/>
+        <param name="virtual_ceil" type="double" value="10"/>
+        <param name="virtual_ground" type="double" value="0"/>
+
+
+        <param name="odom_topic" type="string" value="/iris/mavros/local_position/odom"/>
+    </node>
+    <!-- <node pkg="rviz" type="rviz" name="dsp_map" args="-d $(find plan_env)/config/default.rviz"/> -->
+</launch>

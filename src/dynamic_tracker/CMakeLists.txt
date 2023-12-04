@@ -13,6 +13,7 @@ find_package(PCL 1.7 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  roslib
   std_msgs
   message_filters
 )
