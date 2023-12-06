@@ -65,13 +65,13 @@ struct ClusterFeature{
 struct MappingParamters
 {
     bool have_initialized_ = false;
-    Vector3d local_update_range3d_; // half of update range
-    Vector3i local_update_range3i_;
+    Vector3d local_update_range3d_; // half of update range double 
+    Vector3i local_update_range3i_; // half of update range int
 
-    int inf_grid_;
-    double obstacles_inflation_;
-    string frame_id_;
-    int pose_type_;
+    int inf_grid_; // inflate grid number 
+    double obstacles_inflation_; // inflat grid size double 
+    string frame_id_; // 
+    int pose_type_; // 
     bool enable_virtual_wall_; // 是否允许虚拟墙体出现
     double virtual_ceil_, virtual_ground_; // 虚拟天花板、虚拟地面
     /* time */
@@ -90,25 +90,27 @@ struct MappingParamters
     float voxel_filter_resolution_; // 体素滤波的分辨率
     float angle_resolution_rad_; //角度分辨率-弧度制
     float half_angle_resolution_rad_; //角度分辨率的一一半-弧度制
-    double half_fov_horizontal_;
-    double half_fov_vertical_;
+    int half_fov_horizontal_;
+    int half_fov_vertical_;
     float half_fov_horizontal_rad_; // 水平方向的视场角的一半-弧度制
     float half_fov_vertical_rad_;  // 垂直方向的视场角的一半-弧度制
 
 
     /* voxel subspace  */ 
-    int voxel_num_;
-    int safe_particle_num_;
+    int voxel_num_; 
+    int max_particle_num_in_voxel_;
     int safe_particle_num_in_voxel_;
-    int max_particle_num_in_voxel_; // 每个体素子空间中粒子的最大数量
+    int safe_particle_num_in_pyramid_;// fov空间中最大的粒子数量
+    int voxel_objects_number_dimension; // voxel object number 第二维的维度
+
+    // int max_particle_num_in_voxel_; // 每个体素子空间中粒子的最大数量
     
     /* pyramid subspace */
     int pyramid_num_;
     int observation_pyramid_num_;
-    int safe_particle_num_in_pyramid_;// fov空间中最大的粒子数量
     int observation_max_points_num_one_pyramid_; // fov空间中最大的观测点数量
-    int pyramid_neighbor_;// 金字塔空间邻居数量
-    int pyramid_neighbor_num_;
+    int pyramid_neighbor_one_dimension_; // 单方向上的邻居个数
+    int pyramid_neighbor_num_; // 单个金字塔空间邻居数量最大值
     int observation_pyramid_num_horizontal_; 
     int observation_pyramid_num_vertical_; 
 
@@ -137,19 +139,23 @@ struct MappingParamters
     float P_detection; //被检测到的概率
     float new_born_particle_weight_;
     int new_born_particle_number_each_point_;
+    int position_guassian_random_seq_;
+    int velocity_gaussian_random_seq_;
+
+    /* new born */
+    float expected_new_born_objects_;
+    float new_born_each_object_weight_;
 
     /* random param*/
-    int GAUSSIAN_RANDOM_NUM;
-    int voxel_objects_number_dimension;
+    const int guassian_random_num_ = 1000000;
     vector<float> p_gaussian_randoms;
     vector<float> v_gaussian_randoms;
+    const int standard_gaussian_pdf_num_ = 20000;
     vector<float> standard_gaussian_pdf;
-    int standard_gaussian_pdf_num_;
-    const int guassian_random_num_ = 1000000;
 
 /*===============================================================*/
 
-    const int max_point_num_ = 5000;
+    const int max_point_num_ = 5000; // input cloud max size 
 
 
     /* camera parameters */
@@ -187,20 +193,29 @@ struct MappingData
     // 8.weight 9.update time
     // flag 要不要改？ 不确定
     vector<vector<vector<float>>> voxels_with_particles;
-    //1. objects sum weights; 2-4. Avg vx, vy, vz; 5-9. Future objects number  10. 是否这个子空间后来被更新过，也就是mapmove出去的地图空间要置0.f
-// static float voxels_objects_number[VOXEL_NUM][voxels_objects_number_dimension];
+    // 1. objects sum weights; 2-4. Avg vx, vy, vz; 5-9. Future objects number  10. 是否这个子空间后来被更新过，也就是mapmove出去的地图空间要置0.f
+    // static float voxels_objects_number[VOXEL_NUM][voxels_objects_number_dimension];
     vector<vector<float>> voxels_objects_number; // 对应体素的信息
-    vector<vector<vector<float>>> pyramids_in_fov; // 用来存放fov空间中的粒子
-    vector<vector<int>> observation_pyramid_neighbours; 
+    // list for the future status of voxels
     vector<vector<float>> future_status;
-    vector<float> input_points_;
+    // list for pyramids in fov
+    // observation_pyramid_num fov视角里金字塔子空间的数量，SAFE_PARTICLE_NUM_PYRAMID 每个金字塔子空间中粒子的最大数量
+    // 0.flag:{0 invalid;1:valid}
+    // 1.particle voxel index  2.particle index inside voxel，在金字塔子空间中的粒子个数
+    vector<vector<vector<int>>> pyramids_in_fov; // 用来存放fov空间中的粒子
+    // 金字塔子空间的邻居数组，1维是子空间下标，2维{0:邻居数，1-end:邻居下标}
+    vector<vector<int>> observation_pyramid_neighbours; 
+    // list for observed point cloud in pyramid of fov 
     // 每个金字塔空间中的观测点的情况，即为观测点，point_cloud_in_pyramid
     // 0.px, 1.py, 2.pz 3.acc 4.length for later usage
     // row:金字塔体素数量，column:每个金字塔空间最大观测点数
     vector<vector<vector<float>>> point_cloud_in_pyramid;// 用来存放FOV空间中的观测点
     vector<int> point_num_in_pyramid; // 用来fov金字塔空间中的观测点数量
+    // list for the max depth of pyramid of fov 
+    
+    vector<float> input_points_; // odom+lidar-callback input points
+    // list for the number of observed point cloud in pyramid of fov
     vector<float> max_depth_in_pyramid; // 用来fov金字塔空间中的深度
-    vector<double> occupancy_buffer; // 
     vector<uint16_t> occupancy_buffer_inflate_;
 
     /* velocity estimation */
@@ -209,13 +224,10 @@ struct MappingData
     std::vector<ClusterFeature> cluster_features_dynamic_last_;   // 上一帧的分类的cluster                                                            
 
     /* variables */
-    int position_guassian_random_seq_;
-    int velocity_gaussian_random_seq_;
-    float kappa_;
+
     int update_time_update_counter_; //参数update_time_的更新次数
     int update_times_; // 方法mapUpdate的更新次数
-    float expected_new_born_objects_;
-    float new_born_each_object_weight_;
+
 
 
     /* time */
@@ -308,8 +320,12 @@ private:
     void clearBuffer(char casein, int bound);
     void moveRingBuffer();
     
+    /* ====================================================================================== */
+
     /* particle core */
-    bool addAParticle(const Particle &p, int voxel_index) ;
+    bool addAParticle(shared_ptr<Particle> p, int voxel_index) ;
+    void addRandomParticles(int particle_num, float avg_weight);
+
     int moveAParticle(int new_voxel_index, int current_v_index, int current_v_inner_index);
     // int moveAParticle(const int& new_voxel_index, const int current_v_index, int current_v_inner_index, float *ori_particle_flag_ptr);
     
@@ -318,7 +334,7 @@ private:
     void mapAddNewBornParticleByObservation();
     void mapOccupancyCalculationAndResample();
     // generate random number;
-    void generateGaussianRandomsVectorZeroCenter() const;
+    void generateGaussianRandomsVectorZeroCenter();
     float getPositionGaussianZeroCenter();
     float getVelocityGaussianZeroCenter();
     bool inPyramidsAreaInSensorFrame(float x,float y,float z);
@@ -326,7 +342,7 @@ private:
     int findPointPyramidVerticalIndexInSensorFrame(float x,float y,float z);
     void getKMClusterResult(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cluster_cloud);
 
-    /**********************************/
+
 
     inline void changeInBuf(const bool dir, const int inf_buf_idx, const Vector3i global_idx);
     inline int setCacheOccupancy(Vector3d pos, int occ);
@@ -357,7 +373,7 @@ private:
 
     void velocityEstimationThread();
     void setOriginVoxelFilterResolution(float res);
-    void findPyramidNeighborIndexInFOV(int index, vector<vector<float>> &neighobrs_list);
+    void findPyramidNeighborIndexInFOV(int index);
     void removeParticle(int voxel_index,int voxel_inner_index);
     float standardNormalPDF(float value);
     void calculateNormalPDFBuffer();
@@ -367,6 +383,12 @@ private:
 
     static float generateRandomFloat(float min, float max);
 
+
+
+    void setPredictionVariance(float p_stddev, float v_stddev);
+    void setObservationStdDev(float ob_stddev);
+    void setNewBornParticleWeight(float weight);
+    void setNewBornParticleNumberofEachPoint(int num);
 };
 
 /* =================================================== definition of inline function 
@@ -393,6 +415,35 @@ private:
 //     return idx_ctns;
 // }
 
+/* particle map ==========================================================*/
+/// @brief 设置位置预测和速度预测的方差
+/// @param p_stddev 传入的位置方差
+/// @param v_stddev 传入的速度方差
+void ParticleMap::setPredictionVariance(float p_stddev, float v_stddev){
+    mp_.position_prediction_stddev = p_stddev;
+    mp_.velocity_prediction_stddev = v_stddev;
+    // regenerate randoms
+    generateGaussianRandomsVectorZeroCenter();
+}
+
+/// @brief 设置观测方差
+/// @param ob_stddev 
+void ParticleMap::setObservationStdDev(float ob_stddev){
+    mp_.sigma_ob = ob_stddev;
+}
+
+/// @brief 设置新产生粒子的权重
+void ParticleMap::setNewBornParticleWeight(float weight){
+    mp_.new_born_particle_weight_ = weight;
+}
+
+
+void ParticleMap::setNewBornParticleNumberofEachPoint(int num){
+    mp_.new_born_particle_number_each_point_ = num;
+}
+
+
+/* ============================================================= */
 inline void ParticleMap::changeInBuf(const bool dir, const int inf_buf_idx, const Vector3i global_idx)
 {
     int inf_grid = mp_.inf_grid_;

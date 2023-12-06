@@ -103,6 +103,8 @@ static const int SAFE_PARTICLE_NUM = VOXEL_NUM * MAX_PARTICLE_NUM_VOXEL + 1e5; /
 static const int SAFE_PARTICLE_NUM_VOXEL = MAX_PARTICLE_NUM_VOXEL * 2; //  
 static const int SAFE_PARTICLE_NUM_PYRAMID = SAFE_PARTICLE_NUM/PYRAMID_NUM * 2; // 
 
+
+
 //An estimated number. If the observation points are too dense (over 100 points in one pyramid), the overflowed points will be ignored. It is suggested to use a voxel filter to the original point cloud.
 static const int observation_max_points_num_one_pyramid = 100; // 一个金字塔空间中最大的粒子数
 
