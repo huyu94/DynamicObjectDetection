@@ -1204,7 +1204,7 @@ void DspMap::mapOccupancyCalculationAndResample()
         {
             if(voxels_with_particle[v_index][p][0] > 0.1f){ // 不是INVALID 粒子
                 if(voxels_with_particle[v_index][p][7] < 1e-3){ // 权重很小，几乎为0
-                    voxels_with_particle[v_index][p][0] = 0.f;  // Remove the particle directly if the weight is too small
+                    voxels_with_particle[v_index][p][0] = 0.f; 
                 }else{ //如果有一定权重
                     // ROS_INFO("HEWRWERWE");
 

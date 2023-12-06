@@ -5,7 +5,7 @@
 #include <random>
 #include <queue>
 #include <array>
-
+#include "munkres.h"
 
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
@@ -18,7 +18,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/search>
+#include <pcl/search/search.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -37,6 +39,7 @@
 using namespace std;
 using Vector3d = Eigen::Vector3d;
 using Vector3i = Eigen::Vector3i;
+using Vector3f = Eigen::Vector3f;
 using Matrix3d = Eigen::Matrix3d;
 using Matrix4d = Eigen::Matrix4d;
 using Quaterniond = Eigen::Quaterniond;
@@ -71,41 +74,56 @@ struct MappingParamters
     int pose_type_;
     bool enable_virtual_wall_; // 是否允许虚拟墙体出现
     double virtual_ceil_, virtual_ground_; // 虚拟天花板、虚拟地面
-    /* time out */
+    /* time */
     double odom_lidar_timeout_;
+    
 
     /* visualization  and computation time display */
     bool show_occ_time_;
 
     /* particle map */
-    /* const */
+    /* resolution */
     float voxel_resolution_;// 体素分辨率
     float voxel_resolution_inv_;
     float angle_resolution_; // 角度分辨率
     float angle_resolution_inv_;
-    // const float angle_resolution_rad_ = 
+    float voxel_filter_resolution_; // 体素滤波的分辨率
+    float angle_resolution_rad_; //角度分辨率-弧度制
+    float half_angle_resolution_rad_; //角度分辨率的一一半-弧度制
+    double half_fov_horizontal_;
+    double half_fov_vertical_;
+    float half_fov_horizontal_rad_; // 水平方向的视场角的一半-弧度制
+    float half_fov_vertical_rad_;  // 垂直方向的视场角的一半-弧度制
+
+
+    /* voxel subspace  */ 
+    int voxel_num_;
+    int safe_particle_num_;
+    int safe_particle_num_in_voxel_;
+    int max_particle_num_in_voxel_; // 每个体素子空间中粒子的最大数量
+    
+    /* pyramid subspace */
+    int pyramid_num_;
+    int observation_pyramid_num_;
+    int safe_particle_num_in_pyramid_;// fov空间中最大的粒子数量
+    int observation_max_points_num_one_pyramid_; // fov空间中最大的观测点数量
     int pyramid_neighbor_;// 金字塔空间邻居数量
     int pyramid_neighbor_num_;
-    int max_particle_num_in_voxel_; // 每个体素子空间中粒子的最大数量
+    int observation_pyramid_num_horizontal_; 
+    int observation_pyramid_num_vertical_; 
+
+    /* prediction future */
     int prediction_time_; // 预测时间区间
-    
+    std::vector<float> prediction_future_time_;
+
     /* velocity estimation */
     int dynamic_cluster_max_point_num_;
     float dynamic_cluster_max_center_height_;
+    float distance_gate_;
+    float point_num_gate_;
+    float maximum_velocity_;
 
     /* non const */
-    float voxel_filter_resolution_; // 体素滤波的分辨率
-    std::vector<float> prediction_future_time_;
-    int observation_pyramid_num_horizontal_; 
-    int observation_pyramid_num_vertical_;
-    double half_fov_horizontal_;
-    double half_fov_vertical_;
-    int voxel_num_;
-    int observation_pyramid_num_;
-    int pyramid_num_;
-    int safe_particle_num_;
-    int safe_particle_num_in_voxel_;
-    int safe_particle_num_in_pyramid_;
 
     /* particle output */
     bool if_record_particle_csv;
@@ -117,19 +135,19 @@ struct MappingParamters
     float kappa;
     float sigma_ob;
     float P_detection; //被检测到的概率
+    float new_born_particle_weight_;
+    int new_born_particle_number_each_point_;
 
-
-    int observation_max_points_num_one_pyramid;
+    /* random param*/
     int GAUSSIAN_RANDOM_NUM;
-
     int voxel_objects_number_dimension;
-
     vector<float> p_gaussian_randoms;
     vector<float> v_gaussian_randoms;
     vector<float> standard_gaussian_pdf;
     int standard_gaussian_pdf_num_;
     const int guassian_random_num_ = 1000000;
 
+/*===============================================================*/
 
     const int max_point_num_ = 5000;
 
@@ -171,48 +189,55 @@ struct MappingData
     vector<vector<vector<float>>> voxels_with_particles;
     //1. objects sum weights; 2-4. Avg vx, vy, vz; 5-9. Future objects number  10. 是否这个子空间后来被更新过，也就是mapmove出去的地图空间要置0.f
 // static float voxels_objects_number[VOXEL_NUM][voxels_objects_number_dimension];
-    vector<vector<float>> voxels_objects_number;
-    vector<vector<vector<float>>> pyramids_in_fov;
-    vector<vector<int>> observation_pyramid_neighbours;
+    vector<vector<float>> voxels_objects_number; // 对应体素的信息
+    vector<vector<vector<float>>> pyramids_in_fov; // 用来存放fov空间中的粒子
+    vector<vector<int>> observation_pyramid_neighbours; 
     vector<vector<float>> future_status;
     vector<float> input_points_;
-    float delt_t_from_last_observation;
-
+    // 每个金字塔空间中的观测点的情况，即为观测点，point_cloud_in_pyramid
+    // 0.px, 1.py, 2.pz 3.acc 4.length for later usage
+    // row:金字塔体素数量，column:每个金字塔空间最大观测点数
+    vector<vector<vector<float>>> point_cloud_in_pyramid;// 用来存放FOV空间中的观测点
+    vector<int> point_num_in_pyramid; // 用来fov金字塔空间中的观测点数量
+    vector<float> max_depth_in_pyramid; // 用来fov金字塔空间中的深度
     vector<double> occupancy_buffer; // 
     vector<uint16_t> occupancy_buffer_inflate_;
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_current_view_rotated;
-    pcl::PointCloud<pcl::PointXYZINormal>::Ptr input_cloud_with_velocity; 
-
+    /* velocity estimation */
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_map_; // 传进来的全局点云
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr input_cloud_with_velocity_; // 速度估计后的点云
+    std::vector<ClusterFeature> cluster_features_dynamic_last_;   // 上一帧的分类的cluster                                                            
 
     /* variables */
     int position_guassian_random_seq_;
     int velocity_gaussian_random_seq_;
     float kappa_;
-    float update_time_;
-    int update_counter_;
+    int update_time_update_counter_; //参数update_time_的更新次数
+    int update_times_; // 方法mapUpdate的更新次数
     float expected_new_born_objects_;
-    float new_born_particle_weight_;
-    int new_born_particle_number_each_point_;
     float new_born_each_object_weight_;
 
-    vector<vector<vector<float>>> point_cloud_in_pyramid;
-    vector<int> point_num_in_pyramid;
+
+    /* time */
+    ros::Time start_time_;
+    ros::Time last_update_time_;
+    ros::Time current_update_time_;
+
+
 
     // camera position and pose data
-    Vector3d camera_position_, last_camera_position_;
-    Matrix3d camera_rotation_, last_camera_rotation_;
-    Matrix4d camera2body_;
+    Vector3d lidar_position_, last_lidar_position_;
+    Matrix3d lidar_rotation_, last_lidar_rotation_;
+    Matrix4d lidar2body_;
 
     // flags of map state
     bool occ_need_update_, local_updated_;
-    bool has_first_depth_;
+    bool has_first_lidar_;
     bool has_odom_;
 
     // odom_depth_timeout
-    ros::Time last_occ_update_time_;
     bool flag_lidar_odom_timeout_;
-    bool flag_lidar_ever_received_depth_;
+    bool flag_have_ever_received_lidar_;
 
     // std::vector<short> count_hit_, count_hit_and_miss_;
     // std::vector<char> flag_traverse_, flag_rayend_;
@@ -258,6 +283,7 @@ private:
     inline Vector3i bufIdx2GlobalIdx(size_t address);
     inline Vector3i infBufIdx2GlobalIdx(size_t address);
     inline bool isInBuf(const Vector3d &pos);
+    inline bool isInBuf(const float x, const float y, const float z);
     inline bool isInBuf(const Vector3i &idx);
     inline bool isInInfBuf(const Vector3d &pos);
     inline bool isInInfBuf(const Vector3i &idx);
@@ -283,8 +309,9 @@ private:
     void moveRingBuffer();
     
     /* particle core */
-    bool addAParticle(const Particle &p, const int &voxel_index) const;
-    int moveAParticle(const int& new_voxel_index, const int current_v_index, int current_v_inner_index, float *ori_particle_flag_ptr);
+    bool addAParticle(const Particle &p, int voxel_index) ;
+    int moveAParticle(int new_voxel_index, int current_v_index, int current_v_inner_index);
+    // int moveAParticle(const int& new_voxel_index, const int current_v_index, int current_v_inner_index, float *ori_particle_flag_ptr);
     
     void mapPrediction();
     void mapUpdate();
@@ -294,7 +321,7 @@ private:
     void generateGaussianRandomsVectorZeroCenter() const;
     float getPositionGaussianZeroCenter();
     float getVelocityGaussianZeroCenter();
-    bool ifInPyramidsArea(float x,float y,float z);
+    bool inPyramidsAreaInSensorFrame(float x,float y,float z);
     int findPointPyramidHorizontalIndexInSensorFrame(float x,float y,float z);
     int findPointPyramidVerticalIndexInSensorFrame(float x,float y,float z);
     void getKMClusterResult(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cluster_cloud);
@@ -331,11 +358,11 @@ private:
     void velocityEstimationThread();
     void setOriginVoxelFilterResolution(float res);
     void findPyramidNeighborIndexInFOV(int index, vector<vector<float>> &neighobrs_list);
-    static void removeParticle(float *ori_particle_flag_ptr);
+    void removeParticle(int voxel_index,int voxel_inner_index);
     float standardNormalPDF(float value);
     void calculateNormalPDFBuffer();
     float queryNormalPDF(float &x,float &mu, float &sigma);
-    static void transformParticleToSensorFrame(Vector3d& transformPoint,const Vector3d &oriPoint, const Vector3d &position,const Quaterniond &rotation);
+    void transformParticleToSensorFrame(const Vector3d &oriPoint,Vector3d& transformPoint);
     static float clusterDistance(ClusterFeature &c1, ClusterFeature &c2);
 
     static float generateRandomFloat(float min, float max);
@@ -403,6 +430,8 @@ inline void ParticleMap::changeInBuf(const bool dir, const int inf_buf_idx, cons
         }
     }
 }
+
+
 
 /* global idx ------> buffer idx*/
 inline int ParticleMap::globalIdx2BufIdx(const Vector3i &id)
@@ -534,6 +563,19 @@ inline bool ParticleMap::isInBuf(const Vector3d &pos)
         return false;
     } 
     if(pos(0) > md_.ringbuffer_upbound3d_(0) || pos(1) > md_.ringbuffer_upbound3d_(1) || pos(2) > md_.ringbuffer_upbound3d_(2))
+    {
+        return false;
+    }
+    return true;
+}
+
+inline bool ParticleMap::isInBuf(const float x, const float y, const float z)
+{
+    if(x < md_.ringbuffer_lowbound3d_(0) || y < md_.ringbuffer_lowbound3d_(1) || z < md_.ringbuffer_lowbound3d_(2))
+    {
+        return false;
+    }
+    if(x > md_.ringbuffer_upbound3d_(0) || y > md_.ringbuffer_upbound3d_(1) || z > md_.ringbuffer_upbound3d_(2))
     {
         return false;
     }

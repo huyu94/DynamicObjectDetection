@@ -11,6 +11,8 @@
         <param name="enable_virtual_wall" value="false" type="bool"/>
         <param name="virtual_ceil" type="double" value="10"/>
         <param name="virtual_ground" type="double" value="0"/>
+        <param name="half_fov_horizontal" type="double" value="180"/>
+        <param name="half_fov_vertical" type="double" value="50"/>
 
 
         <param name="odom_topic" type="string" value="/iris/mavros/local_position/odom"/>
