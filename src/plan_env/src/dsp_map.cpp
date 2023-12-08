@@ -508,7 +508,7 @@ int DspMap::update(int point_cloud_num, int size_of_one_point, float *point_clou
     {
         Point origin_point,rotated_point;
         for(int i=0;i<3;i++)  origin_point[i] = point_cloud_ptr[iter_num+i];
-        //将传感器坐标系下的点云旋转到map坐标系下，map坐标系和world坐标系相差无人机的距离，姿态不差
+        // 将传感器坐标系下的点云旋转到map坐标系下，map坐标系和world坐标系相差无人机的距离，姿态不差
         // rotateVectorByQuaternion(origin_point, rotate_quaternion, rotated_point); 
         // 将世界坐标系下的点云旋转到传感器坐标系下，
         transformParticleToSensorFrame(rotated_point,origin_point,currentSensorPosition_,currentSensorRotation_);

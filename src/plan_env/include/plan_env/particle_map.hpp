@@ -1,10 +1,11 @@
 #ifndef _DSP_MAP_H_
-#define _DEP_MAP_H_
-
+#define _DSP_MAP_H_
+// #pragma once 
 #include <iostream>
 #include <random>
 #include <queue>
 #include <array>
+#include <thread>
 #include "munkres.h"
 
 #include <Eigen/Eigen>
@@ -21,6 +22,10 @@
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/common/common.h>
+#include <pcl/common/transforms.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -88,8 +93,9 @@ struct MappingParamters
     float angle_resolution_; // 角度分辨率
     float angle_resolution_inv_;
     float voxel_filter_resolution_; // 体素滤波的分辨率
-    float angle_resolution_rad_; //角度分辨率-弧度制
-    float half_angle_resolution_rad_; //角度分辨率的一一半-弧度制
+    // float angle_resolution_rad_; //角度分辨率-弧度制
+    // float half_angle_resolution_rad_; //角度分辨率的一一半-弧度制
+    const float one_degree_rad_ = M_PIf32 / 180;
     int half_fov_horizontal_;
     int half_fov_vertical_;
     float half_fov_horizontal_rad_; // 水平方向的视场角的一半-弧度制
@@ -193,9 +199,9 @@ struct MappingData
     // 8.weight 9.update time
     // flag 要不要改？ 不确定
     vector<vector<vector<float>>> voxels_with_particles;
-    // 1. objects sum weights; 2-4. Avg vx, vy, vz; 5-9. Future objects number  10. 是否这个子空间后来被更新过，也就是mapmove出去的地图空间要置0.f
+    // 对应体素的信息 : 0. objects sum weights; 1-3. Avg vx, vy, vz; 4-8. Future objects number  9. 是否这个子空间后来被更新过，也就是mapmove出去的地图空间要置0.f
     // static float voxels_objects_number[VOXEL_NUM][voxels_objects_number_dimension];
-    vector<vector<float>> voxels_objects_number; // 对应体素的信息
+    vector<vector<float>> voxels_objects_number; 
     // list for the future status of voxels
     vector<vector<float>> future_status;
     // list for pyramids in fov
@@ -219,7 +225,7 @@ struct MappingData
     vector<uint16_t> occupancy_buffer_inflate_;
 
     /* velocity estimation */
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_map_; // 传进来的全局点云
+    pcl::PointCloud<pcl::PointXYZ>::Ptr current_cloud_; // 传进来的全局点云 
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr input_cloud_with_velocity_; // 速度估计后的点云
     std::vector<ClusterFeature> cluster_features_dynamic_last_;   // 上一帧的分类的cluster                                                            
 
@@ -333,6 +339,7 @@ private:
     void mapUpdate();
     void mapAddNewBornParticleByObservation();
     void mapOccupancyCalculationAndResample();
+    void clearOccupancyMapPrediction();
     // generate random number;
     void generateGaussianRandomsVectorZeroCenter();
     float getPositionGaussianZeroCenter();
@@ -385,10 +392,10 @@ private:
 
 
 
-    void setPredictionVariance(float p_stddev, float v_stddev);
-    void setObservationStdDev(float ob_stddev);
-    void setNewBornParticleWeight(float weight);
-    void setNewBornParticleNumberofEachPoint(int num);
+    inline void setPredictionVariance(float p_stddev, float v_stddev);
+    inline void setObservationStdDev(float ob_stddev);
+    inline void setNewBornParticleWeight(float weight);
+    inline void setNewBornParticleNumberofEachPoint(int num);
 };
 
 /* =================================================== definition of inline function 
@@ -419,7 +426,7 @@ private:
 /// @brief 设置位置预测和速度预测的方差
 /// @param p_stddev 传入的位置方差
 /// @param v_stddev 传入的速度方差
-void ParticleMap::setPredictionVariance(float p_stddev, float v_stddev){
+inline void ParticleMap::setPredictionVariance(float p_stddev, float v_stddev){
     mp_.position_prediction_stddev = p_stddev;
     mp_.velocity_prediction_stddev = v_stddev;
     // regenerate randoms
@@ -428,17 +435,17 @@ void ParticleMap::setPredictionVariance(float p_stddev, float v_stddev){
 
 /// @brief 设置观测方差
 /// @param ob_stddev 
-void ParticleMap::setObservationStdDev(float ob_stddev){
+inline void ParticleMap::setObservationStdDev(float ob_stddev){
     mp_.sigma_ob = ob_stddev;
 }
 
 /// @brief 设置新产生粒子的权重
-void ParticleMap::setNewBornParticleWeight(float weight){
+inline void ParticleMap::setNewBornParticleWeight(float weight){
     mp_.new_born_particle_weight_ = weight;
 }
 
 
-void ParticleMap::setNewBornParticleNumberofEachPoint(int num){
+inline void ParticleMap::setNewBornParticleNumberofEachPoint(int num){
     mp_.new_born_particle_number_each_point_ = num;
 }
 
@@ -589,7 +596,7 @@ inline int ParticleMap::getOccupancy(const Vector3d &pos)
         return -1;
     }
 
-    return md_.occupancy_buffer[globalIdx2BufIdx(pos2GlobalIdx(pos))] > mp_.occupancy_thresh_ ? 1 : 0;
+    return md_.voxels_objects_number[globalIdx2BufIdx(pos2GlobalIdx(pos))][0] > mp_.occupancy_thresh_ ? 1 : 0;
 }
 
 inline int ParticleMap::getInflateOccupancy(const Vector3d &pos)
@@ -690,6 +697,8 @@ inline double ParticleMap::getResolution()
     return mp_.voxel_resolution_;
 }
 
-#endif
 
-}; // end namespace particle_map 
+}; // end namespace particle_map
+
+
+#endif
