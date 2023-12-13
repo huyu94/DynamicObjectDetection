@@ -12,10 +12,19 @@ void func(float x,float y, float z){
 
 }
 
-int main(int argc, char** argv){
 
-    Eigen::Vector3d a(1,2,3);
-    func(a[0],a[1],a[2]);
+
+int main(int argc, char** argv){
+    vector<int> c(10,2);
+
+    int &a = c[3];
+
+    a = 5;
+    for(auto &t : c)
+    {
+        cout << t << endl;
+    }
+
 
     return 0;
 

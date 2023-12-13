@@ -79,6 +79,13 @@ struct MappingParamters
     int pose_type_; // 
     bool enable_virtual_wall_; // 是否允许虚拟墙体出现
     double virtual_ceil_, virtual_ground_; // 虚拟天花板、虚拟地面
+    
+    /* enable future prediction */
+    bool enable_future_prediction_;
+    double prediction_z_height_;
+    double prediciton_y_offset_;
+
+    
     /* time */
     double odom_lidar_timeout_;
     
@@ -92,7 +99,7 @@ struct MappingParamters
     float voxel_resolution_inv_;
     float angle_resolution_; // 角度分辨率
     float angle_resolution_inv_;
-    float voxel_filter_resolution_; // 体素滤波的分辨率
+    double voxel_filter_resolution_; // 体素滤波的分辨率
     // float angle_resolution_rad_; //角度分辨率-弧度制
     // float half_angle_resolution_rad_; //角度分辨率的一一半-弧度制
     const float one_degree_rad_ = M_PIf32 / 180;
@@ -138,12 +145,12 @@ struct MappingParamters
     string particle_save_folder;
 
     /* map upadte parameters */
-    float position_prediction_stddev; //位置估计方差
-    float velocity_prediction_stddev; //速度估计方差
+    double position_prediction_stddev; //位置估计方差
+    double velocity_prediction_stddev; //速度估计方差
     float kappa;
-    float sigma_ob;
-    float P_detection; //被检测到的概率
-    float new_born_particle_weight_;
+    double sigma_ob;
+    double P_detection; //被检测到的概率
+    double new_born_particle_weight_;
     int new_born_particle_number_each_point_;
     int position_guassian_random_seq_;
     int velocity_gaussian_random_seq_;
@@ -204,18 +211,18 @@ struct MappingData
     vector<vector<float>> voxels_objects_number; 
     // list for the future status of voxels
     vector<vector<float>> future_status;
-    // list for pyramids in fov
+    // list for pyramids in fov，用来存放金字塔空间中的粒子
     // observation_pyramid_num fov视角里金字塔子空间的数量，SAFE_PARTICLE_NUM_PYRAMID 每个金字塔子空间中粒子的最大数量
     // 0.flag:{0 invalid;1:valid}
     // 1.particle voxel index  2.particle index inside voxel，在金字塔子空间中的粒子个数
-    vector<vector<vector<int>>> pyramids_in_fov; // 用来存放fov空间中的粒子
+    vector<vector<vector<int>>> pyramids_in_fov;
     // 金字塔子空间的邻居数组，1维是子空间下标，2维{0:邻居数，1-end:邻居下标}
     vector<vector<int>> observation_pyramid_neighbours; 
-    // list for observed point cloud in pyramid of fov 
+    // list for observed point cloud in pyramid of fov, 用来存放金字塔空间中的观测点 
     // 每个金字塔空间中的观测点的情况，即为观测点，point_cloud_in_pyramid
     // 0.px, 1.py, 2.pz 3.acc 4.length for later usage
     // row:金字塔体素数量，column:每个金字塔空间最大观测点数
-    vector<vector<vector<float>>> point_cloud_in_pyramid;// 用来存放FOV空间中的观测点
+    vector<vector<vector<float>>> point_cloud_in_pyramid;
     vector<int> point_num_in_pyramid; // 用来fov金字塔空间中的观测点数量
     // list for the max depth of pyramid of fov 
     
@@ -256,6 +263,7 @@ struct MappingData
     // odom_depth_timeout
     bool flag_lidar_odom_timeout_;
     bool flag_have_ever_received_lidar_;
+    bool flag_have_clear_prediction_this_turn_;
 
     // std::vector<short> count_hit_, count_hit_and_miss_;
     // std::vector<char> flag_traverse_, flag_rayend_;
@@ -308,6 +316,7 @@ private:
 
     void publishMap();
     void publishMapInflate();
+    void publishMapWithFutureStatus();
 
     /* receive callback */
     void lidarOdomCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
@@ -371,7 +380,7 @@ private:
     SynchronizerLidarPose sync_lidar_pose_;
 
     ros::Subscriber indep_cloud_sub_, indep_odom_sub_, indep_pose_sub_;
-    ros::Publisher map_pub_, map_inflate_pub_;
+    ros::Publisher map_pub_, map_inflate_pub_,map_future_pub_;
     ros::Timer occ_update_timer_, vis_timer_;
 
     uniform_real_distribution<double> rand_noise_;
@@ -384,13 +393,12 @@ private:
     void removeParticle(int voxel_index,int voxel_inner_index);
     float standardNormalPDF(float value);
     void calculateNormalPDFBuffer();
-    float queryNormalPDF(float &x,float &mu, float &sigma);
+    float queryNormalPDF(float x,float mu, double sigma);
     void transformParticleToSensorFrame(const Vector3d &oriPoint,Vector3d& transformPoint);
     static float clusterDistance(ClusterFeature &c1, ClusterFeature &c2);
 
     static float generateRandomFloat(float min, float max);
-
-
+    static void colorAssign(int &r,int &g,int &b,float v,float value_min,float value_max,int reverse_color);
 
     inline void setPredictionVariance(float p_stddev, float v_stddev);
     inline void setObservationStdDev(float ob_stddev);
@@ -426,7 +434,7 @@ private:
 /// @brief 设置位置预测和速度预测的方差
 /// @param p_stddev 传入的位置方差
 /// @param v_stddev 传入的速度方差
-inline void ParticleMap::setPredictionVariance(float p_stddev, float v_stddev){
+inline void ParticleMap::setPredictionVariance(float p_stddev,float v_stddev){
     mp_.position_prediction_stddev = p_stddev;
     mp_.velocity_prediction_stddev = v_stddev;
     // regenerate randoms
@@ -680,6 +688,7 @@ inline bool ParticleMap::isInInfBuf(const Vector3i &idx)
     }
     return true;
 }
+
 
 inline Vector3d ParticleMap::globalIdx2Pos(const Vector3i &idx)
 {
