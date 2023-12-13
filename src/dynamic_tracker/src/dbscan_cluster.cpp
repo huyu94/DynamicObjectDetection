@@ -112,11 +112,11 @@ namespace dbscan
         if(adptive){
             for(size_t i = 0;i < input_cloud->size();i++){
                 eps_list[i] = input_cloud->points[i].intensity * sqrt(2) * rad * 8;
-                std::cout << eps_list[i] << " ";
+                // std::cout << eps_list[i] << " ";
 
                 boundEpsilon(eps_list[i]);
             }
-            std::cout << std::endl;
+            // std::cout << std::endl;
 
 
 

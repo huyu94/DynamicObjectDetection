@@ -78,8 +78,6 @@ namespace dynamic_tracker
         // indep_odom_sub_ = node_.subscribe<nav_msgs::Odometry>(odom_topic_,10,&DynamicTracker::indepOdomCallback,this);
         tracking_need_update_ = false;
         
-
-        
         /* 雷达相对于机身的位置 */
         // lidar2body_ << 0.0, 0.0, 1.0, 0.0,
         //     -1.0, 0.0, 0.0, 0.0,
@@ -395,8 +393,9 @@ namespace dynamic_tracker
         // for(size_t i = 0 ; i< observed_clusters.size();i++){
         //     ROS_INFO("cluster:%d,size:%d",i,observed_clusters[i]->size());
         // }
-
     }
+
+    
 
     void DynamicTracker::update(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &observed_clusters)
     {

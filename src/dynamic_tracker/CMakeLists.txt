@@ -77,6 +77,18 @@ target_link_libraries(test_node
   ${MunkresLIB}
 )
 
+add_executable(cluster_test_node
+  src/cluster_test_node.cpp
+  src/cluster_tester.cpp
+  src/dbscan_cluster.cpp
+
+)
+
+target_link_libraries(cluster_test_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${MunkresLIB}
+)
 
 
 

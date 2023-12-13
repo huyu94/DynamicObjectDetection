@@ -41,20 +41,21 @@ include_directories(/usr/local/include/munkres)
 set(MunkresLIB
         /usr/local/lib/libmunkres.a
         )
-
-link_directories(${PCL_LIBRARY_DIRS})
+# link_directories(${PCL_LIBRARY_DIRS})
 
 add_library( plan_env 
     src/grid_map.cpp 
     src/raycast.cpp
     src/dsp_map.cpp
     src/dsp_map_math.cpp
-    )
+)
 target_link_libraries( plan_env
     ${catkin_LIBRARIES} 
     ${PCL_LIBRARIES}
     ${MunkresLIB}
-    )  
+)  
+# add_dependencies(plan_env munkres)
+
 add_executable(dsp_map_node 
     src/dsp_map_node.cpp
     src/dsp_map.cpp
@@ -66,4 +67,5 @@ target_link_libraries(dsp_map_node
     ${PCL_LIBRARIES}
     ${MunkresLIB}
     )  
+# add_dependencies(plan_env munkres)
 
