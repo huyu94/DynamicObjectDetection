@@ -1,0 +1,49 @@
+
+<launch>
+    <!-- number of moving objects -->
+    <arg name="drone_id"/>
+    <arg name="map_size_x_"/>
+    <arg name="map_size_y_"/>
+    <arg name="map_size_z_"/>
+    <arg name="odom_topic"/>
+    
+    <!-- map -->
+    <node pkg ="dynamic_map_generator" name ="dynamic_map_generator" type ="dynamic_map_generator_node" >
+        <param name="sensing/rate"   value="10.0"/>   
+        <param name="sensing/range" value="5.0"/>
+        <param name="map/x_size"     value="$(arg map_size_x_)" />
+        <param name="map/y_size"     value="$(arg map_size_y_)" />
+        <param name="map/z_size"     value="$(arg map_size_z_)" />
+        <param name="map/resolution" value="0.1"/>        
+        <param name="map/frame_id"     value="world" />
+        <param name="map/seed" value="1"/>
+        <param name="map/obs_num"    value="20"/>
+    
+        <param name="obstacle/upper_vel" value="1.0"/>
+
+        <param name="aabb/lower_x" value="1.0"/>
+        <param name="aabb/upper_x" value="2.0"/>
+        <param name="aabb/lower_y" value="1.0"/>
+        <param name="aabb/upper_y" value="2.0"/>        
+        <param name="aabb/lower_z" value="2.0"/>
+        <param name="aabb/upper_z" value="5.0"/>        
+
+        <param name="cylinder/lower_rad" value="0.2"/>
+        <param name="cylinder/upper_rad" value="0.5"/>
+        <param name="cylinder/lower_hei" value="4.0"/>
+        <param name="cylinder/upper_hei" value="4.0"/>        
+    
+        <param name="circlegate/radius_l" value="0.7"/>        
+        <param name="circlegate/radius_h" value="2.5"/>        
+        <param name="circlegate/thickness" value="0.1"/>        
+        <param name="circlegate/dr" value="0.3"/>        
+        <param name="circlegate/theta" value="1.2"/>   
+        
+        <param name="odom_topic" value="$(arg odom_topic)"/>
+        
+        <!-- <remap from="~dynamic_map_generator/_local_map" to="drone_$(arg drone_id)_local_map"/> -->
+    </node>
+
+
+      
+</launch>

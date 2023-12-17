@@ -49,7 +49,7 @@ using Vector3f = Eigen::Vector3f;
 using Matrix3d = Eigen::Matrix3d;
 using Matrix4d = Eigen::Matrix4d;
 using Quaterniond = Eigen::Quaterniond;
-namespace particle_map{
+namespace ego_planner{
 
 struct Particle
 {
@@ -322,7 +322,7 @@ private:
         ODOMETRY = 2,
         INVALID_IDX = -10000
     };
-
+    void publishPose();
     void publishMap();
     void publishMapInflate();
     void publishMapWithFutureStatus();
@@ -389,7 +389,7 @@ private:
     SynchronizerLidarPose sync_lidar_pose_;
 
     ros::Subscriber indep_cloud_sub_, indep_odom_sub_, indep_pose_sub_;
-    ros::Publisher map_pub_, map_inflate_pub_,map_future_pub_;
+    ros::Publisher map_pub_, map_inflate_pub_,map_future_pub_,pose_pub_,aabb_pub_;
     ros::Timer occ_update_timer_, vis_timer_;
 
     uniform_real_distribution<double> rand_noise_;

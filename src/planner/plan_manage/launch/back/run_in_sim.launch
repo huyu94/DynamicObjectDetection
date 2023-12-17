@@ -51,7 +51,7 @@
     <arg name="max_acc" value="3.0" />
 
     <!--always set to 1.5 times grater than sensing horizen-->
-    <arg name="planning_horizon" value="7.5" /> 
+    <arg name="planning_horizon" value="4.5" /> 
 
     <arg name="use_distinctive_trajs" value="true" />
 
@@ -85,39 +85,7 @@
     
   </include>
 
-    <node pkg ="map_generator" name ="map_generator" type ="simple_dynamic_map" output = "screen">
-    
-        <param name="map/x_size"     value="$(arg map_size_x)" />
-        <param name="map/y_size"     value="$(arg map_size_y)" />
-        <param name="map/z_size"     value="$(arg map_size_z)" />
-        <param name="map/resolution" value="0.1"/>        
-        <param name="map/frame_id"     value="map" />
-        <param name="map/seed" value="1"/>
-        <param name="map/cylinder_num"    value="20"/>
-    
-        <param name="obstacle/upper_vel" value="1.0"/>
-
-
-        <param name="cylinder/lower_weight" value="0.2"/>
-        <param name="cylinder/upper_weight" value="1.0"/>
-        <param name="cylinder/lower_height" value="4.0"/>
-        <param name="cylinder/upper_height" value="4.0"/>     
-        <param name="cylinder/upper_vel" value="0.1"/>
-        <param name="cylinder/set_cylinder" value="false"/>
-        <!-- 0 satic , 1: XAxis, 2: Y:Axis, 3:Random-->
-        <param name="cylinder/move_mode" value="2"/>
-        <param name="cylinder/pos_mode" value="1"/>   
-    
-        <param name="circle/radius_l" value="0.7"/>        
-        <param name="circle/radius_h" value="2.5"/>        
-        <param name="circle/thickness" value="0.1"/>        
-        <param name="circle/dr" value="0.3"/>        
-        <param name="circle/theta" value="1.2"/>        
-    
-        <param name="sensing/range"  value="0.7"/>
-        <param name="sensing/rate"   value="10.0"/>   
-
-    </node>
+   
 
   <!-- trajectory server -->
   <node pkg="ego_planner" name="drone_$(arg drone_id)_traj_server" type="traj_server" output="screen">
@@ -135,20 +103,7 @@
   </node-->
 
   <!-- use simulator -->
-  <include file="$(find ego_planner)/launch/simulator.xml">
 
-    <arg name="drone_id" value="$(arg drone_id)"/>
-
-    <arg name="map_size_x_" value="$(arg map_size_x)"/>
-    <arg name="map_size_y_" value="$(arg map_size_y)"/>
-    <arg name="map_size_z_" value="$(arg map_size_z)"/>
-
-    <arg name="init_x_" value="$(arg init_x)"/>
-    <arg name="init_y_" value="$(arg init_y)"/>
-    <arg name="init_z_" value="$(arg init_z)"/>
-
-    <arg name="odometry_topic" value="$(arg odom_topic)" />
-  </include>
 
   <![CDATA[node pkg="plan_env" name="obj_generator" type="obj_generator" output="screen">
     <param name="obj_generator/obj_num" value="$(arg obj_num)"/>    

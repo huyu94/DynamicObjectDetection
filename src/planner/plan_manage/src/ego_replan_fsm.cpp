@@ -678,7 +678,7 @@ namespace ego_planner
   {
 
     LocalTrajData *info = &planner_manager_->local_data_;
-    auto map = planner_manager_->dsp_map_;
+    auto map = planner_manager_->particle_map_;
 
     if (exec_state_ == WAIT_TARGET || info->start_time_.toSec() < 1e-5)
       return;
@@ -704,7 +704,7 @@ namespace ego_planner
         break;
 
       bool occ = false;
-      occ |= map->getVoxelState(info->position_traj_.evaluateDeBoorT(t));
+      occ |= (bool)map->getOccupancy(info->position_traj_.evaluateDeBoorT(t));
 
       for (size_t id = 0; id < planner_manager_->swarm_trajs_buf_.size(); id++)
       {

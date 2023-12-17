@@ -7,6 +7,7 @@
 #include <Eigen/Eigen>
 #include <plan_env/grid_map.h>
 #include <plan_env/dsp_map.h>
+#include <plan_env/particle_map.hpp>
 #include <queue>
 
 constexpr double inf = 1 >> 20;
@@ -46,7 +47,8 @@ class AStar
 {
 private:
 	// GridMap::Ptr grid_map_;
-	DspMap::Ptr dsp_map_;
+	// DspMap::Ptr dsp_map_;
+	ego_planner::ParticleMap::Ptr dsp_map_;
 
 	inline void coord2gridIndexFast(const double x, const double y, const double z, int &id_x, int &id_y, int &id_z);
 
@@ -84,7 +86,7 @@ public:
 	AStar(){};
 	~AStar();
 
-	void initGridMap(DspMap::Ptr occ_map, const Eigen::Vector3i pool_size);
+	void initGridMap(ego_planner::ParticleMap::Ptr occ_map, const Eigen::Vector3i pool_size);
 
 	// void initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size);
 

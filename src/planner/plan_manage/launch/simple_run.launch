@@ -1,6 +1,83 @@
 <launch>
-  <include file="$(find ego_planner)/launch/rviz.launch"/>
-  <include file="$(find ego_planner)/launch/single_drone.launch"/>
+  <arg name="map_size_x" value="20.0" />
+  <arg name="map_size_y" value="10.0" />
+  <arg name="map_size_z" value="4.0" />
 
+  <arg name="odom_topic" value="odometry" />
+  <arg name="drone_id" value="0" />
+
+  <!-- 全局地图及局部感知 -->
+  <include file="$(find ego_planner)/launch/include/map.xml">
+    <arg name="map_size_x_" value="$(arg map_size_x)" />
+    <arg name="map_size_y_" value="$(arg map_size_y)" />
+    <arg name="map_size_z_" value="$(arg map_size_z)" />
+    <arg name="odom_topic" value="/drone_$(arg drone_id)_$(arg odom_topic)" />
+    <arg name="drone_id" value="$(arg drone_id)" />
+  </include>
+
+  <!-- simulator -->
+  <include file="$(find ego_planner)/launch/include/simulator.xml">
+    <arg name="drone_id" value="$(arg drone_id)" />
+    <arg name="map_size_x_" value="$(arg map_size_x)" />
+    <arg name="map_size_y_" value="$(arg map_size_y)" />
+    <arg name="map_size_z_" value="$(arg map_size_z)" />
+    <arg name="init_x_" value="-10" />
+    <arg name="init_y_" value="0" />
+    <arg name="init_z_" value="2.5" />
+    <arg name="odometry_topic" value="$(arg odom_topic)" />
+  </include>
+
+  <!-- planner -->
+  <include file="$(find ego_planner)/launch/include/planner.xml">
+    <arg name="drone_id" value="$(arg drone_id)"/>
+    <arg name="map_size_x_" value="$(arg map_size_x)"/>
+    <arg name="map_size_y_" value="$(arg map_size_y)"/>
+    <arg name="map_size_z_" value="$(arg map_size_z)"/>
+    
+    <arg name="odometry_topic" value="$(arg odom_topic)"/>
+    <arg name="cloud_topic" value="pcl_render_node/cloud"/>
+
+    <!-- maximum velocity and acceleration the drone will reach -->
+    <arg name="max_vel" value="2.0" />
+    <arg name="max_acc" value="3.0" />
+
+    <!--always set to 1.5 times grater than sensing horizen-->
+    <arg name="planning_horizon" value="4.5" /> 
+
+    <!-- topo replan -->
+    <arg name="use_distinctive_trajs" value="false" />
+
+    <!-- 1: use 2D Nav Goal to select goal  -->
+    <!-- 2: use global waypoints below  -->
+    <arg name="flight_type" value="1" />
+    
+    <!-- global waypoints -->
+    <!-- It generates a piecewise min-snap traj passing all waypoints -->
+    <arg name="point_num" value="1" />
+
+    <arg name="point0_x" value="0" />
+    <arg name="point0_y" value="0" />
+    <arg name="point0_z" value="0" />
+
+    <arg name="point1_x" value="0.0" />
+    <arg name="point1_y" value="15.0" />
+    <arg name="point1_z" value="1.0" />
+
+    <arg name="point2_x" value="15.0" />
+    <arg name="point2_y" value="0.0" />
+    <arg name="point2_z" value="1.0" />
+
+    <arg name="point3_x" value="0.0" />
+    <arg name="point3_y" value="-15.0" />
+    <arg name="point3_z" value="1.0" />
+
+    <arg name="point4_x" value="-15.0" />
+    <arg name="point4_y" value="0.0" />
+    <arg name="point4_z" value="1.0" />
+
+  </include>
+  <!-- <include file="$(find ego_planner)/launch/single_drone.launch"/> -->
+
+  <include file="$(find ego_planner)/launch/rviz.launch" />
 
 </launch>

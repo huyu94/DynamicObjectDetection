@@ -51,6 +51,7 @@ add_library( plan_env
     src/obj_predictor.cpp 
     src/dsp_map.cpp
     src/dsp_map_math.cpp
+    src/particle_map.cpp
     )
 target_link_libraries( plan_env
     ${catkin_LIBRARIES} 

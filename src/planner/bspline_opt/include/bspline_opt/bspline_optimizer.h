@@ -6,6 +6,7 @@
 #include <bspline_opt/uniform_bspline.h>
 #include <plan_env/grid_map.h>
 #include <plan_env/dsp_map.h>
+#include <plan_env/particle_map.hpp>
 #include <plan_env/obj_predictor.h>
 #include <ros/ros.h>
 #include "bspline_opt/lbfgs.hpp"
@@ -92,7 +93,8 @@ namespace ego_planner
 
     /* main API */
     // void setEnvironment(const GridMap::Ptr &map);
-    void setEnvironment(const DspMap::Ptr &map);
+    // void setEnvironment(const DspMap::Ptr &map);
+    void setEnvironment(const ParticleMap::Ptr &map);
     // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
     void setParam(ros::NodeHandle &nh);
     Eigen::MatrixXd BsplineOptimizeTraj(const Eigen::MatrixXd &points, const double &ts,
@@ -130,7 +132,8 @@ namespace ego_planner
 
   private:
     // GridMap::Ptr grid_map_;
-    DspMap::Ptr dsp_map_;
+    // DspMap::Ptr dsp_map_;
+    ParticleMap::Ptr particle_map_;
     fast_planner::ObjPredictor::Ptr moving_objs_;
     SwarmTrajData *swarm_trajs_{NULL}; // Can not use shared_ptr and no need to free
     int drone_id_;

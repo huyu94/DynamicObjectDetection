@@ -29,8 +29,10 @@ namespace ego_planner
     local_data_.traj_id_ = 0;
     // grid_map_.reset(new GridMap);
     // grid_map_->initMap(nh);
-    dsp_map_.reset(new DspMap);
-    dsp_map_->initMap(nh);
+    // dsp_map_.reset(new DspMap);
+    // dsp_map_->initMap(nh);
+    particle_map_.reset(new ParticleMap);
+    particle_map_->initMap(nh);
 
     // obj_predictor_.reset(new fast_planner::ObjPredictor(nh));
     // obj_predictor_->init();
@@ -38,9 +40,9 @@ namespace ego_planner
 
     bspline_optimizer_.reset(new BsplineOptimizer);
     bspline_optimizer_->setParam(nh);
-    bspline_optimizer_->setEnvironment(dsp_map_);
+    bspline_optimizer_->setEnvironment(particle_map_);
     bspline_optimizer_->a_star_.reset(new AStar);
-    bspline_optimizer_->a_star_->initGridMap(dsp_map_, Eigen::Vector3i(200, 200, 200));
+    bspline_optimizer_->a_star_->initGridMap(particle_map_, Eigen::Vector3i(200, 200, 200));
 
     visualization_ = vis;
   }
@@ -258,14 +260,14 @@ namespace ego_planner
           cout << "traj " << trajs.size() - i << " success." << endl;
 
           // 做一个切片，计算轨迹的安全性。
-          double risk_cost;
+          // double risk_cost;
           
-          for(int j = 0; j < trajs[i].points.cols(); j++){
-            risk_cost += dsp_map_->getVoxelFutureRisk(trajs[i].points.col(j));
-          }
-          cout << "traj[i]'s risk = " << risk_cost << endl;
-          cout << "traj[i]'s final_cost  = " << final_cost << endl;
-          final_cost += 10 * risk_cost;
+          // for(int j = 0; j < trajs[i].points.cols(); j++){
+          //   risk_cost += particle_map_->getVoxelFutureRisk(trajs[i].points.col(j));
+          // }
+          // cout << "traj[i]'s risk = " << risk_cost << endl;
+          // cout << "traj[i]'s final_cost  = " << final_cost << endl;
+          // final_cost += 10 * risk_cost;
           flag_step_1_success = true;
           if (final_cost < min_cost)
           {

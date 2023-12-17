@@ -11,7 +11,7 @@ AStar::~AStar()
                 delete GridNodeMap_[i][j][k];
 }
 
-void AStar::initGridMap(DspMap::Ptr occ_map, const Eigen::Vector3i pool_size)
+void AStar::initGridMap(ego_planner::ParticleMap::Ptr occ_map, const Eigen::Vector3i pool_size)
 {
     POOL_SIZE_ = pool_size;
     CENTER_IDX_ = pool_size / 2;
