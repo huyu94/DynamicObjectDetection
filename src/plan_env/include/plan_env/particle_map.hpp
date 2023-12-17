@@ -6,6 +6,7 @@
 #include <queue>
 #include <array>
 #include <thread>
+#include <memory>
 #include "munkres.h"
 
 #include <Eigen/Eigen>
@@ -137,6 +138,7 @@ struct MappingParamters
     float distance_gate_;
     float point_num_gate_;
     float maximum_velocity_;
+    
 
     /* non const */
 
@@ -175,7 +177,7 @@ struct MappingParamters
     // double cx_, cy_, fx_, fy_;
     /* occupancy param */
     double occupancy_thresh_;  // 占据阈值
-
+    double risk_thresh_; // 风险阈值
 
 };
 
@@ -213,6 +215,7 @@ struct MappingData
     vector<vector<float>> future_status;
     // list for pyramids in fov，用来存放金字塔空间中的粒子
     // observation_pyramid_num fov视角里金字塔子空间的数量，SAFE_PARTICLE_NUM_PYRAMID 每个金字塔子空间中粒子的最大数量
+    // [pyramid num][safe particle in each pyramid][0-1-2]
     // 0.flag:{0 invalid;1:valid}
     // 1.particle voxel index  2.particle index inside voxel，在金字塔子空间中的粒子个数
     vector<vector<vector<int>>> pyramids_in_fov;
@@ -234,7 +237,7 @@ struct MappingData
     /* velocity estimation */
     pcl::PointCloud<pcl::PointXYZ>::Ptr current_cloud_; // 传进来的全局点云 
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr input_cloud_with_velocity_; // 速度估计后的点云
-    std::vector<ClusterFeature> cluster_features_dynamic_last_;   // 上一帧的分类的cluster                                                            
+    std::vector<ClusterFeature> clusters_last_;   // 上一帧的分类的cluster                                                            
 
     /* variables */
 
@@ -286,21 +289,11 @@ public:
     inline int getOccupancy(const Vector3d& pos);
     inline int getInflateOccupancy(const Vector3d& pos);
     inline double getResolution();
+    inline Vector3d getOrigin();
     bool getOdomLidarTimeout(){return md_.flag_lidar_odom_timeout_;}
 
     typedef std::shared_ptr<ParticleMap> Ptr;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-private:
-    MappingParamters mp_;
-    MappingData md_;
-
-    enum 
-    {
-        POSE_STAMPED = 1,
-        ODOMETRY = 2,
-        INVALID_IDX = -10000
-    };
 
     inline Vector3d globalIdx2Pos(const Vector3i& idx);
     inline Vector3i pos2GlobalIdx(const Vector3d& pos);
@@ -313,6 +306,22 @@ private:
     inline bool isInBuf(const Vector3i &idx);
     inline bool isInInfBuf(const Vector3d &pos);
     inline bool isInInfBuf(const Vector3i &idx);
+
+    /* future risk accumulate */
+    float getVoxelRisk(const Vector3i &idx);
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+private:
+    MappingParamters mp_;
+    MappingData md_;
+
+    enum 
+    {
+        POSE_STAMPED = 1,
+        ODOMETRY = 2,
+        INVALID_IDX = -10000
+    };
 
     void publishMap();
     void publishMapInflate();
@@ -459,6 +468,15 @@ inline void ParticleMap::setNewBornParticleNumberofEachPoint(int num){
 
 
 /* ============================================================= */
+
+
+
+inline Vector3d ParticleMap::getOrigin()
+{
+    // return md_.ringbuffer_origin3d_;
+}
+
+
 inline void ParticleMap::changeInBuf(const bool dir, const int inf_buf_idx, const Vector3i global_idx)
 {
     int inf_grid = mp_.inf_grid_;

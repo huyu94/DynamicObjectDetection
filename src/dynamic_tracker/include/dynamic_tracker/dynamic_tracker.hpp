@@ -59,7 +59,7 @@ namespace dynamic_tracker
              * @param clusters 传出，用来存放各个簇的点云指针
              * 
             */
-            void cluster(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, pcl::Indices& cloud_ids,std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
+            void cluster(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, std::vector<pcl::PointIndices> &cluster_indices,std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
             
             // /**
             //  * @brief 生成移动椭圆 

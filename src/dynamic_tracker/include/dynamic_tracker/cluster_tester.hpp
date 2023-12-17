@@ -57,6 +57,7 @@ namespace cluster_tester
             bool tracking_need_update_; // 是否需要更新，有点云和odom数据之后为true，更新完后为false
             /* 点云滤波 */
             double clip_height_;
+            double euclidean_cluster_tolerance_;
 
             /* 空间变换 参数 */
             Eigen::Matrix4d lidar2body_; // 雷达到机体

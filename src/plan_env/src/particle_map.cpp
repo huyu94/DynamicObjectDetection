@@ -18,8 +18,8 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     node_.param("/particle_map/half_fov_horizontal",mp_.half_fov_horizontal_,180);
     node_.param("/particle_map/half_fov_vertical",mp_.half_fov_vertical_,50);
     node_.param("/particle_map/enable_virtual_wall",mp_.enable_virtual_wall_,false);
-    node_.param("/particle_map/virtual_ceil",mp_.virtual_ceil_,-1.0);
-    node_.param("/particle_map/virtual_ground",mp_.virtual_ground_,-1.0);    
+    node_.param("/particle_map/virtual_ceil",mp_.virtual_ceil_,5.0);
+    node_.param("/particle_map/virtual_ground",mp_.virtual_ground_,0.0);    
     node_.param("/particle_map/lidar_topic",lidar_topic,std::string("lidar_topic"));
     node_.param("/particle_map/odom_topic",odom_topic,std::string("odom_topic"));
     node_.param("/particle_map/pose_topic",pose_topic,std::string("pose_topic"));
@@ -32,8 +32,12 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     node_.param("/particle_map/sigma_ob",mp_.sigma_ob,0.2);
     node_.param("/particle_map/new_born_particle_weight",mp_.new_born_particle_weight_,0.04);
     node_.param("/particle_map/new_born_particle_number_each_point",mp_.new_born_particle_number_each_point_,20);
-    node_.param("/particle_map/voxel_filter_resolution",mp_.voxel_filter_resolution_,0.15);
+    node_.param("/particle_map/voxel_filter_resolution",mp_.voxel_filter_resolution_,0.2);
+    node_.param("/particle_map/risk_thresh",mp_.risk_thresh_,1.0);
+    node_.param("/particle_map/distance_gate",mp_.distance_gate_,5.0F);
+    node_.param("/particle_map/dynamic_cluster_max_center_height",mp_.dynamic_cluster_max_center_height_,5.0F);
 
+    ROS_INFO("risk_thresh : %f",mp_.risk_thresh_);
     ROS_INFO("local_update_range3d_x : %f",mp_.local_update_range3d_(0));
     ROS_INFO("local_update_range3d_y : %f",mp_.local_update_range3d_(1));
     ROS_INFO("local_update_range3d_z : %f",mp_.local_update_range3d_(2));
@@ -99,8 +103,8 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
 
     /* velocity estimation */
     mp_.dynamic_cluster_max_point_num_ = 200;
-    mp_.dynamic_cluster_max_center_height_ = 1.5f;
-    mp_.distance_gate_ = 1.5f;
+    // mp_.dynamic_cluster_max_center_height_ = 5.0f;
+    // mp_.distance_gate_ = 1.5f;
     mp_.point_num_gate_ = 100;
     mp_.maximum_velocity_ = 5.f;
 
@@ -274,20 +278,20 @@ void ParticleMap::lidarOdomCallback(const sensor_msgs::PointCloud2ConstPtr &clou
     md_.current_cloud_ = latest_cloud;
     // ROS_WARN("Received cloud size : %d", md_.current_cloud_->size());
     // clip ground point 
-    pcl::ExtractIndices<pcl::PointXYZ> cliper;
-    cliper.setInputCloud(md_.current_cloud_);
-    pcl::PointIndices indices;
-    for(size_t i=0; i < md_.current_cloud_->points.size();i++)
-    {
-        // 没定义ground filter height 这个参数，简单用voxel代替
-        if(md_.current_cloud_->points[i].z < mp_.voxel_resolution_)
-        {
-            indices.indices.push_back(i);
-        }
-    }
-    cliper.setIndices(boost::make_shared<pcl::PointIndices>(indices));
-    cliper.setNegative(true);
-    cliper.filter(*(md_.current_cloud_));
+    // pcl::ExtractIndices<pcl::PointXYZ> cliper;
+    // cliper.setInputCloud(md_.current_cloud_);
+    // pcl::PointIndices indices;
+    // for(size_t i=0; i < md_.current_cloud_->points.size();i++)
+    // {
+    //     // 没定义ground filter height 这个参数，简单用voxel代替
+    //     if(md_.current_cloud_->points[i].z < mp_.voxel_resolution_)
+    //     {
+    //         indices.indices.push_back(i);
+    //     }
+    // }
+    // cliper.setIndices(boost::make_shared<pcl::PointIndices>(indices));
+    // cliper.setNegative(true);
+    // cliper.filter(*(md_.current_cloud_));
 
     // voxel filters
     pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -442,14 +446,16 @@ void ParticleMap::updateOccupancyCallback(const ros::TimerEvent &e)
 
         iter_num += 3 * sizeof(float);
     }
-    ROS_INFO("valid_points : %d ", valid_points);    
+    // ROS_INFO("valid_points : %d ", valid_points);    
 
     mp_.expected_new_born_objects_ = mp_.new_born_particle_weight_ * (float) valid_points * (float) mp_.new_born_particle_number_each_point_;
     // ROS_INFO("expected_new_born_objects_ : %f ", mp_.expected_new_born_objects_);
     mp_.new_born_each_object_weight_ = mp_.new_born_particle_weight_ * (float) mp_.new_born_particle_number_each_point_;
 
+    // ROS_INFO("start velocity estimation");
     std::thread velocity_estimation(&ParticleMap::velocityEstimationThread,this);
 
+    // ROS_INFO("start map prediction");
     mapPrediction();
     // ROS_INFO("map Prediction finished");
 
@@ -581,23 +587,31 @@ void ParticleMap::publishMapWithFutureStatus()
 
                         cloud.push_back(pcl::PointXYZ(xd,yd,zd));
                     }
-                    
-                }
 
-                for(int i=0;i<mp_.prediction_future_time_.size();i++)
-                {
-                    offset = (i + 1) * mp_.prediciton_y_offset_;
-                    float weight_this = md_.future_status[globalIdx2BufIdx(pos2GlobalIdx(Vector3d(xd,yd,mdz)))][i];
-                    int r,g,b;
-                    pcl::PointXYZRGB p_future;
-                    colorAssign(r,g,b,weight_this,0.f,0.1f,1);
-                    p_future.x = xd;
-                    p_future.y = yd + offset;
-                    p_future.z = 0;
-                    p_future.r = r;
-                    p_future.g = g;
-                    p_future.b = g;
-                    cloud_future.push_back(p_future);
+                    float  weight_this = 0;
+                    for(int i=0;i<mp_.prediction_future_time_.size();i++)
+                    {
+                        weight_this += md_.future_status[buf_idx][i];
+                    }
+                    if(weight_this > 1)
+                    {
+                        weight_this = 1;
+                    }
+                    if(weight_this > mp_.risk_thresh_)
+                    {
+                        pcl::PointXYZRGB p_future;
+
+                        uint8_t r = 255 * weight_this, g = 0,b = 0; 
+                        uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+                        p_future.rgb = *reinterpret_cast<float*>(&rgb);
+                        p_future.x = xd;
+                        p_future.y = yd;
+                        p_future.z = zd;
+
+
+                        cloud_future.push_back(p_future);
+                    }
+
                 }
             }
         }
@@ -701,10 +715,10 @@ void ParticleMap::clearBuffer(char casein, int bound)
                     清理你要清理的空间，体素空间，金字塔空间，膨胀空间
                 */
                 // voxel_objects_number
-                md_.voxels_objects_number[id_buf][0] = 0.f; //weight
-                md_.voxels_objects_number[id_buf][1] = 0.f; //vx
-                md_.voxels_objects_number[id_buf][2] = 0.f; //vy
-                md_.voxels_objects_number[id_buf][3] = 0.f; //vz
+                // md_.voxels_objects_number[id_buf][0] = 0.f; //weight
+                // md_.voxels_objects_number[id_buf][1] = 0.f; //vx
+                // md_.voxels_objects_number[id_buf][2] = 0.f; //vy
+                // md_.voxels_objects_number[id_buf][3] = 0.f; //vz
 
             }
         }
@@ -789,6 +803,7 @@ void ParticleMap::moveRingBuffer()
     md_.ringbuffer_inf_upbound3i_ = ringbuffer_inf_upbound3i_new;
     md_.ringbuffer_inf_upbound3d_ = ringbuffer_inf_upbound3d_new;
 
+    // ROS_INFO("moving buffer finished ");
 }
 
 /* =========================== particle map core funtion =======================================*/
@@ -807,10 +822,11 @@ void ParticleMap::mapPrediction()
     // update_time_update_counter_ ++;
 
     /* 清空fov金字塔空间中的*/
-    for(auto &j : md_.pyramids_in_fov){
-        for(auto & i : j)
-        {
-            i[0] &= O_MAKE_INVALID;
+    for(auto &j : md_.pyramids_in_fov)
+    { // pyramid num 
+        for(auto & i : j) 
+        { // safe particle num
+            i[0] = 0;
         }
     }
     /// Update Particles' state and index in both voxels and pyramids
@@ -854,6 +870,7 @@ void ParticleMap::mapPrediction()
                                             md_.voxels_with_particles[v_index][p][6]};
                     Vector3i global_idx = pos2GlobalIdx(global_pos);
                     particle_voxel_index_new = globalIdx2BufIdx(global_idx);
+                    // ROS_INFO("in [moveAParticle]");
                     int move_flag = moveAParticle(particle_voxel_index_new,v_index,p);
                     if(move_flag == -2)
                     {
@@ -1101,13 +1118,13 @@ void ParticleMap::mapAddNewBornParticleByObservation()
             if(isInBuf(particle_ptr->position.x(),particle_ptr->position.y(),particle_ptr->position.z()))
             {
                 particle_ptr->voxel_index = globalIdx2BufIdx(pos2GlobalIdx(particle_ptr->position));
-                if(p < static_new_born_particle_number_each_point) // static particle
+                if(p < static_new_born_particle_number_each_point) // static particle;  p < static num
                 {
                     particle_ptr->velocity.x() = 0.f;
                     particle_ptr->velocity.y() = 0.f;
                     particle_ptr->velocity.z() = 0.f;
                 }
-                else if(point.normal_x > -100.f && p < model_generated_particle_number_each_point)
+                else if(point.normal_x > -100.f && p < model_generated_particle_number_each_point) //static num <= p < dynamic num
                 {
                     // use estimated velocity to generate new particles
                     if(point.intensity > 0.01f)
@@ -1197,6 +1214,7 @@ void ParticleMap::mapOccupancyCalculationAndResample()
                         for(int time = 0; time < mp_.prediction_future_time_.size(); ++time)
                         {
                             float prediction_time = mp_.prediction_future_time_[time]; // 
+                            // std::cout << prediction_time << std::endl;
                             px_future = md_.voxels_with_particles[v_index][p][4] + md_.voxels_with_particles[v_index][p][1] * prediction_time; //粒子未来x轴位置
                             py_future = md_.voxels_with_particles[v_index][p][5] + md_.voxels_with_particles[v_index][p][2] * prediction_time; //粒子未来y轴位置
                             pz_future = md_.voxels_with_particles[v_index][p][6] + md_.voxels_with_particles[v_index][p][3] * prediction_time; //粒子未来z轴位置
@@ -1708,6 +1726,7 @@ void ParticleMap::colorAssign(int &r, int &g, int &b, float v, float value_min, 
     }
 
 }
+
 void ParticleMap::velocityEstimationThread()
 {
     if(md_.current_cloud_->points.empty()) return ;
@@ -1720,7 +1739,7 @@ void ParticleMap::velocityEstimationThread()
 
     for(auto &p : md_.current_cloud_->points)
     {
-        if(p.z > mp_.voxel_filter_resolution_)// 滤掉地面点。
+        if(p.z > mp_.virtual_ground_)// 滤掉地面点。
         {
             non_grond_points->points.push_back(p); // 非地面点：
         }else{ // 地面静态点
@@ -1729,10 +1748,13 @@ void ParticleMap::velocityEstimationThread()
     }
 
     //cluster 欧式聚类
-    // static std::vector<ClusterFeature> cluster_feature_vector_dynamic_last; // 上一帧的分类的cluster
-    std::vector<ClusterFeature> clusters_feature_vector_dynamic; // 当前帧分类的cluster
+    /**
+     * 1. 如果是墙体，超大型物体，树等，就不是簇
+     * 2. clusters include: static cluster, dynamic cluster
+    */
     std::vector<pcl::PointIndices> cluster_indices; // 簇中点云到全局点云的索引
-    vector<bool> cluster_possibly_dynamic;  // 簇是否可能是动态的
+    std::vector<ClusterFeature> clusters; // 当前帧分类的cluster
+    std::vector<bool> is_cluster; // 这个聚类是不是簇
 
     if(!non_grond_points->empty()) // 非地面点： 非地面静态点 + 非地面动态点
     {
@@ -1748,124 +1770,123 @@ void ParticleMap::velocityEstimationThread()
         ec.setInputCloud(non_grond_points);
         ec.extract(cluster_indices);
 
-        for(const auto & cluster_indice : cluster_indices) // 欧式聚类后的簇集合
+        /* =============================== get ClusterFeature ======================================== */
+        for(size_t i = 0; i<cluster_indices.size();i++) // 欧式聚类后的簇集合
         {
             ClusterFeature cluster_this;
             cluster_this.intensity = generateRandomFloat(0.1f,0.1f); //For visualization
             
-            for(int indice : cluster_indice.indices)
+            // 中心计算
+            for(int indice : cluster_indices[i].indices)
             {
-                cluster_this.center.x() += (*non_grond_points)[indice].x;
-                cluster_this.center.y() += (*non_grond_points)[indice].y;
-                cluster_this.center.z() += (*non_grond_points)[indice].z;
+                cluster_this.center.x() += non_grond_points->points[indice].x;
+                cluster_this.center.y() += non_grond_points->points[indice].y;
+                cluster_this.center.z() += non_grond_points->points[indice].z;
                 ++ cluster_this.point_num;
             }
-            
-            // average
             cluster_this.center.x() /= (float) cluster_this.point_num;
             cluster_this.center.y() /= (float) cluster_this.point_num;
             cluster_this.center.z() /= (float) cluster_this.point_num;
 
-            if(cluster_indice.indices.size() > mp_.dynamic_cluster_max_point_num_ || cluster_this.center.z() > mp_.dynamic_cluster_max_center_height_)
-            { // 如果簇中点数大于阈值，或者簇中心高度大于阈值，则认为是静态点
+
+            // get cluster
+            if(cluster_indices[i].indices.size() > mp_.dynamic_cluster_max_point_num_ || cluster_this.center.z() > mp_.dynamic_cluster_max_center_height_)
+            { // 如果簇中点数大于阈值，或者簇中心高度大于阈值，则认为是静态点, 墙，房屋，树，不纳入cluster
                 // Static 
-                for(int indice : cluster_indice.indices)
+                for(int indice : cluster_indices[i].indices)
                 {
                     static_points->push_back(non_grond_points->points[indice]);
                 }
+                is_cluster.push_back(false);
             }else{
-                // Possibly dynamic
-                clusters_feature_vector_dynamic.push_back(cluster_this);
-                cluster_possibly_dynamic.push_back(true);
+                clusters.push_back(cluster_this);
+                is_cluster.push_back(true);
             }
         }
-
-        // km algorithm 
-        // static float distance_gate = 1.5f;
-        // static float point_num_gate = 100;
-        // static float maximum_velocity = 5.f;
+        
+        /* ================================ velocity estimation =================================*/
         float delt_t_from_last_observation = (md_.current_update_time_ - md_.last_update_time_).toSec();
 
-        /// Move last feature vector d and match by KM algorithm
-        if(!md_.cluster_features_dynamic_last_.empty() && !cluster_possibly_dynamic.empty())
+        // km algorithm 
+        if(!md_.clusters_last_.empty() && !clusters.empty())
         {
             if(delt_t_from_last_observation > 0.00001 && delt_t_from_last_observation< 10.0)
             {
-                Matrix<float> matrix_cost(clusters_feature_vector_dynamic.size(), md_.cluster_features_dynamic_last_.size());
-                Matrix<float> matrix_gate(clusters_feature_vector_dynamic.size(), md_.cluster_features_dynamic_last_.size());
+                Matrix<float> matrix_cost(clusters.size(), md_.clusters_last_.size());
+                Matrix<bool> matrix_gate(clusters.size(), md_.clusters_last_.size());
 
-                for(size_t row = 0; row < clusters_feature_vector_dynamic.size(); ++row)
+                for(size_t i = 0; i < clusters.size(); i++)
                 {
-                    for(size_t col = 0; col < md_.cluster_features_dynamic_last_.size(); ++col)
+                    for(size_t j = 0; j < md_.clusters_last_.size(); j++)
                     {
-                        float distance = clusterDistance(clusters_feature_vector_dynamic[row], md_.cluster_features_dynamic_last_[col]);
-                        if(abs(clusters_feature_vector_dynamic[row].point_num - md_.cluster_features_dynamic_last_[col].point_num) > mp_.point_num_gate_ 
-                            || distance >= mp_.distance_gate_)
-                        {
-                            matrix_gate(row,col) = 0.f;
-                            matrix_cost(row,col) = mp_.distance_gate_ * 5000.f;
-                        }
-                        else{
-                            matrix_gate(row,col) = 1.f;
-                            matrix_cost(row,col) = distance / mp_.distance_gate_ * 1000.f;;
-                        }
+                        float featureDistance = (clusters[i].center - md_.clusters_last_[j].center).norm();
+                        matrix_cost(i,j) = featureDistance < mp_.distance_gate_ ? featureDistance : mp_.distance_gate_ * 5000;
+                        matrix_gate(i,j) = matrix_cost(i,j) < mp_.distance_gate_;
                     }
                 }
 
                 Munkres<float> munkres_solver;
                 munkres_solver.solve(matrix_cost);
 
-                for(size_t row = 0; row < clusters_feature_vector_dynamic.size(); ++row)
+                for(size_t i = 0; i < clusters.size(); i++)
                 {
-                    for(size_t col = 0; col < md_.cluster_features_dynamic_last_.size(); ++col)
+                    for(size_t j = 0; j < md_.clusters_last_.size(); j++)
                     {
-                        if(matrix_cost(row,col) == 0.f && matrix_gate(row,col) > 0.01f) // found a match
+                        if(matrix_cost(i,j) == 0.0f && matrix_gate(i,j)) // found a match
                         {
-                            clusters_feature_vector_dynamic[row].match_cluster_seq = col;
-                            clusters_feature_vector_dynamic[row].velocity.x() =(clusters_feature_vector_dynamic[row].center.x() - md_.cluster_features_dynamic_last_[col].center.x()) / delt_t_from_last_observation;
-                            clusters_feature_vector_dynamic[row].velocity.y() = (clusters_feature_vector_dynamic[row].center.y() - md_.cluster_features_dynamic_last_[col].center.y()) / delt_t_from_last_observation;
-                            clusters_feature_vector_dynamic[row].velocity.z() = (clusters_feature_vector_dynamic[row].center.z() - md_.cluster_features_dynamic_last_[col].center.z()) / delt_t_from_last_observation;
-                            clusters_feature_vector_dynamic[row].velocityNorm = clusters_feature_vector_dynamic[row].velocity.norm();
-                            clusters_feature_vector_dynamic[row].intensity = clusters_feature_vector_dynamic[row].intensity;
+                            // ROS_INFO("find a mathc");
+                            clusters[i].match_cluster_seq = j;
+                            clusters[i].velocity = (clusters[i].center - md_.clusters_last_[j].center) / delt_t_from_last_observation;
+                            clusters[i].velocityNorm = clusters[i].velocity.norm();
+                            clusters[i].intensity = md_.clusters_last_[j].intensity;  // for visualization 
+                            // ROS_INFO("cluster vel : %lf\t%lf\t%lf.",clusters[i].velocity.x(),clusters[i].velocity.y(),clusters[i].velocity.z());
 
-                            if(clusters_feature_vector_dynamic[row].velocityNorm > mp_.maximum_velocity_)
+                            if(clusters[i].velocity.norm() > 10.0f)
                             {
-                                clusters_feature_vector_dynamic[row].velocityNorm = 0.f;
-                                clusters_feature_vector_dynamic[row].velocity.setZero();
+                                clusters[i].velocity.setZero();
                             }
-                            
                             break;
                         }
+
                     }
+                    /// If no match is found. The cluster velocity is given by struct initialization (v=-1000).
+                    clusters[i].match_cluster_seq = -1;
+                    clusters[i].velocity.setZero();
+                    clusters[i].velocityNorm = 0.f;
                 }
+
             }
         }
 
-        /// Velocity Allocation to Points
         // Use normal to store velocity
-        int cluster_indice_seq = 0;
-        int cluster_dynamic_vector_seq = 0;
-        for(const auto & cluster_indice : cluster_indices)
+        // ROS_INFO("clusters size: %zu",clusters.size());
+        // ROS_INFO("clusters_maybe_dynamic size: %zu",clusters_maybe_dynamic.size());
+
+        // if(clusters.size() != clusters_maybe_dynamic.size())
+        // {
+        //     ROS_WARN("clusters.size() != clusters_maybe_dynamic.size()");
+        //     return ;
+        // }
+        /* ======================== Velocity Allocation to Points ============================== */
+        int cluster_id = 0;
+        for(size_t i=0;i<cluster_indices.size();i++)
         {
-            if(cluster_possibly_dynamic[cluster_indice_seq])
+            if(!is_cluster[i]) continue;
+            for(int indice : cluster_indices[i].indices)
             {
-                for(int indice : cluster_indice.indices)
-                {
-                    pcl::PointXYZINormal p;
-                    p.x = (*non_grond_points)[indice].x;
-                    p.y = (*non_grond_points)[indice].y;
-                    p.z = (*non_grond_points)[indice].z;
-                    p.normal_x = clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.x();
-                    p.normal_y = clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.y();
-                    p.normal_z = clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.z();
-                    p.intensity = clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].intensity;
-                    md_.input_cloud_with_velocity_->push_back(p);
-                }
-                ++ cluster_dynamic_vector_seq;
+                pcl::PointXYZINormal p;
+                p.x = non_grond_points->points[indice].x;
+                p.y = non_grond_points->points[indice].y;
+                p.z = non_grond_points->points[indice].z;
+                p.normal_x = clusters[cluster_id].velocity.x();
+                p.normal_y = clusters[cluster_id].velocity.y();
+                p.normal_z = clusters[cluster_id].velocity.z();
+                p.intensity = clusters[cluster_id].intensity;
+                md_.input_cloud_with_velocity_->push_back(p);
             }
-            // ROS_INFO("cluster_indice_seq: %d, vel: %f, %f, %f",cluster_indice_seq,clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.x(),
-            //             clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.y(),clusters_feature_vector_dynamic[cluster_dynamic_vector_seq].velocity.z());
+            cluster_id ++;
         }
+
 
         for(auto &static_point : static_points->points)
         {
@@ -1880,9 +1901,11 @@ void ParticleMap::velocityEstimationThread()
             md_.input_cloud_with_velocity_->push_back(p);
         }
 
-        md_.cluster_features_dynamic_last_ = clusters_feature_vector_dynamic;
-        ROS_INFO("Velocity estimation done");
-        ROS_INFO("cluster_feature_vector_dynamic_last size: %zu", md_.cluster_features_dynamic_last_.size());
+        // ROS_INFO("dynamic_points : %d, static points : %d",non_grond_points->size(),static_points->size());
+
+        md_.clusters_last_ = clusters;
+        // ROS_INFO("Velocity estimation done");
+        // ROS_INFO("cluster_feature_vector_dynamic_last size: %zu", md_.cluster_features_dynamic_last_.size());
 
     }
 

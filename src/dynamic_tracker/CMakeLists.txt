@@ -44,29 +44,29 @@ include_directories(
 set(MunkresLIB /usr/local/lib/libmunkres.a)
 
 
-add_library(dynamic_tracker
-  src/dynamic_tracker.cpp
-  src/dbscan_cluster.cpp
-  src/tracking_pool.cpp
+# add_library(dynamic_tracker
+#   src/dynamic_tracker.cpp
+#   src/dbscan_cluster.cpp
+#   src/tracking_pool.cpp
 
-  )
-target_link_libraries(dynamic_tracker
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${MunkresLIB}
-  )
+#   )
+# target_link_libraries(dynamic_tracker
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${MunkresLIB}
+#   )
 
-add_executable(main_node
-  src/main_node.cpp
-  src/dynamic_tracker.cpp
-  src/dbscan_cluster.cpp
-  src/tracking_pool.cpp
-)
-target_link_libraries(main_node
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${MunkresLIB}
-)
+# add_executable(main_node
+#   src/main_node.cpp
+#   src/dynamic_tracker.cpp
+#   src/dbscan_cluster.cpp
+#   src/tracking_pool.cpp
+# )
+# target_link_libraries(main_node
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+#   ${MunkresLIB}
+# )
 
 
 add_executable(test_node
@@ -79,7 +79,7 @@ target_link_libraries(test_node
 
 add_executable(cluster_test_node
   src/cluster_test_node.cpp
-  src/cluster_tester.cpp
+  # src/cluster_tester.cpp
   src/dbscan_cluster.cpp
 
 )

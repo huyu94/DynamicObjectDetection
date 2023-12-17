@@ -16,16 +16,17 @@
         <param name="lidar_topic" type="string" value="/cloud_registered"/>
         <param name="pose_topic" type="string" value="pose"/>
         <param name="odom_topic" type="string" value="/iris/mavros/local_position/odom"/>
-        <param name="occupancy_thresh" value="0.7" type="double"/>
+        <param name="occupancy_thresh" value="0.1" type="double"/>
+        <param name="risk_thresh" value = "0.05" type="double"/>
         <param name="enable_future_prediction" value="true" type="bool"/>
         <param name="prediction_z_height" value="0.3" type="double"/>
         <param name="prediction_y_offset" value="25" type="double"/>
         <!-- update paramters  -->
         <param name="position_prediction_stddev" type="double" value="0.05"/>
         <param name="velocity_prediction_stddev" type="double" value="0.05"/>
-        <param name="new_born_particle_weight" type="double" value="0.00005"/>
-        <param name="new_born_particle_number_each_point" type="int" value="20"/>
-        <param name="voxel_filter_resolution" type="double" value="0.15"/>
+        <param name="new_born_particle_weight" type="double" value="0.0001"/>
+        <param name="new_born_particle_number_each_point" type="int" value="30"/>
+        <param name="voxel_filter_resolution" type="double" value="0.2"/>
         <param name="sigma_ob" type="double" value="0.1"/>
 
 
@@ -33,7 +34,7 @@
 
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find plan_env)/config/default.rviz" />
 
-    <node pkg="rosbag" type="play" name="player"  args="--clock /home/huyu/bags/gazebo2long.bag"/>
+    <node pkg="rosbag" type="play" name="player"  args="--clock /home/huyu/bags/dss1.bag"/>
 
     <!-- <node pkg="rviz" type="rviz" name="dsp_map" args="-d $(find plan_env)/config/default.rviz"/> -->
 </launch>

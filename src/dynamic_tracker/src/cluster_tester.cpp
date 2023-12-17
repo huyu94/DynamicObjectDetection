@@ -18,6 +18,7 @@ namespace cluster_tester
         node_.param("cluster_tester/adaptive",cluster_adaptive_,false);
         node_.param("cluster_tester/cluster_pts", minPts_, 4);
         node_.param("cluster_tester/epsilon", eps_, 1.0);
+        node_.param("cluster_tester/euclidean_cluster_tolerance",euclidean_cluster_tolerance_,0.5);
         cluster_ptr_.reset(new Cluster(minPts_,0.5,2.0,eps_));
 
         /* 点云收集者 */
@@ -59,7 +60,15 @@ namespace cluster_tester
         aabb_pub_ = node_.advertise<visualization_msgs::MarkerArray>("dynamic_tracking/aabb", 1);
 
         tracking_need_update_ = false;
-
+        if(cluster_type_ == 1){
+            ROS_INFO("USE DBSCAN");
+        }
+        else if(cluster_type_ == 2){
+            ROS_INFO("USE EuclideanCluster");
+        }
+        else{
+            ROS_ERROR("cluster type error !!!");
+        }
     }
 
 
@@ -106,26 +115,26 @@ namespace cluster_tester
         // 应该不需要做变换，因为fast-lio 输出的cloud_register本来就是世界坐标系下的点云
         // pcl::transformPointCloud(*latest_cloud, *current_cloud, lidar_T);
 
-        // 去除地面点
-        pcl::ExtractIndices<pcl::PointXYZI> cliper;
-        cliper.setInputCloud(current_cloud);
-        pcl::PointIndices indices;
-        for (size_t i = 0; i < current_cloud->points.size(); i++)
-        {
-            if (current_cloud->points[i].z < clip_height_)
-            {
-                indices.indices.push_back(i);
-            }
-        }
-        /* 若setNegative(true)，filter输出不在索引里面的点,也可以用getRemoveIndices取得索引的补集。*/
-        cliper.setIndices(boost::make_shared<pcl::PointIndices>(indices));
-        cliper.setNegative(true);
-        cliper.filter(*current_cloud);
+        // // 去除地面点
+        // pcl::ExtractIndices<pcl::PointXYZI> cliper;
+        // cliper.setInputCloud(current_cloud);
+        // pcl::PointIndices indices;
+        // for (size_t i = 0; i < current_cloud->points.size(); i++)
+        // {
+        //     if (current_cloud->points[i].z < clip_height_)
+        //     {
+        //         indices.indices.push_back(i);
+        //     }
+        // }
+        // /* 若setNegative(true)，filter输出不在索引里面的点,也可以用getRemoveIndices取得索引的补集。*/
+        // cliper.setIndices(boost::make_shared<pcl::PointIndices>(indices));
+        // cliper.setNegative(true);
+        // cliper.filter(*current_cloud);
 
         // 滤波
         pcl::VoxelGrid<pcl::PointXYZI> vg;
         vg.setInputCloud(current_cloud);
-        vg.setLeafSize(0.1, 0.1, 0.1);
+        vg.setLeafSize(0.2, 0.2, 0.2);
         vg.filter(*current_cloud);
         // ROS_INFO("GET CLOUD AND ODOM ! AND HAVE DEALED WITH IT !");
         tracking_need_update_ = true;
@@ -137,7 +146,6 @@ namespace cluster_tester
             return ;
         if(cluster_type_ == 1)
         {
-            ROS_WARN("USE DBSCAN");
             cluster_ptr_->run(cloud, cloud_ids,cluster_adaptive_);
 
             /* 把每一个簇的点云放在一个单独的PointCloud中，*/
@@ -175,18 +183,17 @@ namespace cluster_tester
                     ROS_ERROR("there is a negative cluster id in [Cluster]");
                 }
             }
-            ROS_INFO("cluster finished! ");
+            // ROS_INFO("cluster finished! ");
         }
         else if(cluster_type_ == 2)
         {
-            ROS_INFO("use EuclideanCluster");
             std::vector<pcl::PointIndices> cluster_indices;
             pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>());
             tree->setInputCloud(cloud);
 
             // kd-tree 欧式聚类
             pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
-            ec.setClusterTolerance(2 * 0.5);
+            ec.setClusterTolerance(euclidean_cluster_tolerance_);
             ec.setMinClusterSize(5);
             ec.setMaxClusterSize(10000);
 
@@ -195,14 +202,10 @@ namespace cluster_tester
             ec.extract(cluster_indices);
 
             observed_clusters.clear(); 
-            // observed_clusters.resize(cluster_indices.size(),pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>));
-            // for(size_t i=0;i<observed_clusters.size();i++)
-            // {
-            //     std::cout << "seq : " << i << "size : " << observed_clusters[i]->size() << std::endl;
-            // }
+
             for(size_t i = 0;i < cluster_indices.size();i++)
             {
-                ROS_INFO("i : %d" , i);
+                // ROS_INFO("i : %d" , i);
                 std::vector<int> cluster_indice = cluster_indices[i].indices;
                 // std::cout << "cluster i : " << i << std::endl;
                 // std::cout << "cluster Indice size : " << cluster_indices[i].indices.size() << std::endl;
@@ -225,10 +228,10 @@ namespace cluster_tester
             }
             for(size_t i=0;i<observed_clusters.size();i++)
             {
-                std::cout << "seq : " << i << "size : " << observed_clusters[i]->size() << std::endl;
+                // std::cout << "seq : " << i << "size : " << observed_clusters[i]->size() << std::endl;
             }
 
-            ROS_INFO("cluster finished !");
+            // ROS_INFO("cluster finished !");
         }
     }
 

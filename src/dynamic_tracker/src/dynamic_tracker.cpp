@@ -350,21 +350,17 @@ namespace dynamic_tracker
 
 
 
-    void DynamicTracker::cluster(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, pcl::Indices &cloud_ids, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &observed_clusters)
+    void DynamicTracker::cluster(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, std::vector<pcl::PointIndices> &cluster_indices, std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &observed_clusters)
     {
-        cluster_ptr_->run(cloud, cloud_ids,cluster_adaptive_);
+        cluster_ptr_->run(cloud, cluster_indices,cluster_adaptive_);
 
         /* 把每一个簇的点云放在一个单独的PointCloud中，*/
         observed_clusters.clear();
-
-        int number_of_clusters = 0;
-        for(size_t i = 0; i < cloud_ids.size(); i++){
-            if(cloud_ids[i] > number_of_clusters){
-                number_of_clusters = cloud_ids[i];
-            }
+        observed_clusters.reserve(cluster_indices.size());
+        for(size_t i=0; i < cluster_indices.size();i++)
+        {
+            
         }
-        observed_clusters.clear();
-        observed_clusters.resize(number_of_clusters);
         for (size_t i = 0; i < cloud_ids.size(); i++)
         {
             if (cloud_ids[i] == 0 || cloud_ids[i] == -1) // 噪音点和无定义的点

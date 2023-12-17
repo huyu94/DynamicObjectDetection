@@ -1,5 +1,4 @@
 #include "path_searching/topo_rpm.hpp"
-#include "topo_rpm.hpp"
 
 namespace topo_risk_planner
 {
@@ -24,7 +23,7 @@ void TopoPRM::init(const ros::NodeHandle& nh)
     nh.param("topo_prm/max_raw_path2", max_raw_path2_, -1);
     nh.param("topo_prm/parallel_shortcut", parallel_shortcut_, false);
 
-    resolution_ = particle_map_->getVoxelResolution();
+    resolution_ = particle_map_->getResolution();
     offset_ = Eigen::Vector3d(0.5,0.5,0.5) - particle_map_->getOrigin() / resolution_;
 
     for(int i = 0; i < max_raw_path_;i++)
@@ -40,10 +39,10 @@ void TopoPRM::setEnvironment(const particle_map::ParticleMap::Ptr particle_map)
 
 
 
-void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end, 
-                            vector<Eigen::Vector3d> start_pts, vector<Eigen::Vector3d> end_pts, 
-                            list<GraphNode::Ptr> &graph, vector<vector<Eigen::Vector3d>> &raw_paths vetcor, 
-                            vector<vector<Eigen::Vector3d>> &raw_paths vector<vector<Eigen::Vector3d>> &filtered_paths, 
+void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end, vector<Eigen::Vector3d> start_pts, 
+                            vector<Eigen::Vector3d> end_pts, list<GraphNode::Ptr> &graph, 
+                            vector<vector<Eigen::Vector3d>> &raw_paths, 
+                            vector<vector<Eigen::Vector3d>> &filtered_paths, 
                             vector<vector<Eigen::Vector3d>> &select_paths)
 {
     ros::Time t1, t2;
@@ -133,7 +132,7 @@ vector<GraphNode::Ptr> TopoPRM::findVisibGuard(Eigen::Vector3d pt)
     int visib_num = 0;
 
     /* find visible GUARD from pt */
-    for(list<GraphNode::Ptr>::iterator iter = graph_.begin; iter != graph_.end();++iter)
+    for(list<GraphNode::Ptr>::iterator iter = graph_.begin(); iter != graph_.end();++iter)
     {
         if((*iter)->type_ == GraphNode::Connector) continue;
 
@@ -149,7 +148,7 @@ vector<GraphNode::Ptr> TopoPRM::findVisibGuard(Eigen::Vector3d pt)
 }
 bool TopoPRM::needConnection(GraphNode::Ptr g1, GraphNode::Ptr g2, Eigen::Vector3d pt)
 {
-    vector<Eigen::Vetcor3d> path1(3),path2(3);
+    vector<Eigen::Vector3d> path1(3),path2(3);
     // 当前路径
     path1[0] = g1->pos_;
     path1[1] = pt;
@@ -159,7 +158,7 @@ bool TopoPRM::needConnection(GraphNode::Ptr g1, GraphNode::Ptr g2, Eigen::Vector
     path2[0] = g1->pos_;
     path2[2] = g2->pos_;
 
-    vector<Eigen::Vecto3d> connect_pts;
+    vector<Eigen::Vector3d> connect_pts;
     bool has_connect = false;
     // 找g1 和 g2的共同邻居
     for(int i=0;i < g1->neighbors_.size();i++)
@@ -215,7 +214,7 @@ bool TopoPRM::triangleVisib(Eigen::Vector3d pt, Eigen::Vector3d p1, Eigen::Vecto
     vector<Eigen::Vector3d> pts;
     Eigen::Vector3d dir = p2 - p1;
     double len = dir.norm();
-    int seg_num = ceil(length / resolution_);
+    int seg_num = ceil(len / resolution_);
 
     Eigen::Vector3d pt1;
     for(int i=1;i<seg_num;i++)
@@ -237,7 +236,7 @@ void TopoPRM::pruneGraph()
     /* prune useless node */
     if(graph_.size() > 2)
     {
-        for(list<GraphNode::Ptr>::iterator iter1 = grpah_.begin();iter1 != graph_.end() && graph_.size() > 2; ++iter1)
+        for(list<GraphNode::Ptr>::iterator iter1 = graph_.begin();iter1 != graph_.end() && graph_.size() > 2; ++iter1)
         {
             if((*iter1)->id_ <= 1) continue;
             
@@ -331,7 +330,7 @@ vector<Eigen::Vector3d> TopoPRM::discretizeLine(Eigen::Vector3d p1, Eigen::Vecto
 
 vector<Eigen::Vector3d> TopoPRM::discretizePath(vector<Eigen::Vector3d> path)
 {
-    vector<Eigen::Vetcor3d> dis_path,segment;
+    vector<Eigen::Vector3d> dis_path,segment;
 
     if(path.size() < 2)
     {
@@ -399,18 +398,18 @@ void TopoPRM::shortcutPath(vector<Eigen::Vector3d> path, int path_id, int iter_n
             // 如果不可见，我们就直接把当前这个中风险点当作下一个点了，去处理ESDF的推力
             short_path.push_back(collision_pt);
         }
+        short_path.push_back(dis_path.back());
+        /* break if no shortcut */
+        double len1 = pathLength(last_path);
+        double len2 = pathLength(short_path);
+        if(len2 > len1)
+        {
+            ROS_WARN("pause shortcut, l1: %lf, l2: %lf, iter: %d", len1, len2, k + 1);
+            short_path = last_path;
+            break;
+        }
     }
-    short_path.push_back(dis_path.back());
-
-    /* break if no shortcut */
-    double len1 = pathLength(last_path);
-    double len2 = pathLength(short_path);
-    if(len2 > len1)
-    {
-        ROS_WARN("pause shortcut, l1: %lf, l2: %lf, iter: %d", len1, len2, k + 1);
-        short_path = last_path;
-        break;
-    }
+    short_paths_[path_id] = short_path;
 }
 
 vector<Eigen::Vector3d> TopoPRM::discretizePath(const vector<Eigen::Vector3d> &path, int pt_num)
@@ -480,10 +479,10 @@ bool TopoPRM::sameTopoPath(const vector<Eigen::Vector3d> &path1, const vector<Ei
 Eigen::Vector3d TopoPRM::getOrthoPoint(const vector<Eigen::Vector3d> &path)
 {
     Eigen::Vector3d x1 = path.front();
-    Eigen::VEctor3d x2 = path.back();
+    Eigen::Vector3d x2 = path.back();
 
     Eigen::Vector3d dir = (x2 - x1).normalized();
-    Eigen::VEctor3d mid = 0.5 *( x1 + x2);
+    Eigen::Vector3d mid = 0.5 *( x1 + x2);
 
     double min_cos = 1000.0;
     Eigen::Vector3d pdir;
@@ -515,6 +514,6 @@ int TopoPRM::shortestPath(vector<vector<Eigen::Vector3d>> &paths)
             short_id = i;
         }
     }
-    return length;
+    return short_id;
 }
 }

@@ -130,7 +130,7 @@ class TopoPRM
 
         double ratio_to_short_;
         int reserve_num_;
-        bool parallel_shortcur_;
+        bool parallel_shortcut_;
 
         /* create topological roadmap */
         /* path searching, shortening, pruning and merging */
