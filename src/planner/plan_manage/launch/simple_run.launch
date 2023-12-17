@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find ego_planner)/launch/rviz.launch"/>
+  <include file="$(find ego_planner)/launch/single_drone.launch"/>
+
+
+</launch>
