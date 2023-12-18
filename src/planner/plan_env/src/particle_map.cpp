@@ -438,6 +438,11 @@ void ParticleMap::updateOccupancyCallback(const ros::TimerEvent &e)
             int pyramid_index_horizontal = findPointPyramidHorizontalIndexInSensorFrame(rotated_point[0],rotated_point[1],rotated_point[2]);
             int pyramid_index_vertical = findPointPyramidVerticalIndexInSensorFrame(rotated_point[0],rotated_point[1],rotated_point[2]);
             int pyramid_index = pyramid_index_horizontal * mp_.observation_pyramid_num_vertical_ + pyramid_index_vertical;
+            if(pyramid_index < 0 || pyramid_index >= mp_.observation_pyramid_num_)
+            {
+                ROS_ERROR("pyramid_index out of range!");
+                continue;
+            }
             int observation_inner_seq = md_.point_num_in_pyramid[pyramid_index];
             // ROS_INFO("observation_inner_seq : %d", observation_inner_seq);
             // ROS_INFO("pyramid_index: %d,pyramid_index_horizontal: %d,pyramid_index_vertical: %d",pyramid_index,pyramid_index_horizontal,pyramid_index_vertical);
@@ -653,7 +658,7 @@ void ParticleMap::publishFutureStatus()
                     {
                         int r,g,b;
                         pcl::PointXYZRGB p_future;
-                        colorAssign(r,g,b,weight_this,0.f,0.1f,1);
+                        colorAssign(r,g,b,weight_this,0.f,0.2f,1);
 
                         p_future.x = xd;
                         p_future.y = yd;
@@ -1570,6 +1575,8 @@ int ParticleMap::moveAParticle(int new_voxel_index, int current_v_index, int cur
             ROS_WARN("v_index : %d",v_index);
             ROS_WARN("particle_pyramid_index_new : %d ",particle_pyramid_index_new);
             ROS_WARN("particle_pyramid_index_new out of range");
+            md_.voxels_with_particles[new_voxel_index][new_voxel_inner_index][0] = 0.f; /// vanish
+            return -2;
         }
         // ROS_INFO("[moveparticle]: particle_pyramid_index_new = %d",particle_pyramid_index_new);
         // 找对应金字塔子空间的存储区域中有没有空的位置
@@ -1731,6 +1738,7 @@ int ParticleMap::findPointPyramidHorizontalIndexInSensorFrame(float x, float y, 
 
         return horizontal_index;
     }
+    ROS_INFO("horizontal index : %d",horizontal_index);
     ROS_INFO("!!!!!! Please use Function ifInPyramidsArea() to filter the points first before using findPointPyramidHorizontalIndex()");
     return -1;
 }

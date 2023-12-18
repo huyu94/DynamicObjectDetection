@@ -100,7 +100,7 @@
         <param name="particle_map/pose_topic" type="string" value="pose"/>
         <param name="particle_map/odom_topic" type="string" value="/drone_$(arg drone_id)_odometry"/>
         <param name="particle_map/occupancy_thresh" value="0.5" type="double"/>
-        <param name="particle_map/risk_thresh" value = "0.01" type="double"/>
+        <param name="particle_map/risk_thresh" value = "0.1" type="double"/>
         <param name="particle_map/enable_future_prediction" value="false" type="bool"/>
         <param name="particle_map/prediction_z_height" value="0.2" type="double"/>
         <param name="particle_map/prediction_y_offset" value="25" type="double"/>
