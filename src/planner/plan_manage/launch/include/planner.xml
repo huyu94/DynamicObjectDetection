@@ -99,17 +99,17 @@
         <param name="particle_map/lidar_topic" type="string" value="/dynamic_map_generator/local_cloud"/>
         <param name="particle_map/pose_topic" type="string" value="pose"/>
         <param name="particle_map/odom_topic" type="string" value="/drone_$(arg drone_id)_odometry"/>
-        <param name="particle_map/occupancy_thresh" value="0.1" type="double"/>
-        <param name="particle_map/risk_thresh" value = "0.05" type="double"/>
-        <param name="particle_map/enable_future_prediction" value="true" type="bool"/>
+        <param name="particle_map/occupancy_thresh" value="0.5" type="double"/>
+        <param name="particle_map/risk_thresh" value = "0.01" type="double"/>
+        <param name="particle_map/enable_future_prediction" value="false" type="bool"/>
         <param name="particle_map/prediction_z_height" value="0.2" type="double"/>
         <param name="particle_map/prediction_y_offset" value="25" type="double"/>
         <param name="particle_map/dynamic_cluster_max_center_height" value="20.0" type="double"/>
-        <param name="particle_map/dynamic_cluster_max_point_num" value="1000" type="int"/>
+        <param name="particle_map/dynamic_cluster_max_point_num" value="2008" type="int"/>
         <param name="particle_map/position_prediction_stddev" type="double" value="0.05"/>
         <param name="particle_map/velocity_prediction_stddev" type="double" value="0.05"/>
         <param name="particle_map/new_born_particle_weight" type="double" value="0.0001"/>
-        <param name="particle_map/new_born_particle_number_each_point" type="int" value="30"/>
+        <param name="particle_map/new_born_particle_number_each_point" type="int" value="15"/>
         <param name="particle_map/voxel_filter_resolution" type="double" value="0.2"/>
         <param name="particle_map/sigma_ob" type="double" value="0.1"/>
         

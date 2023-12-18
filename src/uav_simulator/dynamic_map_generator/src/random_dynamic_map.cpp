@@ -222,10 +222,10 @@ void RandomDynamicMap::publishObstacleState() {
         geometry_msgs::Point start,end;
         start.x = p.x();
         start.y = p.y();
-        start.z = p.z() + s.z() / 2;
+        start.z = p.z() + s.z() ;
         end.x = p.x() + v.x();
         end.y = p.y() + v.y();
-        end.z = p.z() + v.z() + s.z() / 2;
+        end.z = p.z() + v.z() + s.z() ;
         arrow.points.push_back(start);
         arrow.points.push_back(end);
         arrow.pose.orientation.x = q.x();

@@ -28,8 +28,8 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     node_.param("particle_map/enable_future_prediction",mp_.enable_future_prediction_,false);
     node_.param("particle_map/prediction_z_height",mp_.prediction_z_height_,0.3);
     node_.param("particle_map/prediction_y_offset",mp_.prediciton_y_offset_,15.0);
-    node_.param("particle_map/position_prediction_stddev",mp_.position_prediction_stddev,0.2);
-    node_.param("particle_map/velocity_prediction_stddev",mp_.velocity_prediction_stddev,0.1);
+    node_.param("particle_map/position_prediction_stddev",mp_.position_prediction_stddev,0.05);
+    node_.param("particle_map/velocity_prediction_stddev",mp_.velocity_prediction_stddev,0.05);
     node_.param("particle_map/sigma_ob",mp_.sigma_ob,0.2);
     node_.param("particle_map/new_born_particle_weight",mp_.new_born_particle_weight_,0.04);
     node_.param("particle_map/new_born_particle_number_each_point",mp_.new_born_particle_number_each_point_,20);
@@ -49,6 +49,7 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     ROS_INFO("new_born_particle_weight %f",mp_.new_born_particle_weight_);
     ROS_INFO("new_born_particle_number_each_point %d",mp_.new_born_particle_number_each_point_);
     ROS_INFO("voxel_filter_resolution %f",mp_.voxel_filter_resolution_);
+    ROS_INFO("occunpancy thresh :%f ",mp_.occupancy_thresh_);
 
     
     /* map */
@@ -61,8 +62,8 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     // mp_.half_angle_resolution_rad_ = mp_.angle_resolution_rad_ / 2.f;
     // mp_.half_fov_horizontal_ = 180;
     // mp_.half_fov_vertical_ = 27;
-    mp_.half_fov_horizontal_rad_ = (float)mp_.half_fov_horizontal_ / 180.f * M_PI_2f32;
-    mp_.half_fov_vertical_rad_ = (float)mp_.half_fov_vertical_ / 180.f * M_PI_2f32;
+    mp_.half_fov_horizontal_rad_ = (float)mp_.half_fov_horizontal_ * M_PI / 180.f;
+    mp_.half_fov_vertical_rad_ = (float)mp_.half_fov_vertical_ * M_PI / 180.f;
 
     ROS_INFO("voxel_resolution_inv_ : %f",mp_.voxel_resolution_inv_);
     ROS_INFO("half_fov_horizontal : %d",mp_.half_fov_horizontal_);
@@ -176,14 +177,10 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     md_.flag_lidar_odom_timeout_ = false;
 
     /* position and rotation */
-    md_.lidar_position_.setZero();
-    md_.last_lidar_position_.setZero();
-    md_.lidar_rotation_.setZero();
-    md_.last_lidar_rotation_.setZero();
-    md_.lidar2body_ << 1.0, 0.0, 0.0, 0.0,
-                        0.0, 1.0, 0.0, 0.0,
-                        0.0, 0.0, 1.0, 0.0,
-                        0.0, 0.0, 0.0, 1.0;
+    md_.lidar2body_.translation() << 0,0,0;
+    md_.lidar2body_.linear().setIdentity();
+    md_.lidar2world_.setIdentity();
+    md_.last_lidar2world_.setIdentity();
 
 
     /* pyramid neighbor */
@@ -247,8 +244,8 @@ void ParticleMap::initMap(ros::NodeHandle &nh)
     map_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/particle_map/particle_map",1);
     map_inflate_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/particle_map/inflate_map",1);
     map_future_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/particle_map/future_map",1);
-    pose_pub_ = node_.advertise<geometry_msgs::PoseStamped>("particle_map/pose",1);
-
+    pose_pub_ = node_.advertise<geometry_msgs::PoseStamped>("/particle_map/pose",1);
+    particle_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/particle_map/paricle",1);
     ROS_INFO("Particle map initialized!");
     
 }
@@ -260,10 +257,14 @@ void ParticleMap::publishPose()
     geometry_msgs::PoseStamped pose_msg;
     pose_msg.header.stamp = ros::Time::now();
     pose_msg.header.frame_id = mp_.frame_id_;
-    pose_msg.pose.position.x = md_.lidar_position_(0);
-    pose_msg.pose.position.y = md_.lidar_position_(1);
-    pose_msg.pose.position.z = md_.lidar_position_(2);
-    Quaterniond q(md_.lidar_rotation_);
+    Eigen::Vector3d lidar_position = md_.lidar2world_.translation();
+
+    pose_msg.pose.position.x = lidar_position(0);
+    pose_msg.pose.position.y = lidar_position(1);
+    pose_msg.pose.position.z = lidar_position(2);
+
+
+    Quaterniond q(md_.lidar2world_.rotation());
     pose_msg.pose.orientation.w = q.w();
     pose_msg.pose.orientation.x = q.x();
     pose_msg.pose.orientation.y = q.y();
@@ -275,8 +276,9 @@ void ParticleMap::publishPose()
 void ParticleMap::visCallback(const ros::TimerEvent &e)
 {
     publishPose();
-    publishMapWithFutureStatus();
-
+    publishMap();
+    publishFutureStatus();
+    publishParticle();
 }   
 
 void ParticleMap::lidarOdomCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
@@ -292,22 +294,13 @@ void ParticleMap::lidarOdomCallback(const sensor_msgs::PointCloud2ConstPtr &clou
                                         odom_msg->pose.pose.orientation.x,
                                         odom_msg->pose.pose.orientation.y,
                                         odom_msg->pose.pose.orientation.z);   
-    Matrix3d body_R = body_q.toRotationMatrix();
-    Matrix4d body2world;
-    body2world.block<3, 3>(0,0) = body_R;
-    body2world(0,3) = odom_msg->pose.pose.position.x;
-    body2world(1,3) = odom_msg->pose.pose.position.y;
-    body2world(2,3) = odom_msg->pose.pose.position.z;
-    body2world(3,3) = 1.0;
+    Eigen::Affine3d body2world; // 机体坐标系在世界坐标系下的表示
+    body2world.translation() << odom_msg->pose.pose.position.x,odom_msg->pose.pose.position.y,odom_msg->pose.pose.position.z;
+    body2world.linear() = body_q.toRotationMatrix();
 
-    Matrix4d lidar_T = body2world * md_.lidar2body_;
-    md_.last_lidar_position_ = md_.lidar_position_;
-    md_.last_lidar_rotation_ = md_.lidar_rotation_;
-    md_.lidar_position_(0) = lidar_T(0,3);
-    md_.lidar_position_(1) = lidar_T(1,3);
-    md_.lidar_position_(2) = lidar_T(2,3);
-    md_.lidar_rotation_ = lidar_T.block<3,3>(0,0);
-
+    md_.last_lidar2world_ = md_.lidar2world_;
+    md_.lidar2world_ = body2world * md_.lidar2body_ ;
+    
     md_.current_cloud_ = latest_cloud;
     // ROS_WARN("Received cloud size : %d", md_.current_cloud_->size());
     // clip ground point 
@@ -412,8 +405,11 @@ void ParticleMap::updateOccupancyCallback(const ros::TimerEvent &e)
     // ros::Time t1;
     // // map move 
     // t1 = ros::Time::now();
+    // ROS_INFO("moving buffer started!");
+
     moveRingBuffer();
     // ROS_INFO("moving map cost time : %f", (ros::Time::now() - t1).toSec());
+    // ROS_INFO("moving buffer finished!");
 
     for(int i=0; i<mp_.observation_pyramid_num_;i++)
     {
@@ -511,6 +507,7 @@ void ParticleMap::updateOccupancyCallback(const ros::TimerEvent &e)
 
     /** Wait until initial velocity estimation is finished **/
     velocity_estimation.join();
+    // ROS_INFO("velocity_estimation finished !");
 
     /** Add updated new born particles ***/
     // t1 = ros::Time::now();
@@ -530,19 +527,14 @@ void ParticleMap::updateOccupancyCallback(const ros::TimerEvent &e)
     // ROS_INFO("map Occupancy Calculation and resample finished !");
     
     // t1 = ros::Time::now();
-    if(mp_.enable_future_prediction_)
-    {
+    getFutureStatus();
+    // ROS_INFO("getFutureStatus finished !");
 
-        publishMapWithFutureStatus();
-    }
-    else{
-        publishMap();
-    }
     // ROS_INFO("publish map cost time : %f", (ros::Time::now() - t1).toSec());
-    if(!md_.flag_have_clear_prediction_this_turn_)
-    {
-        clearOccupancyMapPrediction();
-    }
+    // if(!md_.flag_have_clear_prediction_this_turn_)
+    // {
+    //     clearOccupancyMapPrediction();
+    // }
 
     md_.last_update_time_ = md_.current_update_time_;
     md_.occ_need_update_ = false;
@@ -588,38 +580,61 @@ void ParticleMap::publishMap()
 }
 
 
-void ParticleMap::publishMapInflate()
+void ParticleMap::publishParticle()
 {
-    ROS_INFO("still not implemented !");
-}
-
-
-void ParticleMap::publishMapWithFutureStatus()
-{
-
-    if(map_future_pub_.getNumSubscribers() <= 0 || map_pub_.getNumSubscribers() <= 0)
+    if(particle_pub_.getNumSubscribers() <= 0)
     {
         return ;
     }
 
     pcl::PointCloud<pcl::PointXYZ> cloud;
+    double lbz = mp_.enable_virtual_wall_ ? max(md_.ringbuffer_lowbound3d_(2),mp_.virtual_ground_) : md_.ringbuffer_lowbound3d_(2);
+    double ubz = mp_.enable_virtual_wall_ ? min(md_.ringbuffer_upbound3d_(2),mp_.virtual_ceil_) : md_.ringbuffer_upbound3d_(2);
+    if (md_.ringbuffer_upbound3d_(0) - md_.ringbuffer_lowbound3d_(0) > mp_.voxel_resolution_ && (md_.ringbuffer_upbound3d_(1) - md_.ringbuffer_lowbound3d_(1)) > mp_.voxel_resolution_ && (ubz - lbz) > mp_.voxel_resolution_)
+    {
+        for(double xd = md_.ringbuffer_lowbound3d_(0) + mp_.voxel_resolution_ / 2; xd <= md_.ringbuffer_upbound3d_(0); xd += mp_.voxel_resolution_)
+        {
+            for(double yd = md_.ringbuffer_lowbound3d_(1) + mp_.voxel_resolution_ / 2; yd <= md_.ringbuffer_upbound3d_(1); yd += mp_.voxel_resolution_)
+            {
+                for(double zd = md_.ringbuffer_lowbound3d_(2) + mp_.voxel_resolution_ / 2; zd <= md_.ringbuffer_upbound3d_(2); zd += mp_.voxel_resolution_)
+                {
+                    int buf_idx = globalIdx2BufIdx(pos2GlobalIdx(Vector3d(xd,yd,zd)));
+                    for(int i=0;i<mp_.safe_particle_num_in_voxel_;i++)
+                    {
+                        cloud.push_back(pcl::PointXYZ(md_.voxels_with_particles[buf_idx][i][4],md_.voxels_with_particles[buf_idx][i][5],md_.voxels_with_particles[buf_idx][i][6]));
+                    }
+                }
+            }
+        }
+    }
+    cloud.width = cloud.points.size();
+    cloud.height = 1;
+    cloud.is_dense = true;
+    cloud.header.frame_id = mp_.frame_id_;
+    sensor_msgs::PointCloud2 cloud_msg;
+    pcl::toROSMsg(cloud,cloud_msg);
+    particle_pub_.publish(cloud_msg);
+}
+
+
+void ParticleMap::publishMapInflate()
+{
+    ROS_INFO("still not implemented !");
+}
+
+void ParticleMap::publishFutureStatus()
+{
+    if(map_future_pub_.getNumSubscribers() <= 0)
+    {
+        return ;
+    }
     pcl::PointCloud<pcl::PointXYZRGB> cloud_future;
     double lbz = mp_.enable_virtual_wall_ ? max(md_.ringbuffer_lowbound3d_(2),mp_.virtual_ground_) : md_.ringbuffer_lowbound3d_(2);
     double ubz = mp_.enable_virtual_wall_ ? min(md_.ringbuffer_upbound3d_(2),mp_.virtual_ceil_) : md_.ringbuffer_upbound3d_(2);
     double mdz = mp_.prediction_z_height_;
-    double offset = 0.f;
 
-    for(int i=0;i<md_.voxels_objects_number.size();i++)
-    {
-        for(int j=0;j<mp_.prediction_future_time_.size();j++){
-            md_.future_status[i][j] = md_.voxels_objects_number[i][4+j];
-            md_.voxels_objects_number[i][j+4] = 0.f;
-        }
-    }
-
-    
-    if (md_.ringbuffer_upbound3d_(0) - md_.ringbuffer_lowbound3d_(0) > mp_.voxel_resolution_ && (md_.ringbuffer_upbound3d_(1) - md_.ringbuffer_lowbound3d_(1)) > mp_.voxel_resolution_ && (ubz - lbz) > mp_.voxel_resolution_)
-    {
+    // if (md_.ringbuffer_upbound3d_(0) - md_.ringbuffer_lowbound3d_(0) > mp_.voxel_resolution_ && (md_.ringbuffer_upbound3d_(1) - md_.ringbuffer_lowbound3d_(1)) > mp_.voxel_resolution_ && (ubz - lbz) > mp_.voxel_resolution_)
+    // {
         for(double xd = md_.ringbuffer_lowbound3d_(0) + mp_.voxel_resolution_ / 2; xd <= md_.ringbuffer_upbound3d_(0); xd += mp_.voxel_resolution_)
         {
             for(double yd = md_.ringbuffer_lowbound3d_(1) + mp_.voxel_resolution_ / 2; yd <= md_.ringbuffer_upbound3d_(1); yd += mp_.voxel_resolution_)
@@ -629,20 +644,13 @@ void ParticleMap::publishMapWithFutureStatus()
                     Vector3i global_idx = pos2GlobalIdx(Vector3d(xd,yd,zd));
                     int buf_idx = globalIdx2BufIdx(global_idx);
 
-                    if(md_.voxels_objects_number[buf_idx][0] > mp_.occupancy_thresh_)
-                    {
-                        // ROS_INFO("voxel pos : %f, %f, %f, weight : %f",xd,yd,zd,md_.voxels_objects_number[buf_idx][0]);
-
-                        cloud.push_back(pcl::PointXYZ(xd,yd,zd));
-                    }
-
                     float weight_this = 0;
-
                     for(int n=0; n < mp_.prediction_future_time_.size(); ++n)
                     {
                         weight_this += md_.future_status[buf_idx][n];
-                        if(weight_this > 0.01f)
-                        {
+                    }
+                    if(weight_this > mp_.risk_thresh_)
+                    {
                         int r,g,b;
                         pcl::PointXYZRGB p_future;
                         colorAssign(r,g,b,weight_this,0.f,0.1f,1);
@@ -654,39 +662,37 @@ void ParticleMap::publishMapWithFutureStatus()
                         p_future.g = g;
                         p_future.b = b;
                         cloud_future.push_back(p_future);
-                        }   
-                    }
-
-
+                    }   
                 }
             }
         }
-    }
-    cloud.width = cloud.points.size();
-    cloud.height = 1;
-    cloud.is_dense = true;
-    cloud.header.frame_id = mp_.frame_id_;
-    sensor_msgs::PointCloud2 cloud_msg;
-    pcl::toROSMsg(cloud,cloud_msg);
-
+    // }
     cloud_future.width = cloud_future.points.size();
     cloud_future.height = 1;
     cloud_future.is_dense = true;
     cloud_future.header.frame_id = mp_.frame_id_;
     sensor_msgs::PointCloud2 cloud_future_msg;
     pcl::toROSMsg(cloud_future,cloud_future_msg);
-
-
     map_future_pub_.publish(cloud_future_msg);
-    map_pub_.publish(cloud_msg);
 
-    md_.flag_have_clear_prediction_this_turn_ = true;
+
+}
+
+void ParticleMap::getFutureStatus()
+{
+    for(int i=0;i<md_.voxels_objects_number.size();i++)
+    {
+        for(int j=0;j<mp_.prediction_future_time_.size();j++){
+            md_.future_status[i][j] = md_.voxels_objects_number[i][4+j];
+            md_.voxels_objects_number[i][j+4] = 0.f;
+        }
+    }
 }
 
 void ParticleMap::initMapBoundary()
 {
     mp_.have_initialized_ = true;
-    md_.center_last3i_ = pos2GlobalIdx(md_.lidar_position_);
+    md_.center_last3i_ = pos2GlobalIdx(md_.lidar2world_.translation());
 
     // l = c - i, u = c + i, u -= (1,1,1)
     md_.ringbuffer_lowbound3i_ = md_.center_last3i_ - mp_.local_update_range3i_;
@@ -732,7 +738,7 @@ void ParticleMap::initMapBoundary()
     ROS_INFO("ringbuffer_upbound3i_ : %d, %d, %d",md_.ringbuffer_upbound3i_(0),md_.ringbuffer_upbound3i_(1),md_.ringbuffer_upbound3i_(2));
     ROS_INFO("ringbuffer_upbound3d_ : %f, %f, %f",md_.ringbuffer_upbound3d_(0),md_.ringbuffer_upbound3d_(1),md_.ringbuffer_upbound3d_(2));
     ROS_INFO("ringbuffer_origin_3i : %d, %d, %d",md_.ringbuffer_origin3i_(0),md_.ringbuffer_origin3i_(1),md_.ringbuffer_origin3i_(2));
-    ROS_INFO("rinfbuffer_origin_3d : %f, %f, %f", md_.lidar_position_(0),md_.lidar_position_(1),md_.lidar_position_(2));
+    // ROS_INFO("rinfbuffer_origin_3d : %f, %f, %f", md_.ringbuffer_origin3i_(0),md_.lidar_position_(1),md_.lidar_position_(2));
     ROS_INFO("ringbuffer_size_3i_ : %d, %d, %d",md_.ringbuffer_size3i_(0),md_.ringbuffer_size3i_(1),md_.ringbuffer_size3i_(2));
     ROS_INFO("RINGBUFFER END ============================");
 
@@ -760,6 +766,14 @@ void ParticleMap::clearBuffer(char casein, int bound)
                 /* TODO clear according voxel index 
                     清理你要清理的空间，体素空间，金字塔空间，膨胀空间
                 */
+                // for(int h =0;h<mp_.safe_particle_num_in_voxel_;h++)
+                // {
+                //     md_.voxels_with_particles[id_buf][h][0] = 0.f;
+                // }
+                for(int time=0;time<md_.future_status[0].size();time++)
+                {
+                    md_.future_status[id_buf][time] = 0.f;
+                }
                 // voxel_objects_number
                 // md_.voxels_objects_number[id_buf][0] = 0.f; //weight
                 // md_.voxels_objects_number[id_buf][1] = 0.f; //vx
@@ -778,7 +792,7 @@ void ParticleMap::moveRingBuffer()
         initMapBoundary();
     }
     // 更新新的环形缓冲区边界
-    Vector3i center_new = pos2GlobalIdx(md_.lidar_position_);
+    Vector3i center_new = pos2GlobalIdx(md_.lidar2world_.translation());
     Vector3i ringbuffer_lowbound3i_new = center_new - mp_.local_update_range3i_;
     Vector3d ringbuffer_lowbound3d_new = ringbuffer_lowbound3i_new.cast<double>() * mp_.voxel_resolution_;
     Vector3i ringbuffer_upbound3i_new = center_new + mp_.local_update_range3i_;
@@ -875,8 +889,8 @@ void ParticleMap::mapPrediction()
             i[0] = 0;
         }
     }
+
     /// Update Particles' state and index in both voxels and pyramids
-    ros::Time t1 = ros::Time::now();
     for(int v_index = 0; v_index < mp_.voxel_num_; ++ v_index)//遍历所有体素子空间
     {
         for(int p = 0; p < mp_.safe_particle_num_in_voxel_; ++ p) // 遍历体素子空间中的所有粒子
@@ -884,8 +898,10 @@ void ParticleMap::mapPrediction()
             // 如果存在，并且不是新move过来的点
             if(md_.voxels_with_particles[v_index][p][0] > 0.1f && md_.voxels_with_particles[v_index][p][0] < 6.f)// exsit, but not new moved
             {
-                md_.voxels_with_particles[v_index][p][0] = 1.f;
-                // ++ operation_counter;//操作计数
+
+                md_.voxels_with_particles[v_index][p][0] = 1.f; // If valid, remove resample flag.重采样的是0.6f，这里一视同仁，当作存在点
+
+                ++ operation_counter;//操作计数
                 if(fabs(md_.voxels_with_particles[v_index][p][1]*md_.voxels_with_particles[v_index][p][2]*md_.voxels_with_particles[v_index][p][3]) < 1e-6)
                 {
                     // keep small, for static obstacles
@@ -906,24 +922,28 @@ void ParticleMap::mapPrediction()
                 md_.voxels_with_particles[v_index][p][6] += two_frame_duration * md_.voxels_with_particles[v_index][p][3];
                 // ROS_INFO("[after move] : %f, %f, %f", md_.voxels_with_particles[v_index][p][4],md_.voxels_with_particles[v_index][p][5],md_.voxels_with_particles[v_index][p][6]);
                 //上面就是计算在这一帧的传感器时刻下，粒子相对于机器人的位置。
-                int particle_voxel_index_new; // 粒子在某个体素空间中的新下标
 
                 if(isInBuf( md_.voxels_with_particles[v_index][p][4],
                             md_.voxels_with_particles[v_index][p][5],
                             md_.voxels_with_particles[v_index][p][6]))
                 {
+                
                     Vector3d global_pos = { md_.voxels_with_particles[v_index][p][4],
                                             md_.voxels_with_particles[v_index][p][5],
                                             md_.voxels_with_particles[v_index][p][6]};
                     // ros::Time t1 = ros::Time::now();
                     Vector3i global_idx = pos2GlobalIdx(global_pos);
-                    particle_voxel_index_new = globalIdx2BufIdx(global_idx);
+                    int particle_voxel_index_new = globalIdx2BufIdx(global_idx); // 粒子在某个体素空间中的新下标
+                    if(particle_voxel_index_new < 0 || particle_voxel_index_new >= mp_.voxel_num_)
+                    {
+                        ROS_WARN("particle_voxel_index_new out of range!");
+                    }
                     // ROS_INFO("pos to idx cost time : %d ",(ros::Time::now() - t1).toNSec());
                     // ROS_INFO("in [moveAParticle]");
+                    // std::cout << 3 << std::endl;
                     int move_flag = moveAParticle(particle_voxel_index_new,v_index,p);
-
+                    // std::cout << 4 << std::endl;
                     // ROS_INFO("move flag : %d", move_flag);
-
                     if(move_flag == -2) // move pyramid space failed
                     {
                         // Move the particle, if fails, "moveParticleByVoxel" will delete the particle
@@ -936,22 +956,28 @@ void ParticleMap::mapPrediction()
                         continue;
                     }
                     ++ exist_particles;
+                    // ROS_INFO("particle type : %f",md_.voxels_with_particles[v_index][p][0]);
+                    // ROS_INFO("move flag in [mapPrediction]: %d",move_flag);
                 }
                 else
                 {
                     // ROS_INFO("in [removeParticle]");
                     // particle moves out
                     removeParticle(v_index,p);
-
-
                     ++ moves_out_counter;
                 }
 
             }
         }
     }
-    ros::Time t2 = ros::Time::now();
     // ROS::INFO("[in] map prediction cost time : %d ",(t2 - t1).toNSec());
+    // ROS_INFO("operation counter in [prediction]: %d",operation_counter);
+    // ROS_INFO("operation counter in [prediction]: %d",operation_counter);
+    // ROS_INFO("moves out counter in [prediction]: %d", moves_out_counter);
+    // ROS_INFO("pyramid_full_remove_counter in [prediction]: %d", pyramid_full_remove_counter);
+    // ROS_INFO("voxel_full_remove_counter in [prediction]: %d", voxel_full_remove_counter);
+    
+
 
     if(moves_out_counter > 10000)
     {
@@ -974,7 +1000,7 @@ void ParticleMap::mapUpdate()
                 // ROS_INFO("pyramid check index : %d ", pyramid_check_index);
                 for(int particle_seq = 0; particle_seq < mp_.safe_particle_num_in_pyramid_; particle_seq++)
                 {
-                    if(md_.pyramids_in_fov[pyramid_check_index][particle_seq][0] & O_MAKE_VALID)
+                    if(md_.pyramids_in_fov[pyramid_check_index][particle_seq][0] == 1)
                     {
                         int particle_voxel_index = md_.pyramids_in_fov[pyramid_check_index][particle_seq][1];
                         int particle_voxel_inner_index = md_.pyramids_in_fov[pyramid_check_index][particle_seq][2];
@@ -1006,16 +1032,18 @@ void ParticleMap::mapUpdate()
         for(int inner_seq = 0; inner_seq < mp_.safe_particle_num_in_pyramid_; inner_seq ++)
         {
             // Iteration of particles in pyramid
-            if(md_.pyramids_in_fov[current_pyramid_index][inner_seq][0] & O_MAKE_VALID)//update only valid particle
+            if(md_.pyramids_in_fov[current_pyramid_index][inner_seq][0] == 1)//update only valid particle
             {
                 int neighbor_num = md_.observation_pyramid_neighbours[current_pyramid_index][0];
 
                 int particle_voxel_index = md_.pyramids_in_fov[current_pyramid_index][inner_seq][1];
                 int particle_voxel_inner_index = md_.pyramids_in_fov[current_pyramid_index][inner_seq][2];
 
-                float px_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][4] - md_.lidar_position_(0);
-                float py_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][5] - md_.lidar_position_(1);
-                float pz_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][6] - md_.lidar_position_(2);
+                Eigen::Vector3d lidar_position = md_.lidar2world_.translation();
+
+                float px_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][4] - lidar_position(0);
+                float py_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][5] - lidar_position(1);
+                float pz_this = md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][6] - lidar_position(2);
 
                 float particle_distance = sqrtf(powf(px_this,2) + powf(py_this,2) + powf(pz_this,2));
 
@@ -1037,23 +1065,18 @@ void ParticleMap::mapUpdate()
                     
                     for(int z_seq=0; z_seq < md_.point_num_in_pyramid[neighbor_index]; ++ z_seq)
                     {
-                        float gk = queryNormalPDF(px_this, md_.point_cloud_in_pyramid[neighbor_index][z_seq][0],mp_.sigma_ob)
-                                    * queryNormalPDF(py_this, md_.point_cloud_in_pyramid[neighbor_index][z_seq][1],mp_.sigma_ob)
-                                    * queryNormalPDF(pz_this, md_.point_cloud_in_pyramid[neighbor_index][z_seq][2],mp_.sigma_ob);
+                        float gk = queryNormalPDF(md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][4], md_.point_cloud_in_pyramid[neighbor_index][z_seq][0],mp_.sigma_ob)
+                                    * queryNormalPDF(md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][5], md_.point_cloud_in_pyramid[neighbor_index][z_seq][1],mp_.sigma_ob)
+                                    * queryNormalPDF(md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][6], md_.point_cloud_in_pyramid[neighbor_index][z_seq][2],mp_.sigma_ob);
+
                         sum_by_zk += mp_.P_detection * gk / md_.point_cloud_in_pyramid[neighbor_index][z_seq][3];
                         // ROS_INFO("sum_by_zk : %f",sum_by_zk);
                         ++ operation_counter_update;
                     }
                 }
-                
-                // w_k^i
-                // ROS_INFO("update times : %d ", md_.update_times_);
-                if(md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][7] > 50)
-                {
-                    // ROS_INFO("[update time : %d] , particle_weight : %f",md_.update_times_,md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][7]);
-                }
                 md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][7] *= ((1 - mp_.P_detection) + sum_by_zk);
                 md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][8] = (md_.current_update_time_ - md_.start_time_).toSec();
+
                 // ROS_INFO("weight after updated : %f", md_.voxels_with_particles[particle_voxel_index][particle_voxel_inner_index][7]);
 
             }
@@ -1061,7 +1084,7 @@ void ParticleMap::mapUpdate()
     }
     // ROS_INFO("map update 2 finished");
 
-        //    cout << "operation_counter_update=" << operation_counter_update <<endl;
+    // cout << "operation_counter_update=" << operation_counter_update <<endl;
 
 }
 
@@ -1187,9 +1210,9 @@ void ParticleMap::mapAddNewBornParticleByObservation()
                     if(point.intensity > 0.01f)
                     {
 
-                        particle_ptr->velocity.x() = point.normal_x + 2 * getVelocityGaussianZeroCenter();
-                        particle_ptr->velocity.y() = point.normal_y + 2 * getVelocityGaussianZeroCenter();
-                        particle_ptr->velocity.z() = point.normal_z + 2 * getVelocityGaussianZeroCenter();
+                        particle_ptr->velocity.x() = point.normal_x + 4 * getVelocityGaussianZeroCenter();
+                        particle_ptr->velocity.y() = point.normal_y + 4 * getVelocityGaussianZeroCenter();
+                        particle_ptr->velocity.z() = point.normal_z + 4 * getVelocityGaussianZeroCenter();
                         // dyn_p_num++;
                         // ROS_INFO("use point cloud vel, vel : %f, %f, %f",point.normal_x,point.normal_y,point.normal_z);
                     }
@@ -1242,8 +1265,9 @@ void ParticleMap::mapOccupancyCalculationAndResample()
 {
     int removed_particle_counter = 0;
     int particle_num_after_resampling_should_be = 0;
-    
+    int total_old_particle_num = 0;
     // 占据概率计算和未来状态估计
+    // int pa_15_remove_counter = 0;
     for(int v_index=0; v_index < mp_.voxel_num_; ++ v_index)
     {
         // Calculate estimated object number in each voxel
@@ -1300,13 +1324,17 @@ void ParticleMap::mapOccupancyCalculationAndResample()
                     
                     }
                     // 这个粒子是新生粒子，因此将其不再标记为新生粒子
+
                     md_.voxels_with_particles[v_index][p][0] = 1.f; // Remove newborn flag and moved flag in prediction
+                
+
                     ++particle_num_voxel; // 体素中增加一个粒子
                     // ROS_INFO("HERE");
                     weight_sum_voxel += md_.voxels_with_particles[v_index][p][7];  //体素中总的weight加上当前粒子的weight
                 }
             }
         }
+        total_old_particle_num += old_particle_num_voxel;
         // ROS_INFO("particle_num_voxel = %d",particle_num_voxel);
         // ROS_INFO("weight_sum_voxel = %f",weight_sum_voxel);
         // ROS_INFO("voxel weight: %f",md_.voxels_objects_number[v_index][0]);
@@ -1334,17 +1362,17 @@ void ParticleMap::mapOccupancyCalculationAndResample()
         // Resampling
         // Calculate desired particle number after resampling
         //alg.40
-        int particle_num_voxel_after_resample;
+        int particle_num_voxel_after_resample; /// 重采样增加的粒子数,最大不超过30
         if(particle_num_voxel > mp_.max_particle_num_in_voxel_){ // 如果体素内粒子数量超了，则拒绝一些采样
-            particle_num_voxel_after_resample = mp_.max_particle_num_in_voxel_; 
+            particle_num_voxel_after_resample = mp_.max_particle_num_in_voxel_;  //如果粒子超了max particle num, 就设置这个particle_num_voxel_after_resample
         }else{ //反之则维持现状。
             particle_num_voxel_after_resample = particle_num_voxel;
         }
 
         static float weight_after_resample; //重采样后的体素权重
-        weight_after_resample = weight_sum_voxel / (float) particle_num_voxel_after_resample;
+        weight_after_resample = weight_sum_voxel / (float) particle_num_voxel_after_resample; // 重采样后每个粒子的权重,平均
         // 这个体素内，经过重采样后，的粒子数 加到整个地图所有体素的粒子计数器中   
-        particle_num_after_resampling_should_be += particle_num_voxel_after_resample;
+        particle_num_after_resampling_should_be += particle_num_voxel_after_resample; // 重采样后的粒子数量 
 
         // Resample
         float acc_ori_weight = 0.f;//原始权重
@@ -1367,8 +1395,8 @@ void ParticleMap::mapOccupancyCalculationAndResample()
                     /** copy particles that have a very large weight **/
                     int p_i=0;
                     //如果加了权重，acc_ori_weight还是大，说明这个权重很大，比平均权重weight_after_resample还要大
-                    while(acc_ori_weight > acc_new_weight)
-                    { // copy the particle if the original weight is very large
+                    while(acc_ori_weight > acc_new_weight) // copy the particle if the original weight is very large
+                    { 
                         int if_found_position_in_voxel = 0; // 标志在体素中找到了空闲位置
                         if(!if_space_is_currently_full){ //如果当前体素现在不是满的
                             for( ; p_i<mp_.safe_particle_num_in_voxel_; ++p_i){ // 遍历体素中空闲的粒子存放区
@@ -1397,20 +1425,18 @@ void ParticleMap::mapOccupancyCalculationAndResample()
 
                         acc_new_weight += weight_after_resample;
                     }
-
                 }else
                 { //如果原来的权重小于新的权重
                     // Remove the particle
-                    md_.voxels_with_particles[v_index][p][0] = 0.f; //删除这个粒子
+                    removeParticle(v_index,p);
                     removed_particle_counter ++; //计数：删除了多少个粒子
                 }
             }
         }
-
-
     }
-    
-    
+    // ROS_INFO("old particle number in [resample]:%d",total_old_particle_num);
+    // ROS_INFO("pa 15 remove num : %d" ,pa_15_remove_counter);
+    // ROS_INFO("removed_particle_counter in [resample] : %d",removed_particle_counter);
     
 }
 
@@ -1493,8 +1519,9 @@ int ParticleMap::moveAParticle(int new_voxel_index, int current_v_index, int cur
     int new_voxel_inner_index = current_v_inner_index;
     if(new_voxel_index != current_v_index) //当前体素和目标体素不是同一个
     {
-        md_.voxels_with_particles[current_v_index][current_v_inner_index][0] = 0.f;// Remove from ori voxel first，因此已经nonvalid了，0.f
 
+        md_.voxels_with_particles[current_v_index][current_v_inner_index][0] = 0.f;// Remove from ori voxel first，因此已经nonvalid了，0.f
+    
         /// Find a space in the new voxel and then pyramid. If no space in either voxel or pyramid. This particle would vanish.
         bool successfully_moved_by_voxel = false;
 
@@ -1504,7 +1531,6 @@ int ParticleMap::moveAParticle(int new_voxel_index, int current_v_index, int cur
             {
                 new_voxel_inner_index = i;
                 successfully_moved_by_voxel = true;
-
                 md_.voxels_with_particles[new_voxel_index][i][0] = 7.f; // newly moved flag
                 for(int k=1; k<9;k++)
                 {
@@ -1512,6 +1538,7 @@ int ParticleMap::moveAParticle(int new_voxel_index, int current_v_index, int cur
                 }
                 break; // Important
             }
+            // 如果没找到,就
         }
 
         if(!successfully_moved_by_voxel)
@@ -1533,8 +1560,17 @@ int ParticleMap::moveAParticle(int new_voxel_index, int current_v_index, int cur
         int h_index = findPointPyramidHorizontalIndexInSensorFrame(transformParticle[0],transformParticle[1],transformParticle[2]);
         int v_index = findPointPyramidVerticalIndexInSensorFrame(transformParticle[0],transformParticle[1],transformParticle[2]);
 
+        // std::cout << 6 << std::endl; last bug
+        
 
         int particle_pyramid_index_new = h_index * mp_.observation_pyramid_num_vertical_ + v_index;
+        if(particle_pyramid_index_new < 0 || particle_pyramid_index_new >= mp_.observation_pyramid_num_)
+        {
+            ROS_WARN("h_index : %d",h_index);
+            ROS_WARN("v_index : %d",v_index);
+            ROS_WARN("particle_pyramid_index_new : %d ",particle_pyramid_index_new);
+            ROS_WARN("particle_pyramid_index_new out of range");
+        }
         // ROS_INFO("[moveparticle]: particle_pyramid_index_new = %d",particle_pyramid_index_new);
         // 找对应金字塔子空间的存储区域中有没有空的位置
         bool successfully_moved_by_pyramid = false;
@@ -1671,9 +1707,9 @@ float ParticleMap::getVelocityGaussianZeroCenter()
 
 bool ParticleMap::inPyramidsAreaInSensorFrame(float x, float y, float z)
 {
-    float sinf = z / sqrt(powf(x,2) + powf(y,2) + powf(z,2));
-    float f_abs = fabs(asinf(sinf));
-    if(f_abs >= 0 && f_abs <= sin(2 * mp_.half_fov_vertical_ * mp_.one_degree_rad_))
+
+    float vertical_degree = atan2(z,sqrtf(powf(x,2) + powf(y,2))) * 180.f / M_PI;
+    if(vertical_degree > -mp_.half_fov_vertical_ && vertical_degree <= mp_.half_fov_vertical_)
     {
         return true;
     }
@@ -1685,12 +1721,14 @@ bool ParticleMap::inPyramidsAreaInSensorFrame(float x, float y, float z)
 
 int ParticleMap::findPointPyramidHorizontalIndexInSensorFrame(float x, float y, float z)
 {
-    float horizontal_rad = fmod(atan2(y,x) + 2 * M_PI, 2*M_PI);
+    // float horizontal_rad = fmod(atan2(y,x) + 2 * M_PI, 2*M_PI);
+    // int horizontal_index = std::floor(horizontal_rad / mp_.one_degree_rad_);
+    // std::cout << 2*mp_.observation_pyramid_num_horizontal_ << std::endl;
+    int horizontal_index = std::floor(fmod(atan2(y,x) + 2 * M_PI, 2*M_PI) / mp_.one_degree_rad_);
 
-    int horizontal_index = std::floor(horizontal_rad / mp_.one_degree_rad_);
-    
-    if(horizontal_index >= 0 && horizontal_index < 2 * mp_.observation_pyramid_num_horizontal_)
+    if(horizontal_index >= 0 && horizontal_index < mp_.observation_pyramid_num_horizontal_)
     {
+
         return horizontal_index;
     }
     ROS_INFO("!!!!!! Please use Function ifInPyramidsArea() to filter the points first before using findPointPyramidHorizontalIndex()");
@@ -1700,11 +1738,13 @@ int ParticleMap::findPointPyramidHorizontalIndexInSensorFrame(float x, float y, 
 int ParticleMap::findPointPyramidVerticalIndexInSensorFrame(float x,float y,float z)
 {
     float vertical_rad = atan2(z,sqrtf(powf(x,2) + powf(y,2)));
-    int vertical_index = floor(vertical_rad + mp_.half_fov_vertical_rad_ / mp_.one_degree_rad_);
-    if(vertical_index >= 0 && vertical_index < 2 * mp_.observation_pyramid_num_vertical_ )
+    int vertical_index = floor((vertical_rad + mp_.half_fov_vertical_rad_) / mp_.one_degree_rad_);
+    if(vertical_index >= 0 && vertical_index < mp_.observation_pyramid_num_vertical_ )
     {
         return vertical_index;
     }
+    ROS_INFO("vertical index : %d",vertical_index);
+    ROS_INFO("x : %f, y : %f, z : %f",x,y,z);
     ROS_INFO("!!!!!! Please use Function ifInPyramidsAreaInSensorFrame() to filter the points first before using findPyramidVerticalIndexInSensorFrame()");
     return -1;
 }
@@ -1712,15 +1752,8 @@ int ParticleMap::findPointPyramidVerticalIndexInSensorFrame(float x,float y,floa
 
 void ParticleMap::transformParticleToSensorFrame(const Vector3d &oriPoint,Vector3d& transformPoint)
 {
-    Quaterniond tempQuaternion, targetQuaternion;
-    tempQuaternion.w() = 0;
-    tempQuaternion.x() = oriPoint.x();
-    tempQuaternion.y() = oriPoint.y();
-    tempQuaternion.z() = oriPoint.z();
-    targetQuaternion = md_.lidar_rotation_ * tempQuaternion * md_.lidar_rotation_.inverse();
-    transformPoint.x() = targetQuaternion.x() + md_.lidar_position_.x();
-    transformPoint.y() = targetQuaternion.y() + md_.lidar_position_.y();
-    transformPoint.z() = targetQuaternion.z() + md_.lidar_position_.z();
+
+    transformPoint = md_.lidar2world_.inverse() * oriPoint;
 }
 
 
@@ -1890,18 +1923,21 @@ void ParticleMap::velocityEstimationThread()
 
                 for(size_t i = 0; i < clusters.size(); i++)
                 {
+                    bool find_match = false;
                     for(size_t j = 0; j < md_.clusters_last_.size(); j++)
                     {
                         if(matrix_cost(i,j) == 0.0f && matrix_gate(i,j)) // found a match
                         {
-                            // ROS_INFO("find a mathc");
+                            find_match = true;
+                            // ROS_INFO("cluster %d find a mathc",i);
                             clusters[i].match_cluster_seq = j;
                             clusters[i].velocity = (clusters[i].center - md_.clusters_last_[j].center) / delt_t_from_last_observation;
+                            // ROS_INFO("vel : %f, %f, %f",clusters[i].velocity.x(),clusters[i].velocity.y(),clusters[i].velocity.z());
                             clusters[i].velocityNorm = clusters[i].velocity.norm();
                             clusters[i].intensity = md_.clusters_last_[j].intensity;  // for visualization 
                             // ROS_INFO("cluster vel : %lf\t%lf\t%lf.",clusters[i].velocity.x(),clusters[i].velocity.y(),clusters[i].velocity.z());
 
-                            if(clusters[i].velocity.norm() > 10.0f)
+                            if(clusters[i].velocity.norm() > 50.0f)
                             {
                                 clusters[i].velocity.setZero();
                             }
@@ -1909,10 +1945,14 @@ void ParticleMap::velocityEstimationThread()
                         }
 
                     }
-                    /// If no match is found. The cluster velocity is given by struct initialization (v=-1000).
-                    clusters[i].match_cluster_seq = -1;
-                    clusters[i].velocity.setZero();
-                    clusters[i].velocityNorm = 0.f;
+                    if(!find_match)
+                    {
+                        /// If no match is found.
+                        // ROS_INFO("cluster %d not find the mathc",i);
+                        clusters[i].match_cluster_seq = -1;
+                        clusters[i].velocity.setZero();
+                        clusters[i].velocityNorm = 0.f;
+                    }
                 }
 
             }
@@ -1944,6 +1984,7 @@ void ParticleMap::velocityEstimationThread()
                 p.intensity = clusters[cluster_id].intensity;
                 md_.input_cloud_with_velocity_->push_back(p);
             }
+            // ROS_INFO("cluster %d, vel: %f, %f, %f",cluster_id,clusters[cluster_id].velocity.x(),clusters[cluster_id].velocity.y(),clusters[cluster_id].velocity.z());
             cluster_id ++;
         }
 

@@ -21,10 +21,10 @@
     
         <param name="obstacle/upper_vel" value="1.0"/>
 
-        <param name="aabb/lower_x" value="1.0"/>
-        <param name="aabb/upper_x" value="2.0"/>
-        <param name="aabb/lower_y" value="1.0"/>
-        <param name="aabb/upper_y" value="2.0"/>        
+        <param name="aabb/lower_x" value="0.5"/>
+        <param name="aabb/upper_x" value="1.0"/>
+        <param name="aabb/lower_y" value="0.5"/>
+        <param name="aabb/upper_y" value="1.0"/>        
         <param name="aabb/lower_z" value="2.0"/>
         <param name="aabb/upper_z" value="5.0"/>        
 
