@@ -97,10 +97,11 @@ public:
 
     /**
      * @brief predcit all object in the pool in dt
-     * @param dt time interval
+     * @param target_time target time
      * @param output TrackerOutput 
     */
-    void forwardPool(vector<TrackerOutput> &output, double dt);
+    void forwardPool(vector<TrackerOutput> &output, ros::Time target_time);
+    // void forwardPool(vector<TrackerOutput> &output, double dt);
 
     /**
      * @brief update all object in the pool
@@ -109,7 +110,6 @@ public:
      * @param input TrackerInput
     */
     void updatePool(const vector<TrackerInput> &input, ros::Time current_time);
-
 
     /**
      * @brief get all object states in the pool

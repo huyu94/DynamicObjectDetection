@@ -1,4 +1,5 @@
 #include "plan_env/dynamic/tracker_pool.h"
+#include "tracker_pool.h"
 
 
 
@@ -85,9 +86,10 @@ void TrackerPool::init(ros::NodeHandle& nh)
 
 
 
-void TrackerPool::forwardPool(vector<TrackerOutput> &output, double dt)
+void TrackerPool::forwardPool(vector<TrackerOutput> &output, ros::Time target_time)
 {
     output.clear();
+    double dt = (target_time - current_time_).toSec();
     for(auto &track : pool_)
     {
         if(track != nullptr)

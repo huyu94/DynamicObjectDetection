@@ -31,6 +31,9 @@ struct ClusterFeature
     VectorXd state;
     Vector3d length;
     pcl::PointIndices cluster_indices;
+    double gamma_1; // global_average_minimum_distance
+    double gamma_2; // normalized average variance of distance
+    int motion_type; // 0:moving; 1:static; 2:Unkown 
 };
 
 
@@ -45,22 +48,28 @@ private:
     GridMap::Ptr grid_map_ptr_;
 
     shared_ptr<PointVector> current_cloud_ptr_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
+    
+/* multi-threads */
+    std::mutex slide_window_mtx_;
     
 /* data */
     nav_msgs::Odometry current_odom_;
-
+    ros::Time current_time_;
 /*  cluster : */ 
-    pcl::KdTreeFLANN<pcl::PointXYZ> dbscan_kdtree_; //pcl kdtree used for DBSCAN
+    pcl::KdTreeFLANN<pcl::PointXYZ> cluster_kdtree_; //pcl kdtree used for DBSCAN
+    // KD_TREE<PointType>::Ptr cluster_kdtree_ptr_;
     double dbscan_eps_;
     int dbscan_min_ptn_;
     vector<ClusterFeature> cluster_features_;
 
 /* segmentation */
-    KD_TREE<PointType>::Ptr ikd_tree_ptr_;
+    KD_TREE<PointType>::Ptr segmentation_kdtree_ptr_;
     queue<shared_ptr<PointVector>> cloud_slide_window_;
-    std::mutex slide_window_mtx_;
+    int slide_windows_size_; 
     bool ikd_tree_built_;
     bool cloud_window_ready_;
+    double gamma_1_threshold_,gamma_2_threshold_;
 
 /* synchronizer */
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> SyncPolicyCloudOdom;
@@ -106,7 +115,7 @@ private:
      * @param clusters 传出，用来存放各个簇的点云指针
      * 
     */
-    void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+    void cluster();
     // void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
     //              std::vector<pcl::PointIndices> &cluster_indices,
     //              std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
