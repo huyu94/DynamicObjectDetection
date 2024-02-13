@@ -22,7 +22,7 @@
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/time_synchronizer.h>
 
-#include <plan_env/raycast.h>
+#include <plan_env/static/raycast.h>
 
 #define logit(x) (log((x) / (1 - (x))))
 

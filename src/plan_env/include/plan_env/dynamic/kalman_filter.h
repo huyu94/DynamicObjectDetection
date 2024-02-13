@@ -70,7 +70,7 @@ public:
      * @brief just forward the state, no update and covariance matrix calculation
      * @param dt time interval between k and k+1
     */
-    VectorXd forward(double dt);
+    Eigen::VectorXd forward(double dt);
 
 
     /**

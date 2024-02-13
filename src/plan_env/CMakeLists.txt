@@ -43,11 +43,13 @@ set(MunkresLIB
         )
 # link_directories(${PCL_LIBRARY_DIRS})
 
+file(GLOB plan_env_SRC
+    "src/*.cpp"
+)
 add_library( plan_env 
-    src/grid_map.cpp 
-    src/raycast.cpp
-    src/dsp_map.cpp
-    src/dsp_map_math.cpp
+    ${plan_env_SRC}
+    # src/grid_map.cpp 
+    # src/raycast.cpp
 )
 target_link_libraries( plan_env
     ${catkin_LIBRARIES} 
@@ -56,16 +58,16 @@ target_link_libraries( plan_env
 )  
 # add_dependencies(plan_env munkres)
 
-add_executable(dsp_map_node 
-    src/dsp_map_node.cpp
-    src/dsp_map.cpp
-    src/dsp_map_math.cpp
-    src/particle_map.cpp
-    )
-target_link_libraries(dsp_map_node
-    ${catkin_LIBRARIES} 
-    ${PCL_LIBRARIES}
-    ${MunkresLIB}
-    )  
+# add_executable(dsp_map_node 
+#     src/dsp_map_node.cpp
+#     src/dsp_map.cpp
+#     src/dsp_map_math.cpp
+#     src/particle_map.cpp
+#     )
+# target_link_libraries(dsp_map_node
+#     ${catkin_LIBRARIES} 
+#     ${PCL_LIBRARIES}
+#     ${MunkresLIB}
+#     )  
 # add_dependencies(plan_env munkres)
 
