@@ -122,7 +122,7 @@ namespace dynamic_tracker
 
     void TrackingPool::predictPool(std::vector<std::pair<int,Vector6d>> &alive_trackings)
     {
-        alive_trackings.clear();
+        alive_trackings.clear();    
         for(auto &track:pool_){
             if(track->is_alive_){
                 alive_trackings.emplace_back(track->id_,predictTracking(track));
