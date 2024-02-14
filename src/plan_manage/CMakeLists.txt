@@ -9,7 +9,7 @@ project(plan_manage)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   # bspline_opt
-  path_searching
+  # path_searching
   plan_env
   roscpp
   std_msgs

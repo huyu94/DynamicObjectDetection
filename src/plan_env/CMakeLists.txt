@@ -2,9 +2,12 @@ cmake_minimum_required(VERSION 2.8.3)
 project(plan_env)
 
 set(CMAKE_BUILD_TYPE "Release")
-ADD_COMPILE_OPTIONS(-std=c++11 )
 ADD_COMPILE_OPTIONS(-std=c++14 )
+add_compile_options(-w)
+# add_compile_options(-Wno-unused-variable)
+# add_compile_options(-Wno-maybe-uninitialized)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+
 
 find_package(OpenCV REQUIRED)
 
@@ -43,7 +46,7 @@ set(MunkresLIB
         )
 # link_directories(${PCL_LIBRARY_DIRS})
 
-file(GLOB plan_env_SRC
+file(GLOB_RECURSE plan_env_SRC
     "src/*.cpp"
 )
 add_library( plan_env 
@@ -58,16 +61,14 @@ target_link_libraries( plan_env
 )  
 # add_dependencies(plan_env munkres)
 
-# add_executable(dsp_map_node 
-#     src/dsp_map_node.cpp
-#     src/dsp_map.cpp
-#     src/dsp_map_math.cpp
-#     src/particle_map.cpp
-#     )
-# target_link_libraries(dsp_map_node
-#     ${catkin_LIBRARIES} 
-#     ${PCL_LIBRARIES}
-#     ${MunkresLIB}
-#     )  
-# add_dependencies(plan_env munkres)
 
+add_executable(env_node
+    src/env_node.cpp
+    ${plan_env_SRC}
+)
+
+target_link_libraries(env_node
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${MunkresLIB}
+)

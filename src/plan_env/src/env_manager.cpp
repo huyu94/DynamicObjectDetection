@@ -1,5 +1,4 @@
 #include "plan_env/env_manager.h"
-#include "env_manager.h"
 
 void EnvManager::init(const ros::NodeHandle &nh)
 {
@@ -10,11 +9,16 @@ void EnvManager::init(const ros::NodeHandle &nh)
     setGridMap();
 
 
+/* visualizer */
+    map_vis_ptr_.reset(new MapVisualizer(node_));
+
+
 
 /* dbscan cluster */
     node_.param<double>("tracker/dbscan_eps",dbscan_eps_,0.5);
     node_.param<int>("tracker/dbscan_min_ptn",dbscan_min_ptn_,5);
-    cluster_kdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
+    // cluster
+    // cluster_kdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
 
 
 
@@ -144,15 +148,87 @@ void EnvManager::cluster()
 
     }
 
+    /* 添加索引 ，并创建对应聚类 */
     cluster_features_.clear();
     cluster_features_.resize(clusterIndex);
     for(size_t i=0;i<clusterIds.size();i++)
     {
-        if(clusterIds[i] > 0)
+        if(clusterIds[i] <= 0) // 噪声点
         {
-            cluster_features_[clusterIds[i]-1].cluster_indices.indices.push_back(i);
+            continue; 
+        }
+        if(cluster_features_[clusterIds[i]]==nullptr) // 没有初始化
+        {
+            cluster_features_[clusterIds[i]-1] = make_shared<ClusterFeature>();
+        }
+
+        cluster_features_[clusterIds[i]-1]->cluster_indices.indices.push_back(i);
+    }
+
+    /**
+     * 1. 给ClsuterFeature 添加一些属性
+     * 2. 输出给map_visualizer  */
+    vector<VisualCluster> vis_clusters;
+    for(auto &y : cluster_features_)
+    {
+        if(y == nullptr)
+        {
+            ROS_WARN("in [cluster] : nullptr");
+            continue;
+        }
+        calClusterFeatureProperty(y);
+        vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
+        
+    }
+    map_vis_ptr_->visualizeClusterResult(vis_clusters);
+}
+
+void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
+{
+    Vector3d min_bound,max_bound;
+    Vector3d position;
+    Vector3d length;
+    Vector3d pt;
+    for(size_t i=0; i < cluster_ptr->cluster_indices.indices.size();i++)
+    {
+        int index = cluster_ptr->cluster_indices.indices[i];
+        pt.x() = (*current_cloud_ptr_)[index].x;
+        pt.y() = (*current_cloud_ptr_)[index].y;
+        pt.z() = (*current_cloud_ptr_)[index].z;
+
+        position += pt;
+        if(i == 0)
+        {
+            min_bound = max_bound = pt;
+        }
+        else
+        {
+            for(int j=0;j<3;j++)
+            {
+                if(pt[j] < min_bound[j])
+                {
+                    min_bound[j] = pt[j];
+                }
+                if(pt[j] > max_bound[j])
+                {
+                    max_bound[j] = pt[j];
+                }
+            }
         }
     }
+    position /= cluster_ptr->cluster_indices.indices.size();
+    length = max_bound - min_bound;
+    cluster_ptr->state.head(3) = position;
+    cluster_ptr->length = length;
+    cluster_ptr->min_bound = min_bound;
+    cluster_ptr->max_bound = max_bound;
+    cluster_ptr->state.tail(3) = Vector3d::Zero();
+    cluster_ptr->motion_type = 2;
+    cluster_ptr->gamma_1 = 0;
+    cluster_ptr->gamma_2 = 0;
+    cluster_ptr->match_id = -1;
+    // cluster_ptr->cluster_indices.indices.clear();
+    // cluster_ptr->cluster_indices.indices.shrink_to_fit();
 
 }
 
@@ -174,10 +250,10 @@ void EnvManager::segmentation()
         Vector3d position;
 
         global_average_minimum_distance = 0;
-        for(size_t i=0; i < cluster.cluster_indices.indices.size();i++)
+        for(size_t i=0; i < cluster->cluster_indices.indices.size();i++)
         {
 
-            int index = cluster.cluster_indices.indices[i];
+            int index = cluster->cluster_indices.indices[i];
             search_vector.clear();
             search_distance.clear();
             segmentation_kdtree_ptr_->Nearest_Search((*point_vector)[index],1,search_vector,search_distance);
@@ -195,20 +271,20 @@ void EnvManager::segmentation()
             gamma_2 += pow(global_nearest_distance[j] - gamma_1,2) ;
         }
         gamma_2 /= (global_nearest_distance.size() * pow(gamma_1,2));
-        cluster.gamma_1 = gamma_1;
-        cluster.gamma_2 = gamma_2;
+        cluster->gamma_1 = gamma_1;
+        cluster->gamma_2 = gamma_2;
 
-        if(cluster.gamma_1 < gamma_1_threshold_)
+        if(cluster->gamma_1 < gamma_1_threshold_)
         {
-            cluster.motion_type = 1;
+            cluster->motion_type = 1;
         }
-        else if(cluster.gamma_1 > gamma_1_threshold_ && cluster.gamma_2 < gamma_2_threshold_)
+        else if(cluster->gamma_1 > gamma_1_threshold_ && cluster->gamma_2 < gamma_2_threshold_)
         {
-            cluster.motion_type = 0;
+            cluster->motion_type = 0;
         }
         else
         {
-            cluster.motion_type = 2;
+            cluster->motion_type = 2;
         }
     }
 }
@@ -218,9 +294,21 @@ void EnvManager::match()
 {
     vector<TrackerOutput> tracker_outputs;
     tracker_pool_ptr_->forwardPool(tracker_outputs,current_time_);
+    float dt = (current_time_ - last_update_time_).toSec();
+    float distance_gate = 1.5;
 
-    double distance_gate = 1.5;
-    if(tracker_outputs.size() == 0 || cluster_features_.size() == 0)
+/*  get moving clutster */
+    vector<ClusterFeature::Ptr> current_moving_clusters;
+    for(auto &cluster : cluster_features_)
+    {
+        if(cluster->motion_type == 0)
+        {
+            current_moving_clusters.push_back(cluster);
+        }
+    }
+
+
+    if(tracker_outputs.size() == 0 || current_moving_clusters.size() == 0)
     {
         std::cout << " cluster or last cluster size == 0" << std::endl;
         return ;
@@ -228,16 +316,16 @@ void EnvManager::match()
     else // 匹配
     {
         ROS_INFO("size != 0, 匈牙利算法求解");
-        Matrix<float> matrix_cost(cluster_features_.size(),tracker_outputs.size());
-        Matrix<bool> matrix_gate(cluster_features_.size(),tracker_outputs.size());
-        for(size_t row=0; row < cluster_features_.size(); row++)
+        Matrix<float> matrix_cost(current_moving_clusters.size(),tracker_outputs.size());
+        Matrix<bool> matrix_gate(current_moving_clusters.size(),tracker_outputs.size());
+        for(size_t row=0; row < current_moving_clusters.size(); row++)
         {
             for(size_t col=0; col < tracker_outputs.size(); col++)
             {
-                // Vector3d measure_pos = cluster_features_[row].state.head(3);
-                // Vector3d predict_pos = tracker_outputs[col].state.head(3);
-                // double distance = (measure_pos - predict_pos).norm();
-                float feature_distance = (cluster_features_[row].state.head(3) - tracker_outputs[col].state.head(3)).norm();
+                /* 确保：
+                1. 在距离大于gate的时候，不会被关联中
+                2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
+                float feature_distance = (current_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
                 matrix_cost(row,col) = feature_distance < distance_gate ? feature_distance : 5000 * feature_distance;
                 matrix_gate(row,col) = matrix_cost(row,col) < distance_gate;
             }
@@ -245,16 +333,19 @@ void EnvManager::match()
 
         Munkres<float> munkres_solver;
         munkres_solver.solve(matrix_cost);
-        for(size_t row=0; row < cluster_features_.size(); row++)
+        for(size_t row=0; row < current_moving_clusters.size(); row++)
         {
             bool find_match = false;
             for(size_t col=0; col < tracker_outputs.size(); col++)
             {
                 if(matrix_cost(row,col) == 0.0f && matrix_gate(row,col)) // find a match
                 {
-                    find_match = true;
                     // find_match
-                    cluster_features_[row].match_id = tracker_outputs[col].id;
+                    find_match = true;
+                    current_moving_clusters[row]->match_id = tracker_outputs[col].id;
+                    /* velocity estimation */
+                    current_moving_clusters[row]->state.tail(3) = (current_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)) / dt;
+
                     
 
                 }
@@ -322,6 +413,11 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
         segmentation_kdtree_ptr_->Delete_Points(*front_cloud_ptr);
         segmentation_kdtree_ptr_->Add_Points(*current_cloud_ptr_,false);
     }
+}
+
+void EnvManager::visCallback(const ros::TimerEvent&)
+{
+
 }
 
 

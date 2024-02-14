@@ -19,8 +19,9 @@
 
 #include <munkres.h>
 #include "plan_env/dynamic/tracker_pool.h"
-#include "plan_env/ikd-Tree/ikd_Tree.h"
+#include "plan_env/ikd_Tree.h"
 #include "plan_env/static/grid_map.h"
+#include "plan_env/map_visualizer.h"
 
 using PointType = pcl::PointXYZ;
 using PointVector = KD_TREE<PointType>::PointVector;
@@ -28,12 +29,15 @@ using PointVector = KD_TREE<PointType>::PointVector;
 
 struct ClusterFeature
 {
-    VectorXd state;
+    VectorXd state; // [pos,vel] 
     Vector3d length;
+    Vector3d min_bound,max_bound;
+    int match_id{-1}; // 与tracker_pool中的tracker匹配的id, -1 表示没有匹配中
     pcl::PointIndices cluster_indices;
     double gamma_1; // global_average_minimum_distance
     double gamma_2; // normalized average variance of distance
     int motion_type; // 0:moving; 1:static; 2:Unkown 
+    typedef std::shared_ptr<ClusterFeature> Ptr;   
 };
 
 
@@ -55,13 +59,17 @@ private:
     
 /* data */
     nav_msgs::Odometry current_odom_;
-    ros::Time current_time_;
+    ros::Time current_time_, last_update_time_;
+
+/* visualizer */
+    MapVisualizer::Ptr map_vis_ptr_;
+
 /*  cluster : */ 
     pcl::KdTreeFLANN<pcl::PointXYZ> cluster_kdtree_; //pcl kdtree used for DBSCAN
     // KD_TREE<PointType>::Ptr cluster_kdtree_ptr_;
     double dbscan_eps_;
     int dbscan_min_ptn_;
-    vector<ClusterFeature> cluster_features_;
+    vector<ClusterFeature::Ptr> cluster_features_;
 
 /* segmentation */
     KD_TREE<PointType>::Ptr segmentation_kdtree_ptr_;
@@ -116,7 +124,8 @@ private:
      * 
     */
     void cluster();
-    // void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+    void calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr);
+    // void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
     //              std::vector<pcl::PointIndices> &cluster_indices,
     //              std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
 
@@ -139,11 +148,10 @@ private:
     void checkReady();
 
 
-
-EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+public:
 typedef std::shared_ptr<EnvManager> Ptr;
 
-
+EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 
