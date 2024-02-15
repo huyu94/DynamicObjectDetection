@@ -5,8 +5,14 @@
 #include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <Eigen/Eigen>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/common/common.h>
 
+using Eigen::Vector3d;
 
 class Color : public std_msgs::ColorRGBA {
  public:
@@ -21,13 +27,13 @@ class Color : public std_msgs::ColorRGBA {
 
   static const Color White() { return Color(1.0, 1.0, 1.0); }
   static const Color Black() { return Color(0.0, 0.0, 0.0); }
-  static const Color Gray() { return Color(0.5, 0.5, 0.5); }
+  static const Color Gray() { return Color(0.5, 0.5, 0.5, 0.5); }
   static const Color Red() { return Color(1.0, 0.0, 0.0); }
-  static const Color Green() { return Color(0.0, 0.7, 0.0); }
+  static const Color Green() { return Color(0.0, 0.7, 0.0, 0.5); }
   static const Color Blue() { return Color(0.0, 0.0, 1.0); }
   static const Color SteelBlue() { return Color(0.4, 0.7, 1.0); }
-  static const Color Yellow() { return Color(1.0, 1.0, 0.0); }
-  static const Color Orange() { return Color(1.0, 0.5, 0.0); }
+  static const Color Yellow() { return Color(1.0, 1.0, 0.0, 0.5); }
+  static const Color Orange() { return Color(1.0, 0.5, 0.0, 0.8); }
   static const Color Purple() { return Color(0.5, 0.0, 1.0); }
   static const Color Chartreuse() { return Color(0.5, 1.0, 0.0); }
   static const Color Teal() { return Color(0.0, 1.0, 1.0); }
@@ -38,15 +44,28 @@ class Color : public std_msgs::ColorRGBA {
 
 struct VisualCluster
 {
-  Eigen::Vector3d centroid;
-  Eigen::Vector3d length;
-  Eigen::Vector3d min_bound,max_bound;
+  Vector3d centroid;
+  Vector3d length;
+  Vector3d min_bound,max_bound;
+  Vector3d velocity;
 
-  VisualCluster(Eigen::Vector3d c,Eigen::Vector3d l,Eigen::Vector3d min,Eigen::Vector3d max) : 
-                    centroid(Eigen::Vector3d::Zero()), length(Eigen::Vector3d::Zero()), 
-                    min_bound(Eigen::Vector3d::Zero()), max_bound(Eigen::Vector3d::Zero()) {}
+  VisualCluster(Vector3d c,Vector3d l,Vector3d minb,Vector3d maxb) : 
+                    centroid(c), length(l), velocity(Vector3d::Zero()),
+                    min_bound(minb), max_bound(maxb) {}
+
+  VisualCluster(Vector3d c,Vector3d l,Vector3d minb,Vector3d maxb,Vector3d vel) : 
+                centroid(c), length(l),velocity(vel),
+                min_bound(minb), max_bound(maxb) {} 
 };
 
+struct VisualMatchCluster
+{
+  Vector3d c1,c2;
+};
+typedef std::pair<Vector3d,Vector3d> VisualKMResult;
+
+visualization_msgs::Marker generateArrows(const Vector3d &pos, const Vector3d &vel, int id);
+visualization_msgs::Marker generateBBox(const Eigen::Vector3d &min_point, const Eigen::Vector3d &max_point, int id);
 
 class MapVisualizer
 {
@@ -54,11 +73,13 @@ public:
     MapVisualizer();
     MapVisualizer(const ros::NodeHandle& node);
 
-    void visualizeClusterResult(std::vector<VisualCluster> &visual_cluster);
-    void visualizeSegmentationResult();
-    void visualizeKMResult();
+    void visualizeReceiveCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+    void visualizeClusterResult(std::vector<VisualCluster> &visual_clusters);
+    void visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters);
+    void visualizeKMResult(std::vector<VisualKMResult> &kmresult); // 滑匹配的线
     void visualizeMovingObjectBox();
     void visualizeMovingObjectTraj();
+
 
     typedef std::shared_ptr<MapVisualizer> Ptr;
 
@@ -69,6 +90,7 @@ private:
     ros::Publisher km_result_pub_;
     ros::Publisher moving_object_box_pub_;
     ros::Publisher moving_object_traj_pub_;
+    ros::Publisher receive_cloud_pub_;
 
 };
 

@@ -21,8 +21,7 @@ private:
     bool is_alive_;
     int id_;
     Vector3d length_;
-public:
-    ros::Time last_match_time_;
+    ros::Time udpate_time_;
 
 public:
     /**
@@ -32,7 +31,7 @@ public:
      * @param id id of the object
     */
     Tracker(VectorXd measurment,Vector3d length,int id, ros::Time current_time):
-            is_alive_(true),kf_(),length_(length),id_(id),last_match_time_(current_time)
+            is_alive_(true),kf_(),length_(length),id_(id),udpate_time_(current_time)
     {
         Eigen::MatrixXd P(6,6),F(6,6),Q(6,6),H(6,6),R(6,6);
 
@@ -99,10 +98,10 @@ public:
     */
     void update(const VectorXd &measurment,ros::Time current_time, const Vector3d &length)
     {
-        double dt = (current_time - last_match_time_).toSec();
+        double dt = (current_time - udpate_time_).toSec();
         std::cout << "dt : " << dt << std::endl; 
         kf_.UpdateEKF(measurment,dt);
-        last_match_time_ = current_time;
+        udpate_time_ = current_time;
         length_ = length;
     }
 
@@ -119,6 +118,16 @@ public:
     int getId()
     {
         return id_;
+    }
+
+    VectorXd getState()
+    {
+        return kf_.getState();
+    }
+
+    ros::Time getUpdateTime()
+    {
+        return udpate_time_;
     }
 
     typedef shared_ptr<Tracker> Ptr;

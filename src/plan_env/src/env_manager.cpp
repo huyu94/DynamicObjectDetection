@@ -2,11 +2,15 @@
 
 void EnvManager::init(const ros::NodeHandle &nh)
 {
-    ROS_INFO("start init !!!!");
+    ROS_INFO("env manager start init !!!!");
     node_ = nh;
 
+
+/* set tracker pool*/
     setTrackerPool();
-    setGridMap();
+
+/* set grid map */
+    // setGridMap();
 
 
 /* visualizer */
@@ -22,18 +26,17 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 
 
-
 /* segmentation */
-    node_.param<double>("tracker/gamma_1_threshold",gamma_1_threshold_,0.5);
-    node_.param<double>("tracker/gamma_2_threshold",gamma_2_threshold_,0.5);
-    node_.param<int>("env_manager/slide_windows_size",slide_windows_size_,5);
+    node_.param<double>("tracker/gamma1_threshold",gamma1_threshold_,0.5);
+    node_.param<double>("tracker/gamma2_threshold",gamma2_threshold_,0.5);
+    node_.param<int>("env_manager/slide_window_size",slide_window_size_,5);
     segmentation_kdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
     ikd_tree_built_ = false;
     cloud_window_ready_ = false;
 
 /* sync subscriber */
-    cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "~cloud", 1));
-    odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_,"~odom", 1));
+    cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "cloud", 1));
+    odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_,"odom", 1));
     sync_cloud_odom_.reset(new message_filters::Synchronizer<SyncPolicyCloudOdom>(SyncPolicyCloudOdom(10), *cloud_sub_, *odom_sub_));
     sync_cloud_odom_->registerCallback(boost::bind(&EnvManager::cloudOdomCallback, this, _1, _2));
 
@@ -58,7 +61,6 @@ void EnvManager::setGridMap()
 {
     grid_map_ptr_.reset(new GridMap());
     grid_map_ptr_->initMap(node_);
-
 }
 
 
@@ -107,7 +109,6 @@ void EnvManager::cluster()
             {
                 if(neighbor_indices[j] == i)
                 {
-                    std::cout << "find search point. " << std::endl;
                     continue;
                 }
                 // 如果这个点没有访问过，并且不是噪声点
@@ -147,7 +148,6 @@ void EnvManager::cluster()
         }
 
     }
-
     /* 添加索引 ，并创建对应聚类 */
     cluster_features_.clear();
     cluster_features_.resize(clusterIndex);
@@ -157,7 +157,7 @@ void EnvManager::cluster()
         {
             continue; 
         }
-        if(cluster_features_[clusterIds[i]]==nullptr) // 没有初始化
+        if(cluster_features_[clusterIds[i]-1]==nullptr) // 没有初始化
         {
             cluster_features_[clusterIds[i]-1] = make_shared<ClusterFeature>();
         }
@@ -173,23 +173,29 @@ void EnvManager::cluster()
     {
         if(y == nullptr)
         {
-            ROS_WARN("in [cluster] : nullptr");
+            // ROS_WARN("in [cluster] : nullptr");
             continue;
         }
+        // std::cout << "start calculate properties" << std::endl;
+
         calClusterFeatureProperty(y);
+        // std::cout << "can calculate properties" << std::endl;
         vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
         
     }
+    // std::cout << "step 2 finished " << std::endl;
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
 }
 
 void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
 {
+
     Vector3d min_bound,max_bound;
     Vector3d position;
     Vector3d length;
     Vector3d pt;
-    for(size_t i=0; i < cluster_ptr->cluster_indices.indices.size();i++)
+    int size = cluster_ptr->cluster_indices.indices.size();
+    for(size_t i=0; i < size;i++)
     {
         int index = cluster_ptr->cluster_indices.indices[i];
         pt.x() = (*current_cloud_ptr_)[index].x;
@@ -216,13 +222,14 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
             }
         }
     }
-    position /= cluster_ptr->cluster_indices.indices.size();
+    position /= size;
     length = max_bound - min_bound;
+    cluster_ptr->state = VectorXd(6);
     cluster_ptr->state.head(3) = position;
+    cluster_ptr->state.tail(3) = Vector3d::Zero();
     cluster_ptr->length = length;
     cluster_ptr->min_bound = min_bound;
     cluster_ptr->max_bound = max_bound;
-    cluster_ptr->state.tail(3) = Vector3d::Zero();
     cluster_ptr->motion_type = 2;
     cluster_ptr->gamma_1 = 0;
     cluster_ptr->gamma_2 = 0;
@@ -243,6 +250,7 @@ void EnvManager::segmentation()
     double max_dist;
     vector<float> global_nearest_distance;
     double global_average_minimum_distance,normalized_average_variance_of_distance;
+    double dt = (current_time_ - last_update_time_).toSec();
     for(auto &cluster : cluster_features_)
     {
         global_nearest_distance.clear();
@@ -256,8 +264,10 @@ void EnvManager::segmentation()
             int index = cluster->cluster_indices.indices[i];
             search_vector.clear();
             search_distance.clear();
-            segmentation_kdtree_ptr_->Nearest_Search((*point_vector)[index],1,search_vector,search_distance);
-            global_nearest_distance.push_back(search_distance[0]);
+            segmentation_kdtree_ptr_->Nearest_Search((*point_vector)[index],2,search_vector,search_distance);
+            // ROS_INFO("search_point: %lf, %lf, %lf", (*point_vector)[index].x,(*point_vector)[index].y,(*point_vector)[index].z);
+            // ROS_INFO("search_vector : %lf, %lf, %lf", search_vector[0].x,search_vector[0].y,search_vector[0].z);
+            global_nearest_distance.push_back(search_distance[1]);
         }
         double gamma_1 = 0, gamma_2 = 0;
         for(auto dis : global_nearest_distance)
@@ -274,11 +284,13 @@ void EnvManager::segmentation()
         cluster->gamma_1 = gamma_1;
         cluster->gamma_2 = gamma_2;
 
-        if(cluster->gamma_1 < gamma_1_threshold_)
+        // ROS_INFO("gamma1: %lf, gamma2: %lf",gamma_1,gamma_2);
+
+        if(cluster->gamma_1 < gamma1_threshold_)
         {
             cluster->motion_type = 1;
         }
-        else if(cluster->gamma_1 > gamma_1_threshold_ && cluster->gamma_2 < gamma_2_threshold_)
+        else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 < gamma2_threshold_)
         {
             cluster->motion_type = 0;
         }
@@ -287,83 +299,169 @@ void EnvManager::segmentation()
             cluster->motion_type = 2;
         }
     }
+
+    std::vector<VisualCluster> visual_clusters;
+    for(auto &t : cluster_features_)
+    {
+        if(t->motion_type == 0)
+        {
+            visual_clusters.push_back(VisualCluster(t->state.head(3),t->length,t->min_bound,t->max_bound,t->state.tail(3)));
+        }
+    }
+
+    map_vis_ptr_->visualizeSegmentationResult(visual_clusters);
 }
 
 
 void EnvManager::match()
 {
+    static int match_count = 1;
+    std::cout << "match_count : " << match_count++ << std::endl;
     vector<TrackerOutput> tracker_outputs;
+    vector<TrackerOutput> tracker_last_outputs;
     tracker_pool_ptr_->forwardPool(tracker_outputs,current_time_);
-    float dt = (current_time_ - last_update_time_).toSec();
+    // float dt = (current_time_ - last_update_time_).toSec();
     float distance_gate = 1.5;
 
 /*  get moving clutster */
-    vector<ClusterFeature::Ptr> current_moving_clusters;
+    vector<ClusterFeature::Ptr> measurement_moving_clusters;
     for(auto &cluster : cluster_features_)
     {
         if(cluster->motion_type == 0)
         {
-            current_moving_clusters.push_back(cluster);
+            measurement_moving_clusters.push_back(cluster);
         }
     }
 
-
-    if(tracker_outputs.size() == 0 || current_moving_clusters.size() == 0)
+    ROS_INFO("measurment cluster size: %d, tracker size: %d",measurement_moving_clusters.size(),tracker_outputs.size());
+    if(measurement_moving_clusters.size() == 0)
     {
-        std::cout << " cluster or last cluster size == 0" << std::endl;
+        std::cout << " current_moving_clusters size == 0" << std::endl;
         return ;
     }
-    else // 匹配
+
+    for(size_t i = 0; i< tracker_outputs.size();i++)
     {
-        ROS_INFO("size != 0, 匈牙利算法求解");
-        Matrix<float> matrix_cost(current_moving_clusters.size(),tracker_outputs.size());
-        Matrix<bool> matrix_gate(current_moving_clusters.size(),tracker_outputs.size());
-        for(size_t row=0; row < current_moving_clusters.size(); row++)
+        std::cout << "tracker_outputs : " << tracker_outputs[i].state.transpose() << std::endl;
+    }
+
+/* hugorian algorithm for match */
+    if(tracker_outputs.size() == 0){
+        std::cout << " tracker_outputs size == 0" << std::endl;
+    }
+    else
+    {
+        ROS_INFO("Hungarian algorithm init");
+        Matrix<float> matrix_cost(measurement_moving_clusters.size(),tracker_outputs.size());
+        Matrix<bool> matrix_gate(measurement_moving_clusters.size(),tracker_outputs.size());
+        for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
             for(size_t col=0; col < tracker_outputs.size(); col++)
             {
                 /* 确保：
                 1. 在距离大于gate的时候，不会被关联中
                 2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
-                float feature_distance = (current_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
+                float feature_distance = (measurement_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
                 matrix_cost(row,col) = feature_distance < distance_gate ? feature_distance : 5000 * feature_distance;
                 matrix_gate(row,col) = matrix_cost(row,col) < distance_gate;
             }
         }
 
+        for(size_t row=0; row < measurement_moving_clusters.size(); row++)
+        {
+            for(size_t col=0; col < tracker_outputs.size(); col++)
+            {
+                std::cout << matrix_cost(row,col) << " ";
+            }
+            std::cout << std::endl;
+        }
+
+
+        ROS_INFO("Hungarian algorithm solving");
         Munkres<float> munkres_solver;
         munkres_solver.solve(matrix_cost);
-        for(size_t row=0; row < current_moving_clusters.size(); row++)
+        ROS_INFO("Hungarian algorithm solved");
+
+        for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
             bool find_match = false;
             for(size_t col=0; col < tracker_outputs.size(); col++)
             {
                 if(matrix_cost(row,col) == 0.0f && matrix_gate(row,col)) // find a match
                 {
+                    ROS_INFO("match : %d -> %d",row,col);
                     // find_match
                     find_match = true;
-                    current_moving_clusters[row]->match_id = tracker_outputs[col].id;
+                    measurement_moving_clusters[row]->match_id = tracker_outputs[col].id;
+                    VectorXd tracker_last_frame_state = tracker_pool_ptr_->getTracker(tracker_outputs[col].id)->getState();
                     /* velocity estimation */
-                    current_moving_clusters[row]->state.tail(3) = (current_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)) / dt;
-
-                    
-
+                    double dt = (current_time_ - tracker_pool_ptr_->getTracker(tracker_outputs[col].id)->getUpdateTime()).toSec();
+                    measurement_moving_clusters[row]->state.tail(3) = (measurement_moving_clusters[row]->state.head(3) - tracker_last_frame_state.head(3));
+                    measurement_moving_clusters[row]->state.tail(3) /= dt;
                 }
+            }
+            if(!find_match) // if cannot find a match for a new moving clusterFeature
+            {
+                // maybe a new object, or a object just be occluded before
+                // set vel, match_id
+                measurement_moving_clusters[row]->state.tail(3) = Vector3d::Zero();
+                measurement_moving_clusters[row]->match_id = -1;
             }
         }
     }
+    std::cout << "in [match], Hungarian solved " << std::endl;
+
+/* update pool */
+    
+    vector<TrackerInput> tracker_inputs;
+    for(auto &t : measurement_moving_clusters)
+    {
+        tracker_inputs.emplace_back(t->match_id,t->state,t->length);
+        // tracker_inputs.push_back(TrackerInput{t->match_id,t->state.head(3),t->length});
+    }
+    tracker_pool_ptr_->updatePool(tracker_inputs,current_time_);
+
+
+
+
+
 
 }
 
 void EnvManager::updateCallback(const ros::TimerEvent&)
 {
+    ros::Time t1 = ros::Time::now();
+    ros::Time t2;
     std::lock_guard<std::mutex> guard(slide_window_mtx_);
+    if(!cloud_window_ready_)
+    {
+        ROS_WARN("cloud window is not ready");
+        return ;
+    }
+    ROS_INFO("in [updateCallback]");
+    
+    cluster();
+    std::cout << "cluster finished " << std::endl;
+
+    segmentation();
+    std::cout << "segmentation finished " << std::endl;
+    
+
+    match();
+    std::cout << "km match finished " << std::endl;
+
+
+    t2 = ros::Time::now();
+    ROS_INFO("update time : %lf",(t2-t1).toSec());
+
+
+    last_update_time_ = current_time_; 
 }
 
 void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud,
                                    const nav_msgs::OdometryConstPtr& odom)
 {
-
+    ROS_INFO("Receive odom & cloud");
 /* odom */
     current_odom_ = *odom;
     current_time_ = odom->header.stamp;
@@ -377,8 +475,11 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
         ROS_WARN("cloud is empty");
         return ;
     }
+    ROS_INFO("point cloud size : %d",pcl_cloud_ptr_->size());
     std::lock_guard<std::mutex> guard(slide_window_mtx_);
     // PointVector point_vector;
+    ros::Time t1 = ros::Time::now();
+
     current_cloud_ptr_ = make_shared<PointVector>();
     for(auto t : (*pcl_cloud_ptr_))
     {
@@ -398,10 +499,12 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
         {
             segmentation_kdtree_ptr_->Build(*current_cloud_ptr_);
             ikd_tree_built_ = true;
+            ros::Time t2 = ros::Time::now();
+            ROS_INFO("first build slide window, time : %lf ", (t2-t1).toSec());
             return ;
         }
         segmentation_kdtree_ptr_->Add_Points(*current_cloud_ptr_,false);
-        if(cloud_slide_window_.size() == 5){
+        if(cloud_slide_window_.size() == slide_window_size_){
             cloud_window_ready_ = true;
         }
     }
@@ -413,6 +516,13 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
         segmentation_kdtree_ptr_->Delete_Points(*front_cloud_ptr);
         segmentation_kdtree_ptr_->Add_Points(*current_cloud_ptr_,false);
     }
+    ros::Time t2 = ros::Time::now();
+
+    ROS_INFO("build slide window, time : %lf ", (t2-t1).toSec());
+    ROS_INFO("slide window size :%d ",slide_window_size_);
+
+    map_vis_ptr_->visualizeReceiveCloud(pcl_cloud_ptr_);
+
 }
 
 void EnvManager::visCallback(const ros::TimerEvent&)

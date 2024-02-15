@@ -74,10 +74,10 @@ private:
 /* segmentation */
     KD_TREE<PointType>::Ptr segmentation_kdtree_ptr_;
     queue<shared_ptr<PointVector>> cloud_slide_window_;
-    int slide_windows_size_; 
+    int slide_window_size_; 
     bool ikd_tree_built_;
     bool cloud_window_ready_;
-    double gamma_1_threshold_,gamma_2_threshold_;
+    double gamma1_threshold_,gamma2_threshold_;
 
 /* synchronizer */
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> SyncPolicyCloudOdom;

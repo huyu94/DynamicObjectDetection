@@ -32,7 +32,13 @@ Eigen::VectorXd KalmanFilter::forward(double dt)
     return A * x_;
 }
 
-void KalmanFilter::UpdateEKF(const Eigen::VectorXd &z,double dt)
+Eigen::VectorXd KalmanFilter::getState()
+{
+    return x_;
+}
+
+
+void KalmanFilter::UpdateEKF(const Eigen::VectorXd &z, double dt)
 {
     Predict(dt);
     Update(z);

@@ -1,0 +1,41 @@
+<launch>
+
+
+    <!-- <arg name="odometry_topic" /> -->
+    <arg name="cloud_topic" />
+    <arg name="drone_id"/>
+    <arg name="max_vel" />
+    <arg name="max_acc" />
+    <arg name="planning_horizon" />
+    <arg name="flight_type" />
+    
+    <arg name="point_num" />
+    <arg name="point0_x" />
+    <arg name="point0_y" />
+    <arg name="point0_z" />
+    <arg name="point1_x" />
+    <arg name="point1_y" />
+    <arg name="point1_z" />
+    <arg name="point2_x" />
+    <arg name="point2_y" />
+    <arg name="point2_z" />
+    <arg name="point3_x" />
+    <arg name="point3_y" />
+    <arg name="point3_z" />
+    <arg name="point4_x" />
+    <arg name="point4_y" />
+    <arg name="point4_z" />
+
+    <node pkg="plan_env" name="drone_$(arg drone_id)_node" type="env_node" output="screen">
+        <remap from="~cloud" to="/dynamic_env/global_cloud"/>
+        <remap from="~odom"  to="/drone_0/odometry"/>
+        <param name="tracker/dbscan_eps"                    value="0.5"/>
+        <param name="tracker/dbscan_min_ptn"                value="5"/>
+        <param name="tracker/gamma1_threshold"              value="0.0001"/>
+        <param name="tracker/gamma2_threshold"              value="3.0"/>
+        <param name="env_manager/slide_window_size"         value="5"/>
+        <param name="tracker/missing_tracking_threshold"    value="2.0"/>
+    </node>
+
+
+</launch>

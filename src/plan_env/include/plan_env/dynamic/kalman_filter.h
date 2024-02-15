@@ -72,6 +72,11 @@ public:
     */
     Eigen::VectorXd forward(double dt);
 
+    /**
+     * @brief get the state
+     * @return state
+    */
+    Eigen::VectorXd getState();
 
     /**
      * Updates the state by using Extended Kalman Filter equations
