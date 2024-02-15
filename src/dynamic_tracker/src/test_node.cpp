@@ -7,24 +7,29 @@
 #include <ros/package.h>
 using namespace std;
 
+double one_degree_rad_ = M_PI / 180;
+double one_degree_rad_inv_ = 180 / M_PI;
 
 int half_fov_vertical_ = 50;
-int half_fov_horizontal = 180;
-int observation_pyramid_num_horizontal_ = 360;
-int observation_pyramid_num_vertical_ = 100;
-double one_degree_rad_ = M_PI / 180;
+int half_fov_horizontal_ = 60;
+double half_fov_horizontal_rad_ = half_fov_horizontal_ * one_degree_rad_;
+double half_fov_vertical_rad_ = half_fov_vertical_ * one_degree_rad_;
+int observation_pyramid_num_vertical_ = 2 * half_fov_vertical_;
+int observation_pyramid_num_horizontal_ = 2 * half_fov_horizontal_;
 
 bool inPyramidsAreaInSensorFrame(float x, float y, float z)
 {
-    float vertical_degree = atan2(z,sqrtf(powf(x,2) + powf(y,2))) * 180 / M_PI;
-    if(vertical_degree > -half_fov_vertical_ && vertical_degree <= half_fov_vertical_)
-    {
-        return true;
-    }
-    else
+    float vertical_rad = atan2(z,sqrtf(powf(x,2) + powf(y,2)));
+    if(vertical_rad <= -half_fov_vertical_rad_ || vertical_rad > half_fov_vertical_rad_)
     {
         return false;
     }
+    float horizontal_rad = atan2(y,x);
+    if(horizontal_rad <= -half_fov_horizontal_rad_ || horizontal_rad > half_fov_horizontal_rad_)
+    {
+        return false;
+    }
+    return true;
 }
 
 int findPointPyramidHorizontalIndexInSensorFrame(float x, float y, float z)
@@ -32,8 +37,13 @@ int findPointPyramidHorizontalIndexInSensorFrame(float x, float y, float z)
     // float horizontal_rad = fmod(atan2(y,x) + 2 * M_PI, 2*M_PI);
 
     // int horizontal_index = std::floor(horizontal_rad / one_degree_rad_);
-    int horizontal_index = std::floor(fmod(atan2(y,x) + 2 * M_PI, 2*M_PI) / one_degree_rad_);
+    // int horizontal_index = std::floor(atan2(y,x) / one_degree_rad_);
 
+    // int horizontal_index = std::floor(fmod(atan2(y,x) + M_PI, 2*M_PI) / one_degree_rad_);
+    // int horizontal_index = fmod(std::floor(atan2(y,x) / one_degree_rad_) + observation_pyramid_num_horizontal_ , observation_pyramid_num_horizontal_);  
+
+    float horizontal_rad = atan2(y,x);
+    int horizontal_index = floor(horizontal_rad / one_degree_rad_ + half_fov_horizontal_);
     if(horizontal_index >= 0 && horizontal_index <  observation_pyramid_num_horizontal_)
     {
         return horizontal_index;
@@ -45,12 +55,13 @@ int findPointPyramidHorizontalIndexInSensorFrame(float x, float y, float z)
 int findPointPyramidVerticalIndexInSensorFrame(float x,float y,float z)
 {
     float vertical_rad = atan2(z,sqrtf(powf(x,2) + powf(y,2)));
-    int vertical_index = floor((vertical_rad + half_fov_vertical_ * M_PI / 180) / one_degree_rad_);
-    if(vertical_index >= 0 && vertical_index < 2 * observation_pyramid_num_vertical_ )
+    // int vertical_index = floor((vertical_rad + half_fov_vertical_ * one_degree_rad_) / one_degree_rad_);
+    int vertical_index = floor(vertical_rad / one_degree_rad_ + half_fov_vertical_);
+    if(vertical_index >= 0 && vertical_index < observation_pyramid_num_vertical_ )
     {
         return vertical_index;
     }
-    ROS_INFO("vertical index : %d",vertical_index);
+    // ROS_INFO("vertical index : %d",vertical_index);
     ROS_INFO("!!!!!! Please use Function ifInPyramidsAreaInSensorFrame() to filter the points first before using findPyramidVerticalIndexInSensorFrame()");
     return -1;
 }
@@ -187,39 +198,44 @@ int main(int argc, char** argv){
 
 
     /* test vertical index*/
-    // int radius = 5;
-    // Eigen::Vector3d center(0,0,0);
-    // double rad_7 = -7 * M_PI / 180;
-    // for(double i=-M_PI/2;i<M_PI/2;)
-    // {
-    //     double x = center[0] + radius * cos(i);
-    //     double z = center[1] + radius * sin(i);
-    //     int vertical_index = floor((atan2(z,x) - rad_7) / M_PI * 180);
-    //     std::cout << i << " " << vertical_index << std::endl;
-    //     i+=M_PI/200;
-    // }
-    // std::cout << rad_7 << std::endl;
-
-    /* test horizontal index */
     int radius = 5;
-    Eigen::Vector2d center(0,0); 
-    for(double i=-M_PI;i<M_PI;i+=M_PI/1000)
+    Eigen::Vector3d center(0,0,0);
+    double rad_7 = -7 * M_PI / 180;
+    for(double i=-M_PI/2;i<M_PI/2;)
     {
         double x = center[0] + radius * cos(i);
-        double y = center[1] + radius * sin(i);
-        // int horizontal_index = std::floor(fmod(atan2(y,x) + 2 * M_PI, 2*M_PI) / one_degree_rad_);
-        int horizontal_index = findPointPyramidHorizontalIndexInSensorFrame(x,y,0);
-        if(horizontal_index < 0 || horizontal_index >= 360)
-        {
-            std::cout << "horizontal index: " << horizontal_index << std::endl;
-            std::cout << "i : " << i / M_PI * 180 << std::endl;
-        }
-        // std::cout << i << " " << horizontal_index << std::endl;
+        double z = center[1] + radius * sin(i);
+        int vertical_index = floor((atan2(z,x) - rad_7) / M_PI * 180);
+        std::cout << i << " " << vertical_index << std::endl;
+        i+=M_PI/200;
     }
-    double x = 1e-5;
-    double y = 0;
-    int horizontal_index = findPointPyramidHorizontalIndexInSensorFrame(x,y,0);
-    std::cout << "horizontal index: " << horizontal_index << std::endl;
+    std::cout << rad_7 << std::endl;
+
+    /* test horizontal index */
+    // int radius = 5;
+    // Eigen::Vector2d center(0,0); 
+    // for(double i=-M_PI;i<M_PI;i+=M_PI/500)
+    // {
+    //     double x = center[0] + radius * cos(i);
+    //     double y = center[1] + radius * sin(i);
+    //     // int horizontal_index = std::floor(fmod(atan2(y,x) + 2 * M_PI, 2*M_PI) / one_degree_rad_);
+    //     if(!inPyramidsAreaInSensorFrame(x,y,0))
+    //     {
+    //         continue;
+    //     }
+    //     int horizontal_index = findPointPyramidHorizontalIndexInSensorFrame(x,y,0);
+    //     // if(horizontal_index < 0 || horizontal_index >= 360)
+    //     // {
+    //         std::cout << "horizontal index: " << horizontal_index << std::endl;
+    //         std::cout << "i : " << (i) / M_PI * 180 << std::endl;
+    //         // std::cout << "x : " << x << " " << "y: " << y << endl;
+    //     // }
+    //     // std::cout << i << " " << horizontal_index << std::endl;
+    // }
+    // double x = 1e-5;
+    // double y = 0;
+    // int horizontal_index = findPointPyramidHorizontalIndexInSensorFrame(x,y,0);
+    // std::cout << "horizontal index: " << horizontal_index << std::endl;
     
 
     return 0;
