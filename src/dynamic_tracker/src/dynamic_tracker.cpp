@@ -176,11 +176,11 @@ namespace dynamic_tracker
 
     bool DynamicTracker::checkCloudOdomNeedUpdate()
     {
-        if (last_tracking_update_time_.toSec() < 1.0)
+        if (last_tracking_update_time_.toSec() < 1.0) // 第一次进入
         {
-            last_tracking_update_time_ = ros::Time::now();
+            last_tracking_update_time_ = ros::Time::now(); // 初始化时间
         }
-        if (!tracking_need_update_)
+        if (!tracking_need_update_) // 如果没有收到其他点云和位姿的更新
         {
             if ((ros::Time::now() - last_tracking_update_time_).toSec() > tracking_update_timeout_)
             {

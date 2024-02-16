@@ -30,7 +30,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: dyanmic_cloud
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -108,10 +108,10 @@ Visualization Manager:
       Name: global_env
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /cluster_test_node/cluster
+      Marker Topic: /drone_0_node/cluster_result
       Name: MarkerArray
       Namespaces:
-        {}
+        cluster: true
       Queue Size: 100
       Value: true
     - Class: rviz/Group
@@ -192,7 +192,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 33.431884765625
+      Distance: 29.420059204101562
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -200,9 +200,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.4355994462966919
-        Y: -0.7692950367927551
-        Z: -3.4395577907562256
+        X: 0.4872085452079773
+        Y: -0.298427015542984
+        Z: -3.478410482406616
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

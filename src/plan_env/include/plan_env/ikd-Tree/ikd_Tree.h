@@ -22,11 +22,8 @@ using namespace std;
 struct ikdTree_PointType
 {
     float x,y,z;
-    ikdTree_PointType (float px = 0.0f, float py = 0.0f, float pz = 0.0f){
-        x = px;
-        y = py;
-        z = pz;
-    }
+    ikdTree_PointType (float px = 0.0f, float py = 0.0f, float pz = 0.0f): 
+                x(px), y(py), z(pz){}
 };
 
 struct BoxPointType{
@@ -60,6 +57,7 @@ template<typename PointType>
 class KD_TREE{
 public:
     using PointVector = vector<PointType, Eigen::aligned_allocator<PointType>>;
+    // using PointVector = vector<PointType>;
     using Ptr = shared_ptr<KD_TREE<PointType>>;
     struct KD_TREE_NODE{
         PointType point;

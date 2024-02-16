@@ -3,7 +3,13 @@
 
 #include <mutex>
 #include <thread>
+#include <fstream>
+#include <string>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
+#include <ros/package.h>
 #include <nav_msgs/Odometry.h>
 
 #include <pcl/point_cloud.h>
@@ -13,20 +19,24 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
-#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/search/impl/kdtree.hpp>
+// #include <pcl/kdtree/kdtree_flann.h>
+
 // #include <plan_env/grid_map.h>
 
 
 #include <munkres.h>
 #include "plan_env/dynamic/tracker_pool.h"
-#include "plan_env/ikd_Tree.h"
+#include "plan_env/ikd-Tree/ikd_Tree.h"
 #include "plan_env/static/grid_map.h"
 #include "plan_env/map_visualizer.h"
 
-using PointType = pcl::PointXYZ;
+using PointType = ikdTree_PointType;
 using PointVector = KD_TREE<PointType>::PointVector;
-
-
+typedef shared_ptr<PointVector> PointVectorPtr;
+typedef shared_ptr<nav_msgs::Odometry> OdomPtr;
+using std::pair;
 struct ClusterFeature
 {
     VectorXd state; // [pos,vel] 
@@ -51,32 +61,38 @@ private:
     TrackerPool::Ptr tracker_pool_ptr_;
     GridMap::Ptr grid_map_ptr_;
 
-    shared_ptr<PointVector> current_cloud_ptr_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
     
+/* record */
+    std::ofstream update_time_record_;
+
 /* multi-threads */
     std::mutex slide_window_mtx_;
     
 /* data */
     nav_msgs::Odometry current_odom_;
-    ros::Time current_time_, last_update_time_;
+    ros::Time last_update_time_, odom_time_; // odom_time_ is used to record perception cloud time
+    double tracking_update_timeout_;
+    bool need_update_;
+    queue<pair<PointVectorPtr,OdomPtr>> cloud_odom_slide_window_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
+    int slide_window_size_; 
+    bool cloud_odom_window_ready_;
+
 
 /* visualizer */
     MapVisualizer::Ptr map_vis_ptr_;
 
 /*  cluster : */ 
-    pcl::KdTreeFLANN<pcl::PointXYZ> cluster_kdtree_; //pcl kdtree used for DBSCAN
-    // KD_TREE<PointType>::Ptr cluster_kdtree_ptr_;
+    // KD_TREE<PointType>::Ptr cluster_ikdtree_ptr_;
+    // pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr cluster_kdtree_ptr_;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr cluster_kdtree_ptr_;
     double dbscan_eps_;
     int dbscan_min_ptn_;
     vector<ClusterFeature::Ptr> cluster_features_;
 
 /* segmentation */
-    KD_TREE<PointType>::Ptr segmentation_kdtree_ptr_;
-    queue<shared_ptr<PointVector>> cloud_slide_window_;
-    int slide_window_size_; 
-    bool ikd_tree_built_;
-    bool cloud_window_ready_;
+    KD_TREE<PointType>::Ptr segmentation_ikdtree_ptr_;
+
     double gamma1_threshold_,gamma2_threshold_;
 
 /* synchronizer */
@@ -101,8 +117,8 @@ public:
 
 
 public:
-    EnvManager(){};
-    ~EnvManager(){};
+    EnvManager();
+    ~EnvManager();
     void init(const ros::NodeHandle& nh);
     void setGridMap();
     void setTrackerPool();
@@ -123,6 +139,7 @@ private:
      * @param clusters 传出，用来存放各个簇的点云指针
      * 
     */
+    void cluster2();
     void cluster();
     void calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr);
     // void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
@@ -133,19 +150,27 @@ private:
 
     void match();
 
-/* callback */
+    /**
+     * @brief used to check if there are new cloud and odom data
+    */
+    bool checkNeedUpdate();
+
+    /**
+     * @brief add cloud and odom to slide window
+    */
+    void addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom);
+    /* callback */
     void cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud,
                                     const nav_msgs::OdometryConstPtr& odom);
     void odomCallback(const nav_msgs::OdometryConstPtr &odom);
     void updateCallback(const ros::TimerEvent&);
-    void visCallback(const ros::TimerEvent&);
+    void visCallback(const ros::TimerEvent &);
     void indepCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg);
     void indepOdomCallback(const nav_msgs::OdometryConstPtr& odom_msg);
 
     
 
 /* toolkit  */
-    void checkReady();
 
 
 public:

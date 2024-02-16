@@ -96,10 +96,13 @@ public:
      * @param measurment measurment data
      * @param current_time current time
     */
-    void update(const VectorXd &measurment,ros::Time current_time, const Vector3d &length)
+    void update(const VectorXd &measurment,const ros::Time &current_time, const Vector3d &length)
     {
         double dt = (current_time - udpate_time_).toSec();
-        std::cout << "dt : " << dt << std::endl; 
+        ROS_INFO("current_time : %lf", current_time.toSec());
+        ROS_INFO("udpate_time_ : %lf", udpate_time_.toSec());
+        // std::cout << "dt : " << dt << std::endl; 
+        ROS_INFO("dt : %lf ", dt);
         kf_.UpdateEKF(measurment,dt);
         udpate_time_ = current_time;
         length_ = length;

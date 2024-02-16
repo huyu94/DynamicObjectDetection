@@ -1,4 +1,4 @@
-#include "plan_env/ikd_Tree.h"
+#include "ikd_Tree.h"
 
 /*
 Description: ikd-Tree: an incremental k-d tree for robotic applications 

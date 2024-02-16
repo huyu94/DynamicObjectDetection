@@ -3,22 +3,23 @@
 
 
 
-void TrackerPool::forwardTracker(int id, VectorXd &state, Vector3d &length, ros::Time current_time)
+void TrackerPool::forwardTracker(int id, VectorXd &state, Vector3d &length, ros::Time target_time)
 {
-    Tracker::Ptr tracker = getTracker(id);
-    if(tracker == nullptr)
+    Tracker::Ptr tracker;
+    if(!getTracker(id,tracker))
     {
         return ;
     }
-    double dt = (current_time - tracker->getUpdateTime()).toSec();
+    double dt = (target_time - tracker->getUpdateTime()).toSec();
     state = pool_[id]->forward(dt);
     length = pool_[id]->getLength();
 }
 
 void TrackerPool::updateTracker(int id, const VectorXd &state, const Vector3d &length, ros::Time current_time)
 {
-    Tracker::Ptr tracker = getTracker(id);
-    if(tracker == nullptr)
+
+    Tracker::Ptr tracker;
+    if(!getTracker(id,tracker))
     {
         return ;
     }
@@ -40,6 +41,7 @@ int TrackerPool::addNewTracker(const VectorXd &state, const Vector3d &length, ro
         free_ids_.pop();
         pool_[new_id] = std::make_shared<Tracker>(state,length,new_id, current_time);
     }
+    std::cout << " success add new tracker, id :" << new_id << std::endl;
     return new_id;
 }
 
@@ -59,12 +61,20 @@ void TrackerPool::removeTracker(int id)
 
 void TrackerPool::checkTracker(int id, ros::Time current_time)
 {
-    Tracker::Ptr tracker = getTracker(id);
-    if(tracker == nullptr)
+    Tracker::Ptr tracker;
+    if(!getTracker(id,tracker))
     {
         return ;
     }
+    if(tracker == nullptr)
+    {
+        std::cerr << "In [checkTracker]: tracker is not alive" << std::endl;
+        return ;
+    }
     double mis_match_time = (current_time - tracker->getUpdateTime()).toSec();
+    std::cout << "1 " << std::endl;
+    std::cout << "missing_tracking_threshold_:" <<  missing_tracking_threshold_<< std::endl;
+    std::cout << "mis_match_time:" <<mis_match_time << std::endl;
     if(mis_match_time > missing_tracking_threshold_)
     {
         std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
@@ -73,7 +83,7 @@ void TrackerPool::checkTracker(int id, ros::Time current_time)
 
 }
 
-bool TrackerPool::getTracker(int id, Tracker::Ptr tracker_ptr)
+bool TrackerPool::getTracker(int id, Tracker::Ptr &tracker_ptr)
 {
     // check if id is valid 
     if(id < 0 || id > pool_.size())
@@ -135,6 +145,8 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
 {
     for(auto &in : input)
     {
+
+        std::cout << "update tracker id : " << in.id << std::endl;
         if(in.id == -1)
         {
             addNewTracker(in.measurment,in.length,current_time);
@@ -148,11 +160,16 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
             std::cerr << "In [updatePool]: id out of range or tracker" << std::endl;
         }
     }
+    std::cout << "finish update, start check " << std::endl;
+
     for(int i = 0; i < pool_.size(); i++)
     {
         if(pool_[i] != nullptr)
         {
+            std::cout << "check id : " << i << std::endl;
             checkTracker(i,current_time);
         }
     }
+
+    std::cout << "end check " << std::endl;
 }

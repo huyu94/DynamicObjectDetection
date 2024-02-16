@@ -79,13 +79,14 @@ private:
      */
     void checkTracker(int id, ros::Time current_time);
 
+
 public:
     /**
      * @brief get single tracker
      * @param id id of the tracker
      * @return tracker ptr
     */
-    Tracker::Ptr getTracker(int id);
+    bool getTracker(int id, Tracker::Ptr &tracker_ptr);
     
 
 
