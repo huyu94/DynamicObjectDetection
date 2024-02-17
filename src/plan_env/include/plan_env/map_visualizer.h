@@ -58,12 +58,16 @@ struct VisualCluster
                 min_bound(minb), max_bound(maxb) {} 
 };
 
-struct VisualMatchCluster
+struct VisualKalmanTracker
 {
-  Vector3d c1,c2;
-};
-typedef std::pair<Vector3d,Vector3d> VisualKMResult;
+  Vector3d pos;
+  Vector3d vel;
+  Vector3d len;
+  int id;
+  VisualKalmanTracker(Vector3d p,Vector3d v,Vector3d l,int i):pos(p),vel(v),len(l),id(i){}
 
+};
+visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id);
 visualization_msgs::Marker generateArrows(const Vector3d &pos, const Vector3d &vel, int id);
 visualization_msgs::Marker generateBBox(const Eigen::Vector3d &min_point, const Eigen::Vector3d &max_point, int id);
 
@@ -76,7 +80,8 @@ public:
     void visualizeReceiveCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     void visualizeClusterResult(std::vector<VisualCluster> &visual_clusters);
     void visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters);
-    void visualizeKMResult(std::vector<VisualKMResult> &kmresult); // 滑匹配的线
+    // void visualizeKMResult(std::vector<VisualKMResult> &kmresult); // 滑匹配的线
+    void visualizeKalmanTracker(std::vector<VisualKalmanTracker> &visual_trackers);
     void visualizeMovingObjectBox();
     void visualizeMovingObjectTraj();
 
@@ -88,6 +93,7 @@ private:
     ros::Publisher cluster_result_pub_;
     ros::Publisher segmentation_result_pub_;
     ros::Publisher km_result_pub_;
+    ros::Publisher kalman_tracker_pub_;
     ros::Publisher moving_object_box_pub_;
     ros::Publisher moving_object_traj_pub_;
     ros::Publisher receive_cloud_pub_;

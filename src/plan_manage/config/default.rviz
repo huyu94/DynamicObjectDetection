@@ -7,8 +7,8 @@ Panels:
         - /Global Options1
         - /Status1
         - /global_env1
-        - /MarkerArray1
-        - /MarkerArray2
+        - /clusters1
+        - /segmentationMovingCluster1
         - /PointCloud21
       Splitter Ratio: 0.5
     Tree Height: 813
@@ -109,7 +109,7 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /drone_0_node/cluster_result
-      Name: MarkerArray
+      Name: clusters
       Namespaces:
         cluster: true
       Queue Size: 100
@@ -129,9 +129,9 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /drone_0_node/segmentation_result
-      Name: MarkerArray
+      Name: segmentationMovingCluster
       Namespaces:
-        {}
+        bbox: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -162,6 +162,15 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /drone_0_node/kalman_filter
+      Name: kalman_tracker
+      Namespaces:
+        arrow: true
+        tracker: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 242; 252; 177
@@ -192,7 +201,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 29.420059204101562
+      Distance: 19.47569465637207
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -208,9 +217,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4697959423065186
+      Pitch: 1.3247960805892944
       Target Frame: <Fixed Frame>
-      Yaw: 1.6635526418685913
+      Yaw: 1.5335527658462524
     Saved: ~
 Window Geometry:
   Displays:

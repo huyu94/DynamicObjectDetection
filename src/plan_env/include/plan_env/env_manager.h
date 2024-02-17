@@ -64,6 +64,7 @@ private:
     
 /* record */
     std::ofstream update_time_record_;
+    bool record_;
 
 /* multi-threads */
     std::mutex slide_window_mtx_;
@@ -85,9 +86,9 @@ private:
 /*  cluster : */ 
     // KD_TREE<PointType>::Ptr cluster_ikdtree_ptr_;
     // pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr cluster_kdtree_ptr_;
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr cluster_kdtree_ptr_;
     double dbscan_eps_;
     int dbscan_min_ptn_;
+    int dbscan_min_cluster_size_,dbscan_max_cluster_size_;
     vector<ClusterFeature::Ptr> cluster_features_;
 
 /* segmentation */
@@ -139,8 +140,10 @@ private:
      * @param clusters 传出，用来存放各个簇的点云指针
      * 
     */
-    void cluster2();
     void cluster();
+    /**
+     * @brief calculate the feature of the cluster
+    */
     void calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr);
     // void cluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
     //              std::vector<pcl::PointIndices> &cluster_indices,
@@ -171,6 +174,10 @@ private:
     
 
 /* toolkit  */
+    /**
+     * @brief record data 
+    */
+    void record(int update_count, int point_size, double cluster_time, double segmentation_time, double match_time, double total_time);
 
 
 public:
@@ -178,6 +185,8 @@ typedef std::shared_ptr<EnvManager> Ptr;
 
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+
 
 
 

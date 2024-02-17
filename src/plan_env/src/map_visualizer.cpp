@@ -7,6 +7,7 @@ MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
     cluster_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("cluster_result", 1);
     segmentation_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("segmentation_result", 1);
     km_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("km_result", 1);
+    kalman_tracker_pub_ = node_.advertise<visualization_msgs::MarkerArray>("kalman_filter",1);
     moving_object_box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_box", 1);
     moving_object_traj_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_traj", 1);
     receive_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("received_cloud",1);
@@ -51,7 +52,7 @@ void MapVisualizer::visualizeClusterResult(std::vector<VisualCluster> &visual_cl
 void MapVisualizer::visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters)
 {
 
-    visualization_msgs::MarkerArray bboxs_and_arrows;
+    visualization_msgs::MarkerArray bboxs;
 
     for(size_t i = 0; i < visual_clusters.size(); i++)
     {
@@ -63,18 +64,64 @@ void MapVisualizer::visualizeSegmentationResult(std::vector<VisualCluster> &visu
         box_max = visual_clusters[i].max_bound;
 
 
+/* segmentation result does not have vel infor */
         // 创建立方体框
-        bboxs_and_arrows.markers.push_back(generateBBox(box_min,box_max,i));
+        bboxs.markers.push_back(generateBBox(box_min,box_max,i));
         // 创建箭头
-        bboxs_and_arrows.markers.push_back(generateArrows(p,v,i));
+        // bboxs_and_arrows.markers.push_back(generateArrows(p,v,i));
         
 
     }
 
-    segmentation_result_pub_.publish(bboxs_and_arrows);
+    segmentation_result_pub_.publish(bboxs);
 }
 
-visualization_msgs::Marker generateArrows(const Vector3d &pos,const Vector3d &vel,int id)
+void MapVisualizer::visualizeKalmanTracker(std::vector<VisualKalmanTracker> &visual_trackers)
+{
+    visualization_msgs::MarkerArray ellipses_and_arrows;
+    for(size_t i=0; i<visual_trackers.size();i++)
+    {
+        Eigen::Vector3d p,v,l;
+        int id;
+        p = visual_trackers[i].pos;
+        v = visual_trackers[i].vel;
+        l = visual_trackers[i].len;
+        id = visual_trackers[i].id;
+        visualization_msgs::Marker ellipse,arrow;
+        ellipse = generateEllipse(p,l,id);
+        arrow = generateArrows(p,v,id);
+
+        ellipses_and_arrows.markers.push_back(ellipse);
+        ellipses_and_arrows.markers.push_back(arrow);
+    }
+
+    kalman_tracker_pub_.publish(ellipses_and_arrows);
+
+}
+
+visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id)
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "tracker";
+    marker.id = id;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = pos.x();
+    marker.pose.position.y = pos.y();
+    marker.pose.position.z = pos.z();
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = len.x();
+    marker.scale.y = len.y();
+    marker.scale.z = len.z();
+    marker.color = Color::Yellow();
+    return marker;
+}
+visualization_msgs::Marker generateArrows(const Vector3d &pos, const Vector3d &vel, int id)
 {
     visualization_msgs::Marker arrow;
     arrow.header.frame_id = "world";
@@ -100,9 +147,9 @@ visualization_msgs::Marker generateArrows(const Vector3d &pos,const Vector3d &ve
     arrow.pose.orientation.z = 0.0;
     arrow.pose.orientation.w = 1.0;
     arrow.scale.x = 0.1; // Shaft diameter
-    arrow.scale.y = 0.2; // Head diameter
-    arrow.scale.z = 0.5; // Head length
-    arrow.color = Color::Green();
+    arrow.scale.y = 0.1; // Head diameter
+    arrow.scale.z = 0.1; // Head length
+    arrow.color = Color::Blue();
 
     return arrow;
 }

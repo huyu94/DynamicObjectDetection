@@ -31,10 +31,13 @@
         <remap from="~odom"  to="/drone_0/odometry"/>
         <param name="tracker/dbscan_eps"                    value="0.5"/>
         <param name="tracker/dbscan_min_ptn"                value="5"/>
+        <param name="tracker/dbscan_min_cluster_size"       value="5"/>
+        <param name="tracker/dbscan_max_cluster_size"       value="25000"/>
         <param name="tracker/gamma1_threshold"              value="0.0001"/>
         <param name="tracker/gamma2_threshold"              value="3.0"/>
-        <param name="env_manager/slide_window_size"         value="5"/>
         <param name="tracker/missing_tracking_threshold"    value="2.0"/>
+        <param name="env_manager/record"                    value="true"/>  
+        <param name="env_manager/slide_window_size"         value="5"/>
     </node>
 
 

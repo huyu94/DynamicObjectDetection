@@ -84,7 +84,7 @@ public:
     /**
      * @brief get single tracker
      * @param id id of the tracker
-     * @return tracker ptr
+     * @return whether find the tracker successfully
     */
     bool getTracker(int id, Tracker::Ptr &tracker_ptr);
     

@@ -1,4 +1,11 @@
 #include "plan_env/env_manager.h"
+#include "plan_env/dbscan/dbscan_kdtree.h"
+#include "plan_env/tools.h"
+
+// double updateMean(double x_mean, double x_new,int n)
+// {
+//     return x_mean + (x_new - x_mean) / n;
+// }
 
 EnvManager::EnvManager()
 {
@@ -29,20 +36,30 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 
 /* record */
-    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&now_c), "%Y%m%d%H%M%S");
-    std::string filename = ss.str() + ".txt";
-    string log_dir = ros::package::getPath("plan_env") + "/logs/";
-    update_time_record_.open(log_dir + filename, std::ios::out);
-    if(!update_time_record_.is_open())
+    node_.param<bool>("env_manager/record",record_,false);
+    if(record_)
     {
-        ROS_ERROR("cannot open update_time_record.txt");
-    }
-    else
-    {
-        ROS_INFO("open update_time_record.txt");
+        std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+        std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&now_c), "%Y%m%d%H%M%S");
+        std::string filename = ss.str() + ".txt";
+        string log_dir = ros::package::getPath("plan_env") + "/logs/";
+        update_time_record_.open(log_dir + filename, std::ios::out);
+        if(!update_time_record_.is_open())
+        {
+            ROS_ERROR("cannot open update_time_record.txt");
+        }
+        else
+        {
+            ROS_INFO("open update_time_record.txt");
+            update_time_record_ << std::left << std::setw(15) << "update_count" 
+                                << std::setw(10) << "point_num" 
+                                << std::setw(15) << "cluster_time" 
+                                << std::setw(20) << "segmentation_time" 
+                                << std::setw(20) << "match_time"
+                                << "total_time\n";
+        }
     }
 
 /* data */
@@ -59,9 +76,12 @@ void EnvManager::init(const ros::NodeHandle &nh)
 /* dbscan cluster */
     node_.param<double>("tracker/dbscan_eps",dbscan_eps_,0.5);
     node_.param<int>("tracker/dbscan_min_ptn",dbscan_min_ptn_,5);
-    cluster_kdtree_ptr_.reset(new pcl::search::KdTree<pcl::PointXYZ>);
-    ROS_INFO("dbscan_eps : %lf",dbscan_eps_);
-    ROS_INFO("dbscan_min_ptn : %d",dbscan_min_ptn_);
+    node_.param<int>("tracker/dbscan_min_cluster_size",dbscan_min_cluster_size_,10);
+    node_.param<int>("tracker/dbscan_max_cluster_size",dbscan_max_cluster_size_,300);
+    // ROS_INFO("dbscan_eps : %lf",dbscan_eps_);
+    // ROS_INFO("dbscan_min_ptn : %d",dbscan_min_ptn_);
+    ROS_INFO("dbscan_min_cluster_size : ", dbscan_max_cluster_size_);
+    ROS_INFO("dbscan_max_cluster_size : ", dbscan_max_cluster_size_);
     // cluster_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
 
 /* segmentation */
@@ -99,104 +119,36 @@ void EnvManager::setGridMap()
     grid_map_ptr_->initMap(node_);
 }
 
-
-
 void EnvManager::cluster()
 {
-    int clusterIndex = 0;
-    int cloud_size = pcl_cloud_ptr_->points.size();
-    // 表示点云属于哪个簇，-1表示噪声，0是初始的，一开始全是噪声
-    vector<int> clusterIds(cloud_size,0);
-    vector<bool> visited(cloud_size,false);//在while循环里标记这个点有没有被加入到数组中过，每次while循环结束则全部置为false。
-    cluster_kdtree_ptr_->setInputCloud(pcl_cloud_ptr_);
-    vector<int> neighbor_indices;
-    vector<float> neighbor_distances;
-    for(int i=0; i<cloud_size;i++)
-    {
-        int count = 0;
 
-        // !=0 说明该点已经被分配到了某个簇内，或者是噪音点，对于噪音点，我们也不将其加入到后续的访问队列中，所以visited[i]=true
-        if(clusterIds[i] != 0)
-        {
-            // visited[i] = true; // 减少了判断,本身就是true
-            continue;
-        }
-        // 近邻搜索
-        // cluster_kdtree_ptr_->Radius_Search((*cloud)[i],dbscan_eps_,neighbors);
-        int neighbor_size = cluster_kdtree_ptr_->radiusSearch(pcl_cloud_ptr_->points[i],dbscan_eps_,neighbor_indices,neighbor_distances);
-        //density check 如果这个点周围的点大于等于min_pts_,被判定为核心点，这个时候需要将它的邻居加入到队列里，同时将它赋到簇；如果小于，则是边界点，我们不看它的邻居。
-        if(neighbor_size < dbscan_min_ptn_) // 圆内邻居点不够,噪音点
-        {
-            clusterIds[i] = -1; // 标记为噪声点
-            continue;
-        }
+    /* dbscan cluster */
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud(pcl_cloud_ptr_);
+    vector<pcl::PointIndices> cluster_indices;
+    DBSCANKdtreeCluster<pcl::PointXYZ> ec;
+    ec.setCorePointMinPts(dbscan_min_ptn_);
+    ec.setClusterTolerance(dbscan_eps_);
 
-        //圈内点数够，标记为核心点 并赋予簇号
-        clusterIndex ++;
-        clusterIds[i] = clusterIndex;
-        visited[i] = true;
-        count ++;
+    ec.setMinClusterSize(dbscan_min_cluster_size_);
+    ec.setMaxClusterSize(dbscan_max_cluster_size_);
 
-        //seed_queue用来存放我们后续需要操作的点
-        std::queue<int> seed_queue;
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(pcl_cloud_ptr_);
+    ec.extract(cluster_indices);
 
-        // 对于核心点的所有邻居，我们后续都要检查，所以先放进seed_queue中
-        for(int j=0;j<neighbor_size;j++) 
-        {
-            if(visited[neighbor_indices[j]]) // 访问过了，包括自己
-            {
-                continue; 
-            }
-            // 如果这个点没有访问过,visited值为true，防止后续重复添加，visited[i] = true --- 注定要被划分的簇内的元素
-            seed_queue.push(neighbor_indices[j]);
-            visited[neighbor_indices[j]] = true;
-        }
-        //对周围邻居点进行核心点检查
-        while(!seed_queue.empty())
-        {   
-            // 取出邻居之一
-            int neighbor_points_index = seed_queue.front();
-            seed_queue.pop();
-
-            
-            //不管怎么样，先把邻居加到这个簇内
-            clusterIds[neighbor_points_index] = clusterIndex;
-            visited[neighbor_points_index] = true;
-            count ++;
-
-            // 判断这个邻居是不是核心点
-            neighbor_size = cluster_kdtree_ptr_->radiusSearch(pcl_cloud_ptr_->points[neighbor_points_index],dbscan_eps_,neighbor_indices,neighbor_distances);
-            if(neighbor_size >= dbscan_min_ptn_) //如果是核心点
-            {
-                for(int j=0;j<neighbor_size;j++)
-                {
-                    if(visited[neighbor_indices[j]]){
-                        continue; 
-                    }
-                    seed_queue.push(neighbor_indices[j]);
-                    visited[neighbor_indices[j]] = true;                            
-                }
-            }
-            //不然就是边界点，加到簇里就不管它了
-        }
-    }
     /* 添加索引 ，并创建对应聚类 */
-    cluster_features_.clear();
-    cluster_features_.resize(clusterIndex);
-    for(size_t i=0;i<clusterIds.size();i++)
+    cluster_features_.clear(); 
+    cluster_features_.resize(cluster_indices.size());
+    for(size_t i=0; i < cluster_indices.size();i++)
     {
-        if(clusterIds[i] <= 0) // 噪声点
+        if(cluster_features_[i] == nullptr)
         {
-            continue; 
+            cluster_features_[i] = make_shared<ClusterFeature>();
         }
-        if(cluster_features_[clusterIds[i]-1]==nullptr) // 没有初始化
-        {
-            cluster_features_[clusterIds[i]-1] = make_shared<ClusterFeature>();
-        }
-
-        cluster_features_[clusterIds[i]-1]->cluster_indices.indices.push_back(i);
+        cluster_features_[i]->cluster_indices = cluster_indices[i];
     }
-    ROS_INFO("cluster size : %d",cluster_features_.size());
+
 
     /**
      * 1. 给ClsuterFeature 添加一些属性
@@ -218,7 +170,9 @@ void EnvManager::cluster()
     }
     // std::cout << "step 2 finished " << std::endl;
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
+
 }
+
 
 void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
 {
@@ -343,15 +297,13 @@ void EnvManager::segmentation()
             visual_clusters.push_back(VisualCluster(t->state.head(3),t->length,t->min_bound,t->max_bound,t->state.tail(3)));
         }
     }
-
     map_vis_ptr_->visualizeSegmentationResult(visual_clusters);
 }
 
 
 void EnvManager::match()
 {
-    static int match_count = 1;
-    std::cout << "match_count : " << match_count++ << std::endl;
+
     // ROS_INFO("current_time in [env_manager] : %lf",current_time_.toSec());
     // ROS_INFO("last_update_time in [env_manager] : %lf",last_update_time_.toSec());
     vector<TrackerOutput> tracker_outputs;
@@ -359,6 +311,16 @@ void EnvManager::match()
     tracker_pool_ptr_->forwardPool(tracker_outputs,odom_time_);
     // float dt = (current_time_ - last_update_time_).toSec();
     float distance_gate = 1.5;
+
+/* visualize current kalman filter tracker */
+    vector<VisualKalmanTracker> visual_trackers;
+    for(auto &t : tracker_outputs)
+    {
+        visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
+        // visual_trackers.push_back(VisualKalmanTracker(t.id,t.state.head(3),t.state.tail(3),t.length));
+    }
+    map_vis_ptr_->visualizeKalmanTracker(visual_trackers);
+
 
 /*  get moving clutster */
     vector<ClusterFeature::Ptr> measurement_moving_clusters;
@@ -370,17 +332,17 @@ void EnvManager::match()
         }
     }
 
-    ROS_INFO("measurment cluster size: %d, tracker size: %d",measurement_moving_clusters.size(),tracker_outputs.size());
+    // ROS_INFO("measurment cluster size: %d, tracker size: %d",measurement_moving_clusters.size(),tracker_outputs.size());
     if(measurement_moving_clusters.size() == 0)
     {
         std::cout << " current_moving_clusters size == 0" << std::endl;
         return ;
     }
 
-    for(size_t i = 0; i< tracker_outputs.size();i++)
-    {
-        std::cout << "tracker_outputs : " << tracker_outputs[i].state.transpose() << std::endl;
-    }
+    // for(size_t i = 0; i< tracker_outputs.size();i++)
+    // {
+    //     std::cout << "tracker_outputs : " << tracker_outputs[i].state.transpose() << std::endl;
+    // }
 
 /* hugorian algorithm for match */
     if(tracker_outputs.size() == 0){
@@ -388,7 +350,6 @@ void EnvManager::match()
     }
     else
     {
-        ROS_INFO("Hungarian algorithm init");
         Matrix<float> matrix_cost(measurement_moving_clusters.size(),tracker_outputs.size());
         Matrix<bool> matrix_gate(measurement_moving_clusters.size(),tracker_outputs.size());
         for(size_t row=0; row < measurement_moving_clusters.size(); row++)
@@ -404,20 +365,8 @@ void EnvManager::match()
             }
         }
 
-        for(size_t row=0; row < measurement_moving_clusters.size(); row++)
-        {
-            for(size_t col=0; col < tracker_outputs.size(); col++)
-            {
-                std::cout << matrix_cost(row,col) << " ";
-            }
-            std::cout << std::endl;
-        }
-
-
-        ROS_INFO("Hungarian algorithm solving");
         Munkres<float> munkres_solver;
         munkres_solver.solve(matrix_cost);
-        ROS_INFO("Hungarian algorithm solved");
 
         for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
@@ -435,7 +384,7 @@ void EnvManager::match()
                     }
 
                     /* find_match */
-                    ROS_INFO("match : %d -> %d",row,col);
+                    // ROS_INFO("match : %d -> %d",row,col);
                     find_match = true;
                     measurement_moving_clusters[row]->match_id = tracker_outputs[col].id;
                     VectorXd tracker_last_frame_state = match_tracker->getState();
@@ -454,19 +403,14 @@ void EnvManager::match()
             }
         }
     }
-    std::cout << "in [match], Hungarian solved " << std::endl;
 
 /* update pool */
-    std::cout << "start update pool" << std::endl;
     vector<TrackerInput> tracker_inputs;
     for(auto &t : measurement_moving_clusters)
     {
         tracker_inputs.emplace_back(t->match_id,t->state,t->length);
-        // tracker_inputs.push_back(TrackerInput{t->match_id,t->state.head(3),t->length});
     }
-    std::cout << "start update pool  -- 1" << std::endl;
     tracker_pool_ptr_->updatePool(tracker_inputs,odom_time_);
-    std::cout << "end update pool" << std::endl;
 
 }
 
@@ -502,36 +446,50 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
     }
     ROS_INFO("in [updateCallback]");
     
+    static int update_count = 1;
+    static double cluster_time, segmentation_time, match_time,total_time;
     // lock of slide window  
     std::lock_guard<std::mutex> guard(slide_window_mtx_);
-    update_time_record_ << "point cloud num : " << pcl_cloud_ptr_->points.size() << std::endl;
     ros::Time t0 = ros::Time::now();
     ros::Time t1,t2;
     t1 = ros::Time::now();
     cluster();
     t2 = ros::Time::now();
-    // std::cout << "cluster finished " << std::endl;
-    update_time_record_ << "cluster time : " << (t2-t1).toSec() << std::endl;
+    cluster_time = updateMean(cluster_time,(t2-t1).toSec(),update_count);
+
     
     t1 = ros::Time::now();
-    // segmentation();
+    segmentation();
     t2 = ros::Time::now();
-    update_time_record_ << "segmentation time : " << (t2-t1).toSec() << std::endl;
+    segmentation_time = updateMean(segmentation_time,(t2-t1).toSec(),update_count);
     
     t1 = ros::Time::now();
-    // match();
+    match();
     t2 = ros::Time::now();
-    update_time_record_ << "match time : " << (t2-t1).toSec() << std::endl;
+    match_time = updateMean(match_time,(t2-t1).toSec(),update_count);
 
+    total_time = updateMean(total_time,(t2-t0).toSec(),update_count);
 
-    update_time_record_ << "total time : " << (t2-t0).toSec() << std::endl;
-
-
+    record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
+    // update_time_record_ << update_count << "\t" << pcl_cloud_ptr_->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
     cloud_odom_window_ready_ = false;
-
-
+    update_count ++;
 }
 
+
+void EnvManager::record(int update_count, int point_size, double cluster_time, double segmentation_time, double match_time, double total_time)
+{
+    if(record_)
+    {
+        update_time_record_ << std::left << std::setw(15) << update_count 
+                            << std::setw(10) << pcl_cloud_ptr_->points.size() 
+                            << std::setw(15) << cluster_time 
+                            << std::setw(20) << segmentation_time 
+                            << std::setw(20) << match_time 
+                            << total_time << "\n";
+    }
+
+}
 
 void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
 {

@@ -2,6 +2,7 @@
 #define DBSCAN_H
 
 #include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
 
 #define UN_PROCESSED 0
 #define PROCESSING 1
@@ -16,7 +17,6 @@ class DBSCANSimpleCluster {
 public:
     typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
     typedef typename pcl::search::KdTree<PointT>::Ptr KdTreePtr;
-    
     virtual void setInputCloud(PointCloudPtr cloud) {
         input_cloud_ = cloud;
     }
@@ -39,9 +39,11 @@ public:
                 is_noise[i] = true;
                 continue;
             }
+            
             std::vector<int> seed_queue;
             seed_queue.push_back(i);
             types[i] = PROCESSED;
+            
             for (int j = 0; j < nn_size; j++) {
                 if (nn_indices[j] != i) {
                     seed_queue.push_back(nn_indices[j]);
@@ -67,6 +69,7 @@ public:
                         }
                     }
                 }
+                
                 types[cloud_index] = PROCESSED;
                 sq_idx++;
             }
@@ -105,17 +108,38 @@ public:
 
 protected:
     PointCloudPtr input_cloud_;
+    
     double eps_ {0.0};
     int minPts_ {1}; // not including the point itself.
     int min_pts_per_cluster_ {1};
     int max_pts_per_cluster_ {std::numeric_limits<int>::max()};
+
     KdTreePtr search_method_;
 
     virtual int radiusSearch(
         int index, double radius, std::vector<int> &k_indices,
         std::vector<float> &k_sqr_distances) const
     {
-        return this->search_method_->radiusSearch(index, radius, k_indices, k_sqr_distances);
+        k_indices.clear();
+        k_sqr_distances.clear();
+        k_indices.push_back(index);
+        k_sqr_distances.push_back(0);
+        int size = input_cloud_->points.size();
+        double radius_square = radius * radius;
+        for (int i = 0; i < size; i++) {
+            if (i == index) {
+                continue;
+            }
+            double distance_x = input_cloud_->points[i].x - input_cloud_->points[index].x;
+            double distance_y = input_cloud_->points[i].y - input_cloud_->points[index].y;
+            double distance_z = input_cloud_->points[i].z - input_cloud_->points[index].z;
+            double distance_square = distance_x * distance_x + distance_y * distance_y + distance_z * distance_z;
+            if (distance_square <= radius_square) {
+                k_indices.push_back(i);
+                k_sqr_distances.push_back(std::sqrt(distance_square));
+            }
+        }
+        return k_indices.size();
     }
 }; // class DBSCANCluster
 

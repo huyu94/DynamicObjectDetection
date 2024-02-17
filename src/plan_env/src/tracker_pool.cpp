@@ -72,9 +72,7 @@ void TrackerPool::checkTracker(int id, ros::Time current_time)
         return ;
     }
     double mis_match_time = (current_time - tracker->getUpdateTime()).toSec();
-    std::cout << "1 " << std::endl;
-    std::cout << "missing_tracking_threshold_:" <<  missing_tracking_threshold_<< std::endl;
-    std::cout << "mis_match_time:" <<mis_match_time << std::endl;
+
     if(mis_match_time > missing_tracking_threshold_)
     {
         std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
@@ -146,7 +144,6 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
     for(auto &in : input)
     {
 
-        std::cout << "update tracker id : " << in.id << std::endl;
         if(in.id == -1)
         {
             addNewTracker(in.measurment,in.length,current_time);
@@ -160,16 +157,13 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
             std::cerr << "In [updatePool]: id out of range or tracker" << std::endl;
         }
     }
-    std::cout << "finish update, start check " << std::endl;
 
     for(int i = 0; i < pool_.size(); i++)
     {
         if(pool_[i] != nullptr)
         {
-            std::cout << "check id : " << i << std::endl;
             checkTracker(i,current_time);
         }
     }
 
-    std::cout << "end check " << std::endl;
 }

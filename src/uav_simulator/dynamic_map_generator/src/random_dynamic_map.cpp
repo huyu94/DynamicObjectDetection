@@ -14,7 +14,8 @@ void RandomDynamicMap::init()
     node_.param("sensing/range", sensing_range_, 5.0F);
 
 
-    node_.param("obstacle/upper_vel", v_h_, 0.1F);
+    node_.param("obstacle/upper_vel", v_h_, 0.8F);
+    node_.param("obstacle/lower_vel", v_l_, 0.4F);
     node_.param("aabb/lower_x", aabb_config_.size_x_min, 0.1F);
     node_.param("aabb/upper_x", aabb_config_.size_x_max, 0.5F);
     node_.param("aabb/lower_y", aabb_config_.size_y_min, 0.1F);
@@ -345,8 +346,10 @@ Eigen::Vector3f RandomDynamicMap::sampleRandomPosition() {
 }
 
 Eigen::Vector3f RandomDynamicMap::sampleRandomVelocity2D() {
-    std::uniform_real_distribution<float> rand_v(-v_h_, v_h_);
+    std::uniform_real_distribution<float> rand_v(v_l_, v_h_);
+    std::uniform_int_distribution<> rand_sign(0, 1);
+    int randomSign = (rand_sign(eng_) == 0) ? -1 : 1;
     std::uniform_real_distribution<float> rand_omega(-M_PI, M_PI);
-    return Eigen::Vector3f(rand_v(eng_) * std::cos(rand_omega(eng_)),
-                            rand_v(eng_) * std::sin(rand_omega(eng_)), 0.0F);
+    return Eigen::Vector3f(randomSign * rand_v(eng_) * std::cos(rand_omega(eng_)),
+                            randomSign * rand_v(eng_) * std::sin(rand_omega(eng_)), 0.0F);
 }
