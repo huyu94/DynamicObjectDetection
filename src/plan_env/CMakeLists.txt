@@ -81,12 +81,12 @@ target_link_libraries(env_node
     ${OpenCV_LIBS}
 )
 
-# add_executable(test
-#     src/test.cpp
-#     include/plan_env/ikd-Tree/ikd_Tree.cpp
-# )
+add_executable(test_stCapsule
+    src/test_stCapsule.cpp
+)
 
-# target_link_libraries(test
-#     ${catkin_LIBRARIES}
-#     ${PCL_LIBRARIES}
-# )
+target_link_libraries(test_stCapsule
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
