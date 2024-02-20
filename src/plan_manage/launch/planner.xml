@@ -29,15 +29,43 @@
     <node pkg="plan_env" name="drone_$(arg drone_id)_node" type="env_node" output="screen">
         <remap from="~cloud" to="/dynamic_env/global_cloud"/>
         <remap from="~odom"  to="/drone_0/odometry"/>
-        <param name="tracker/dbscan_eps"                    value="0.5"/>
-        <param name="tracker/dbscan_min_ptn"                value="5"/>
-        <param name="tracker/dbscan_min_cluster_size"       value="5"/>
-        <param name="tracker/dbscan_max_cluster_size"       value="25000"/>
-        <param name="tracker/gamma1_threshold"              value="0.0001"/>
-        <param name="tracker/gamma2_threshold"              value="3.0"/>
-        <param name="tracker/missing_tracking_threshold"    value="2.0"/>
+        <param name="env_manager/dbscan_eps"                    value="0.5"/>
+        <param name="env_manager/dbscan_min_ptn"                value="5"/>
+        <param name="env_manager/dbscan_min_cluster_size"       value="5"/>
+        <param name="env_manager/dbscan_max_cluster_size"       value="25000"/>
+        <param name="env_manager/gamma1_threshold"              value="0.0001"/>
+        <param name="env_manager/gamma2_threshold"              value="3.0"/>
         <param name="env_manager/record"                    value="true"/>  
         <param name="env_manager/slide_window_size"         value="5"/>
+        <param name="tracker_pool/missing_tracking_threshold"    value="2.0"/>
+
+        <param name="grid_map/resolution" value="0.1" />
+        <param name="grid_map/map_size_x" value="$(arg map_size_x_)" />
+        <param name="grid_map/map_size_y" value="$(arg map_size_y_)" />
+        <param name="grid_map/map_size_z" value="$(arg map_size_z_)" />
+        <param name="grid_map/local_update_range_x" value="5.5" />
+        <param name="grid_map/local_update_range_y" value="5.5" />
+        <param name="grid_map/local_update_range_z" value="2.0" /> <!-- different meaning between grid_map.cpp and grid_map_bigmap.cpp -->
+        <param name="grid_map/obstacles_inflation" value="0.1" />
+        <param name="grid_map/local_map_margin" value="10"/>
+        <param name="grid_map/enable_virtual_wall" value="true"/>
+        <param name="grid_map/virtual_ceil" value="3.0"/>
+        <param name="grid_map/virtual_ground" value="-0.1"/>
+        <param name="grid_map/ground_height" value="-0.01"/>
+
+        <!-- local fusion -->
+        <param name="grid_map/p_hit" value="0.65"/>
+        <param name="grid_map/p_miss" value="0.35"/>
+        <param name="grid_map/p_min" value="0.12"/>
+        <param name="grid_map/p_max" value="0.90"/>
+        <param name="grid_map/p_occ" value="0.80"/>
+        <param name="grid_map/fading_time" value="1000.0"/>
+        <param name="grid_map/min_ray_length" value="0.1"/>
+        <param name="grid_map/max_ray_length" value="4.5"/>
+        <param name="grid_map/visualization_truncate_height" value="1.9"/>
+        <param name="grid_map/show_occ_time" value="false"/>
+        <param name="grid_map/pose_type" value="1"/>
+        <param name="grid_map/frame_id" value="world"/>
     </node>
 
 

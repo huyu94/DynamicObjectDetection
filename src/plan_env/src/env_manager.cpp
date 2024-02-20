@@ -32,7 +32,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
     setTrackerPool();
 
 /* set grid map */
-    // setGridMap();
+    setGridMap();
 
 
 /* record */
@@ -74,10 +74,10 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 
 /* dbscan cluster */
-    node_.param<double>("tracker/dbscan_eps",dbscan_eps_,0.5);
-    node_.param<int>("tracker/dbscan_min_ptn",dbscan_min_ptn_,5);
-    node_.param<int>("tracker/dbscan_min_cluster_size",dbscan_min_cluster_size_,10);
-    node_.param<int>("tracker/dbscan_max_cluster_size",dbscan_max_cluster_size_,300);
+    node_.param<double>("env_manager/dbscan_eps",dbscan_eps_,0.5);
+    node_.param<int>("env_manager/dbscan_min_ptn",dbscan_min_ptn_,5);
+    node_.param<int>("env_manager/dbscan_min_cluster_size",dbscan_min_cluster_size_,10);
+    node_.param<int>("env_manager/dbscan_max_cluster_size",dbscan_max_cluster_size_,300);
     // ROS_INFO("dbscan_eps : %lf",dbscan_eps_);
     // ROS_INFO("dbscan_min_ptn : %d",dbscan_min_ptn_);
     ROS_INFO("dbscan_min_cluster_size : ", dbscan_max_cluster_size_);
@@ -85,8 +85,8 @@ void EnvManager::init(const ros::NodeHandle &nh)
     // cluster_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
 
 /* segmentation */
-    node_.param<double>("tracker/gamma1_threshold",gamma1_threshold_,0.5);
-    node_.param<double>("tracker/gamma2_threshold",gamma2_threshold_,0.5);
+    node_.param<double>("env_manager/gamma1_threshold",gamma1_threshold_,0.5);
+    node_.param<double>("env_manager/gamma2_threshold",gamma2_threshold_,0.5);
     segmentation_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
     
 
@@ -566,6 +566,23 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
 void EnvManager::visCallback(const ros::TimerEvent&)
 {
 
+    vector<SlideBox> slide_boxes;
+    vector<TrackerOutput> predicted_trackers;
+    tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(2.0));
+    tracker_pool_ptr_->forwardPool(predicted_trackers,ros::Time::now() + ros::Duration(2.0));
+    vector<VisualizeSlideBox> visual_slide_boxes;
+    vector<VisualKalmanTracker> visual_trackers;
+    for(auto &t : slide_boxes)
+    {
+        visual_slide_boxes.emplace_back(t.getCenter(),t.getLength(),t.getRotation(),t.getId());
+    }
+
+    for(auto &t : predicted_trackers)
+    {
+        visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
+    }
+    map_vis_ptr_->visualizeSlideBox(visual_slide_boxes);
+    map_vis_ptr_->visualizeKalmanTracker(visual_trackers);
 }
 
 

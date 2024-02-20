@@ -104,7 +104,7 @@ void TrackerPool::init(ros::NodeHandle& nh)
 {
     node_ = nh;
     pool_size_ = 0;
-    missing_tracking_threshold_ = node_.param<double>("dynamic_tracker/missing_tracking_threshold",2.0);
+    missing_tracking_threshold_ = node_.param<double>("tracker_pool/missing_tracking_threshold",2.0);
 }
 
 
@@ -112,7 +112,6 @@ void TrackerPool::init(ros::NodeHandle& nh)
 void TrackerPool::forwardPool(vector<TrackerOutput> &output, ros::Time target_time)
 {
     output.clear();
-    double dt;
     for(auto &track : pool_)
     {
         if(track != nullptr)
@@ -125,6 +124,18 @@ void TrackerPool::forwardPool(vector<TrackerOutput> &output, ros::Time target_ti
     }
 }
 
+void TrackerPool::forwardSlideBox(vector<SlideBox> &slide_boxes, ros::Time target_time)
+{
+    slide_boxes.clear();
+
+    for(auto &track : pool_)
+    {
+        if(track != nullptr)
+        {
+            slide_boxes.emplace_back(track,target_time);
+        }
+    }
+}
 void TrackerPool::getPool(vector<TrackerOutput> &outputs)
 {
     outputs.clear();

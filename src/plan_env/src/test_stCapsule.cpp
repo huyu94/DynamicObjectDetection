@@ -99,7 +99,7 @@ visualization_msgs::Marker generateCubeMarker(const Vector3d &pos, const Vector3
     marker.header.stamp = ros::Time::now();
     marker.ns = "test";
     marker.id = id;
-    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.pose.position.x = pos.x();
     marker.pose.position.y = pos.y();
@@ -188,6 +188,7 @@ visualization_msgs::Marker generateGradLine(Vector3d p1, Vector3d p2, int id)
 
 Cube generateCube(const Cluster &input, double t)
 {
+
     Vector3d p0 = input.center;
     Vector3d pt = input.center + input.velocity * t;
     // 1. 扩大椭圆为圆形
@@ -201,26 +202,52 @@ Cube generateCube(const Cluster &input, double t)
     Matrix3d rotation;
     Vector3d xtf,ytf,ztf, downward(0,0,-1);
     xtf = (pt - p0).normalized();
+    std::cout << "D:" << downward.normalized() << std::endl;
+    // cornor case : xtf is parallel to downward
+    if(xtf.cross(downward).norm() < 1e-6)
+    {
+        std::cout << "no" << std::endl;
+        xtf(0) += 0.01;
+    }
+    else
+    {
+        std::cout << "yes" << std::endl;
+        xtf(1) += 0.01;
+    }
+    
     ytf = xtf.cross(downward).normalized();
     ztf = xtf.cross(ytf).normalized();
     rotation.col(0) = xtf;
     rotation.col(1) = ytf;
     rotation.col(2) = ztf;
-
+    std::cout << "rotation : " << rotation << std::endl;
     Vector3d el_len(0,0,0);
+    Vector3d ax(input.length(0),0,0);
+    Vector3d ay(0,input.length(1),0);
+    Vector3d az(0,0,input.length(2));
+    Vector3d al[3] = {ax,ay ,az };
+
     for(int i=0; i<3;i++)
     {   
-        el_len(0) = max(abs(xtf.dot(input.length)),el_len(0));
-        el_len(1) = max(abs(ytf.dot(input.length)),el_len(1));
-        el_len(2) = max(abs(ztf.dot(input.length)),el_len(2));
+        el_len(0) = max(abs(xtf.dot(al[i])),el_len(0));
+        el_len(1) = max(abs(ytf.dot(al[i])),el_len(1));
+        el_len(2) = max(abs(ztf.dot(al[i])),el_len(2));
+        std::cout << "el_len : " << el_len.transpose() << std::endl;
+        // el_len(0) += abs(xtf.dot(al[i]));
+        // el_len(1) += abs(ytf.dot(al[i]));
+        // el_len(2) += abs(ztf.dot(al[i]));
     }
     // el_len(2) += 0.5 * el_len(0) *el_len(0);
 
     // 2. 椭球的半长轴
     Vector3d cube_len;
-    cube_len(0) = (pt - p0).norm() / 2 + el_len(0) + (pt-p0).norm() * 0.2;
+    // cube_len(0) = (pt - p0).norm() / 2 + el_len(0) + (pt-p0).norm() * 0.1;
+    // cube_len(1) = el_len(1);
+    // cube_len(2) = el_len(2) + 0.5 * el_len(0) *el_len(0);
+    cube_len(0) = (pt - p0).norm() / 2 + el_len(0);
     cube_len(1) = el_len(1);
-    cube_len(2) = el_len(2) + 0.5 * el_len(0) *el_len(0);
+    cube_len(2) = el_len(2);
+    std::cout << "cube_len : " << cube_len.transpose() << std::endl;
     // double l1 = (pt - p0).norm() / 2 + radius;
     // double l2 = radius;
     // double l3 = l2;
@@ -246,32 +273,49 @@ Cube generateCube(const Cluster &input, double t)
     return cube;
 }
 
-Vector3d pushOutofCube(Cube cube, Vector3d p)
+void pushOutofCube(Cube cube, Vector3d &p)
 {
     double cost = 0.0;  
-    Vector3d clearance = cube.length;
+    double clearance = 1.1;
     Vector3d x = p - cube.center;
     Vector3d grad(0,0,0);
+    Vector3d dist_vec = (p - cube.center);
+    Vector3d inv_len = Vector3d(1,1,1).cwiseQuotient(cube.length.cwiseProduct(cube.length));
+    
     // = -6 * pow(1 - x.transpose() * theta * x,2) * theta * x;
-    double dist_err = 1 - x.transpose() *  x  ;
-    std::cout << "dist_err : " << dist_err << std::endl;
-    if(dist_err < 0)
+    double ellip_dist2 = dist_vec(0) * dist_vec(0) * inv_len(0) + dist_vec(1) * dist_vec(1) * inv_len(1) + dist_vec(2) * dist_vec(2) * inv_len(2);
+    
+    double clearance2 = clearance * clearance;
+    double dist2_err = clearance2 - ellip_dist2;
+    double dist2_err2 = dist2_err * dist2_err;
+    double dist2_err3 = dist2_err2 * dist2_err;
+    if(dist2_err3 > 0)
     {
-        /* do nothing */
+        cost += dist2_err3;
+        grad = 3 * dist2_err2 * (-2) * ellip_dist2 * Eigen::Vector3d(dist_vec(0) * inv_len(0), dist_vec(1) * inv_len(1), dist_vec(2) * inv_len(2));
     }
-    else
-    {
-        cost += pow(dist_err,3);
-        std::cout << "theta : "<< theta << std::endl;
-        grad = 6 * pow(dist_err,2) * theta * x;
-        // grad =  theta * x;
 
-    }
     // grad = x;
     std::cout << "grad : " << grad.transpose() << std::endl;
 
-    return p + grad;
+    p -= grad;
 
+}
+
+bool checkPointInCube(Cube cube, Vector3d p)
+{
+    Vector3d dist_vec = (p - cube.center);
+    Vector3d inv_len = Vector3d(1,1,1).cwiseQuotient(cube.length.cwiseProduct(cube.length));
+    double ellip_dist2 = dist_vec(0) * dist_vec(0) * inv_len(0) + dist_vec(1) * dist_vec(1) * inv_len(1) + dist_vec(2) * dist_vec(2) * inv_len(2);
+    std::cout << "ellip_dist2 : " << ellip_dist2 << std::endl;
+    if(ellip_dist2 <= 1)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 // void visCallback(const ros::TimerEvent&)
 // {
@@ -311,8 +355,8 @@ int main(int argc, char ** argv)
     point_pub = nh.advertise<visualization_msgs::MarkerArray>("point", 1);
     double t=4;
     Vector3d v = Vector3d(1,0,0);
-    Cluster cl(Vector3d(0,0,0), v, Vector3d(1,1,2));
-    Cluster c2(Vector3d(0,0,0) + v * t, Vector3d(1,1,0), Vector3d(1,1,2));
+    Cluster cl(Vector3d(0,2,2), v, Vector3d(0.3,0.3,4));
+    Cluster c2(Vector3d(0,2,2) + v * t, Vector3d(1,1,0), Vector3d(0.3,0.3,4));
     Cube cb = generateCube(cl, t);
 
 
@@ -336,16 +380,24 @@ int main(int argc, char ** argv)
 
     Vector3d p = randomPointInCube(cb.center, cb.length);
     std::cout << "p : " << p.transpose() << std::endl;
-    Vector3d p2 = pushOutofCube(cb, p);
-    visualization_msgs::Marker ori_point = generatePoint(p,Eigen::Vector4d(1.0,0.0,0.0,1.0),0);
-    visualization_msgs::Marker push_point = generatePoint(p2,Eigen::Vector4d(0.0,1.0,1.0,1.0), 1);
-    visualization_msgs::Marker push_line = generateGradLine(p, p2, 2);
-    std::cout << "p2 : " << p2.transpose() << std::endl;
-    // visualization_msgs::Marker point = generatePoint(p, 0);
-    // point_array.markers.push_back(point);
+    int count = 0;
+    visualization_msgs::Marker ori_point = generatePoint(p,Eigen::Vector4d(1.0,0.0,0.0,1.0),count++);
     point_array.markers.push_back(ori_point);
-    point_array.markers.push_back(push_point);
-    point_array.markers.push_back(push_line);
+    while(checkPointInCube(cb, p))
+    {
+        std::cout << "herer " << std::endl;
+        Vector3d ori = p;
+        pushOutofCube(cb, p);    
+        visualization_msgs::Marker push_point = generatePoint(p,Eigen::Vector4d(0.0,1.0,1.0,1.0), count++);
+        visualization_msgs::Marker push_line = generateGradLine(ori, p , count ++);
+        point_array.markers.push_back(push_point);
+        point_array.markers.push_back(push_line);
+        if(count > 200)
+        {
+            break;
+        }
+    }
+
     geometry_msgs::PoseStamped pose = geometry_msgs::PoseStamped();
     pose.header.frame_id = "world";
     pose.header.stamp = ros::Time::now();

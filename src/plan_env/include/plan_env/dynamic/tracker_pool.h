@@ -11,6 +11,9 @@
 using std::vector;
 using std::pair;
 using std::shared_ptr;
+using Eigen::Quaterniond;
+using Eigen::Matrix3d;
+using std::max, std::min;
 
 
 struct TrackerOutput
@@ -27,6 +30,90 @@ struct TrackerInput
     VectorXd measurment;
     Vector3d length;
     TrackerInput(int id, VectorXd measurment, Vector3d length):id(id),measurment(measurment),length(length){}
+};
+
+class SlideBox
+{
+private:
+    int id_;
+    Vector3d center_;
+    Vector3d length_; // 1/2 edge length
+    Matrix3d rotation_;
+public:
+    SlideBox(int id,Vector3d center, Vector3d length, Matrix3d rotation):id_(id),center_(center),length_(length),rotation_(rotation){}
+    SlideBox(const Tracker::Ptr a,ros::Time targetTime)
+    {
+        double dt = (targetTime - a->getUpdateTime()).toSec();
+        id_ = a->getId();
+        Vector3d p0 = a->getState().head(3);
+        Vector3d pt = a->getState().head(3) + a->getState().tail(3) * dt;
+        center_ = (p0 + pt) / 2;
+
+
+        Vector3d xtf,ytf,ztf, downward(0,0,-1);
+        xtf = (pt - p0).normalized();
+        // cornor case : xtf is parallel to downward
+        if(xtf.cross(downward).norm() < 1e-6)
+        {
+            xtf(0) += 0.01;
+        }
+        else
+        {
+            xtf(1) += 0.01;
+        }
+        ytf = xtf.cross(downward).normalized();
+        ztf = xtf.cross(ytf).normalized();
+        rotation_.col(0) = xtf;
+        rotation_.col(1) = ytf;
+        rotation_.col(2) = ztf;
+
+        Vector3d el_len(0,0,0);
+        Vector3d ax(a->getLength()(0),0,0);
+        Vector3d ay(0,a->getLength()(1),0);
+        Vector3d az(0,0,a->getLength()(2));
+        Vector3d al[3] = {ax/2,ay/2 ,az/2 };
+
+        for(int i=0; i<3;i++)
+        {   
+            el_len(0) = max(abs(xtf.dot(al[i])),el_len(0));
+            el_len(1) = max(abs(ytf.dot(al[i])),el_len(1));
+            el_len(2) = max(abs(ztf.dot(al[i])),el_len(2));
+        }
+        length_(0) = (pt - p0).norm() / 2 + el_len(0);
+        length_(1) = el_len(1);
+        length_(2) = el_len(2);
+    }
+
+    inline int getId()
+    {
+        return id_;
+    }
+    inline Vector3d getCenter()
+    {
+        return center_;
+    }
+    inline Vector3d getLength()
+    {
+        return length_;
+    }
+    inline Matrix3d getRotation()
+    {
+        return rotation_;
+    }
+
+    bool isInBox(const Vector3d &pos)
+    {
+        Vector3d diff = pos - center_;
+        Vector3d local_diff = rotation_.transpose() * diff;
+        for(size_t i = 0; i < 3; i++)
+        {
+            if(abs(local_diff(i)) < length_(i)) // in box
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 
@@ -112,6 +199,15 @@ public:
     */
     void forwardPool(vector<TrackerOutput> &predict_objects, ros::Time target_time);
     // void forwardPool(vector<TrackerOutput> &output, double dt);
+
+
+    /**
+     * @brief generate slide box, associate the current tracker with the predicted tracker, and generate slide box
+     * @param slide_boxes output box
+     * @param target_time target time
+    */
+    void forwardSlideBox(vector<SlideBox> &slide_boxes, ros::Time target_time);
+
 
     /**
      * @brief update all object in the pool

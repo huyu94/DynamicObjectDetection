@@ -13,6 +13,7 @@
 #include <pcl/common/common.h>
 
 using Eigen::Vector3d;
+using Eigen::Matrix3d;
 
 class Color : public std_msgs::ColorRGBA {
  public:
@@ -34,7 +35,7 @@ class Color : public std_msgs::ColorRGBA {
   static const Color SteelBlue() { return Color(0.4, 0.7, 1.0); }
   static const Color Yellow() { return Color(1.0, 1.0, 0.0, 0.5); }
   static const Color Orange() { return Color(1.0, 0.5, 0.0, 0.8); }
-  static const Color Purple() { return Color(0.5, 0.0, 1.0); }
+  static const Color Purple() { return Color(0.5, 0.0, 1.0,0.5); }
   static const Color Chartreuse() { return Color(0.5, 1.0, 0.0); }
   static const Color Teal() { return Color(0.0, 1.0, 1.0); }
   static const Color Pink() { return Color(1.0, 0.0, 0.5); }
@@ -58,6 +59,8 @@ struct VisualCluster
                 min_bound(minb), max_bound(maxb) {} 
 };
 
+
+
 struct VisualKalmanTracker
 {
   Vector3d pos;
@@ -67,9 +70,21 @@ struct VisualKalmanTracker
   VisualKalmanTracker(Vector3d p,Vector3d v,Vector3d l,int i):pos(p),vel(v),len(l),id(i){}
 
 };
+
+struct VisualizeSlideBox
+{
+  Vector3d center;
+  Vector3d length;
+  Matrix3d rotation;
+  int id;
+  VisualizeSlideBox(Vector3d c,Vector3d l,Matrix3d r,int i) : center(c),length(l),rotation(r), id(i){}
+};
+
+
 visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id);
 visualization_msgs::Marker generateArrows(const Vector3d &pos, const Vector3d &vel, int id);
-visualization_msgs::Marker generateBBox(const Eigen::Vector3d &min_point, const Eigen::Vector3d &max_point, int id);
+visualization_msgs::Marker generateBBox(const Vector3d &min_point, const Vector3d &max_point, int id);
+visualization_msgs::Marker generateCube(const Vector3d &center, const Vector3d &length, const Matrix3d &rotation, int id);
 
 class MapVisualizer
 {
@@ -82,6 +97,7 @@ public:
     void visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters);
     // void visualizeKMResult(std::vector<VisualKMResult> &kmresult); // 滑匹配的线
     void visualizeKalmanTracker(std::vector<VisualKalmanTracker> &visual_trackers);
+    void visualizeSlideBox(std::vector<VisualizeSlideBox> &visual_slideboxes);
     void visualizeMovingObjectBox();
     void visualizeMovingObjectTraj();
 
@@ -96,6 +112,7 @@ private:
     ros::Publisher kalman_tracker_pub_;
     ros::Publisher moving_object_box_pub_;
     ros::Publisher moving_object_traj_pub_;
+    ros::Publisher slide_box_pub_;
     ros::Publisher receive_cloud_pub_;
 
 };

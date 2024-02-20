@@ -8,6 +8,7 @@ MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
     segmentation_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("segmentation_result", 1);
     km_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("km_result", 1);
     kalman_tracker_pub_ = node_.advertise<visualization_msgs::MarkerArray>("kalman_filter",1);
+    slide_box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("slide_box",1);
     moving_object_box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_box", 1);
     moving_object_traj_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_traj", 1);
     receive_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("received_cloud",1);
@@ -97,6 +98,18 @@ void MapVisualizer::visualizeKalmanTracker(std::vector<VisualKalmanTracker> &vis
 
     kalman_tracker_pub_.publish(ellipses_and_arrows);
 
+}
+
+
+void MapVisualizer::visualizeSlideBox(std::vector<VisualizeSlideBox> &visual_slideboxes)
+{
+    visualization_msgs::MarkerArray slide_boxes;
+    for(size_t i=0; i<visual_slideboxes.size();i++)
+    {
+        visualization_msgs::Marker box = generateCube(visual_slideboxes[i].center,visual_slideboxes[i].length,visual_slideboxes[i].rotation,visual_slideboxes[i].id);
+        slide_boxes.markers.push_back(box);
+    }
+    slide_box_pub_.publish(slide_boxes);
 }
 
 visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id)
@@ -197,3 +210,36 @@ visualization_msgs::Marker generateBBox(const Eigen::Vector3d &min_point, const 
 
     return marker;
 }
+
+visualization_msgs::Marker generateCube(const Eigen::Vector3d &center, const Eigen::Vector3d &length, const Eigen::Matrix3d &rotation, int id)
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.header.stamp = ros::Time::now();
+
+    marker.ns = "SlideBox";
+    marker.id = id;
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    
+    
+    marker.pose.position.x = center.x();
+    marker.pose.position.y = center.y();
+    marker.pose.position.z = center.z();
+
+    Eigen::Quaterniond q(rotation);
+    marker.pose.orientation.x = q.x();
+    marker.pose.orientation.y = q.y();
+    marker.pose.orientation.z = q.z();
+    marker.pose.orientation.w = q.w();
+
+    marker.scale.x = length.x() * 2;
+    marker.scale.y = length.y() * 2;
+    marker.scale.z = length.z() * 2;
+
+
+    marker.color = Color::Purple();
+
+    return marker;
+}
+

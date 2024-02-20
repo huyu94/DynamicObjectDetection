@@ -10,6 +10,7 @@ Panels:
         - /clusters1
         - /segmentationMovingCluster1
         - /PointCloud21
+        - /slide_box1
       Splitter Ratio: 0.5
     Tree Height: 813
   - Class: rviz/Selection
@@ -171,6 +172,14 @@ Visualization Manager:
         tracker: true
       Queue Size: 100
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /drone_0_node/slide_box
+      Name: slide_box
+      Namespaces:
+        SlideBox: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 242; 252; 177
@@ -201,7 +210,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 19.47569465637207
+      Distance: 43.0545539855957
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -209,17 +218,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.4872085452079773
-        Y: -0.298427015542984
-        Z: -3.478410482406616
+        X: -2.835988759994507
+        Y: 0.5434668064117432
+        Z: -2.6623752117156982
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3247960805892944
+      Pitch: 0.7747966051101685
       Target Frame: <Fixed Frame>
-      Yaw: 1.5335527658462524
+      Yaw: 2.033553123474121
     Saved: ~
 Window Geometry:
   Displays:
