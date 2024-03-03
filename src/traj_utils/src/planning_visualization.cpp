@@ -13,6 +13,22 @@ namespace ego_planner
     init_list_pub = nh.advertise<visualization_msgs::Marker>("init_list", 2);
     optimal_list_pub = nh.advertise<visualization_msgs::Marker>("optimal_list", 2);
     a_star_list_pub = nh.advertise<visualization_msgs::Marker>("a_star_list", 20);
+    topo_paths_pub = nh.advertise<visualization_msgs::Marker>("topo_paths",5);
+    topo_sample_pub = nh.advertise<visualization_msgs::Marker>("topo_sample",5);
+
+    colorMap = {
+        Eigen::Vector4d(0.6, 0.2, 0.8, 1), // Bright Purple
+        Eigen::Vector4d(0.2, 0.2, 1.0, 1), // Bright Blue
+        Eigen::Vector4d(1.0, 0.2, 0.2, 1), // Bright Red
+        Eigen::Vector4d(0.2, 1.0, 0.2, 1), // Bright Green
+        Eigen::Vector4d(1.0, 1.0, 0.2, 1), // Bright Yellow
+        Eigen::Vector4d(1.0, 0.2, 1.0, 1), // Bright Magenta
+        Eigen::Vector4d(0.2, 1.0, 1.0, 1), // Bright Cyan
+        Eigen::Vector4d(1.0, 0.6, 0.2, 1), // Bright Orange
+        Eigen::Vector4d(0.6, 0.2, 1.0, 1), // Bright Violet
+        Eigen::Vector4d(0.2, 0.6, 0.6, 1)  // Bright Teal
+    };
+    
   }
 
   // // real ids used: {id, id+1000}
@@ -185,7 +201,8 @@ namespace ego_planner
 
     for ( int id=0; id<init_trajs.size(); id++ )
     {
-      Eigen::Vector4d color(0, 0, 1, 0.7);
+      // Eigen::Vector4d color(0, 0, 1, 0.7);
+      Eigen::Vector4d color = colorMap[id];
       displayMarkerList(init_list_pub, init_trajs[id], scale, color, id, false);
       ros::Duration(0.001).sleep();
       last_nums++;
@@ -259,6 +276,68 @@ namespace ego_planner
     generateArrowDisplayArray(array, list, scale, color, id);
 
     pub.publish(array);
+  }
+
+
+  void PlanningVisualization::displayTopoSampleBox(Eigen::Vector3d translation, Eigen::Vector3d scale, Eigen::Quaterniond q, int id)
+  {
+    visualization_msgs::Marker marker;
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.header.frame_id = "world";
+
+    marker.scale.x = scale(0);
+    marker.scale.y = scale(1);
+    marker.scale.z = scale(2);
+
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+    marker.color.a = 0.2;
+
+    marker.pose.position.x = translation(0);
+    marker.pose.position.y = translation(1);
+    marker.pose.position.z = translation(2);
+
+    marker.pose.orientation.x = q.x();
+    marker.pose.orientation.y = q.y();
+    marker.pose.orientation.z = q.z();
+    marker.pose.orientation.w = q.w();
+
+    topo_sample_pub.publish(marker);
+  }
+
+  void PlanningVisualization::displayTopoPathsList(vector<vector<Eigen::Vector3d>> paths)
+  {
+    for(int i=0;i<paths.size();i++)
+    {
+      visualization_msgs::Marker line;
+      line.header.frame_id = "world";
+      line.header.stamp = ros::Time::now();
+      line.action = visualization_msgs::Marker::ADD;
+      line.pose.orientation.w = 1.0;
+      line.id = i;
+      line.type = visualization_msgs::Marker::LINE_STRIP;
+
+      line.scale.x = 0.1;
+
+      line.color.r = colorMap[i](0);
+      line.color.g = colorMap[i](1);
+      line.color.b = colorMap[i](2);
+      line.color.a = colorMap[i](3);
+
+      for(const auto & point : paths[i])
+      {
+        geometry_msgs::Point p;
+        p.x = point(0);
+        p.y = point(1);
+        p.z = point(2);
+        line.points.push_back(p);
+      
+      }
+
+      topo_paths_pub.publish(line);
+    }
   }
 
   // PlanningVisualization::

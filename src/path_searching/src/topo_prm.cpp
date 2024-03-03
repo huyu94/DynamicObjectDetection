@@ -5,6 +5,7 @@
 
 
 
+
 TopoPRM::TopoPRM(){}
 
 TopoPRM::~TopoPRM(){}  
@@ -32,7 +33,7 @@ void TopoPRM::init(const ros::NodeHandle& nh)
 
     // nh.param("topo_prm/risk_thresh", risk_thresh_, 0.5);
     // resolution_ = dsp_map_->getResolution();
-    resolution_ = pos_checker_->getResolution();
+    resolution_ = env_manager_->getPosChecker()->getResolution();
     
     // offset_ = Eigen::Vector3d(0.5, 0.5, 0.5) - dsp_map_->getOrigin() / resolution_;
     // offset_ = Eigen::Vector3d(0.5,0.5,0.5) 
@@ -44,9 +45,9 @@ void TopoPRM::init(const ros::NodeHandle& nh)
 }
 
 
-void TopoPRM::setPosChecker(PosChecker::Ptr pos_checker)
+void TopoPRM::setEnvManager(EnvManager::Ptr env_manager)
 {
-    pos_checker_ = pos_checker;
+    env_manager_ = env_manager;
 }
 
 void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
@@ -64,8 +65,9 @@ void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
     start_pts_ = start_pts;
     end_pts_ = end_pts;
 
+    // ROS_INFO("create graph start");
     graph = createGraph(start, end);
-    ROS_INFO("create graph finished");
+    // ROS_INFO("create graph finished");
     graph_time = (ros::Time::now() - t1).toSec();
     cout << "create graph: " << (t2 - t1).toSec() << endl;
     /* ---------- search paths in the graph ---------- */
@@ -111,9 +113,9 @@ void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
 
 list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d end)
 {
-    static int count = 0;
-    std::cout << endl
-            << "[create graph]: -------------------------------------" << count++ << std::endl;
+    // static int count = 0;
+    // std::cout << endl
+    //         << "[create graph]: -------------------------------------" << count++ << std::endl;
     graph_.clear();
     
     GraphNode::Ptr start_node = GraphNode::Ptr(new GraphNode(start, GraphNode::Guard, 0));
@@ -155,8 +157,9 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
 
         pt = getSample();
         ++sample_num;
-        int collision_id;
-        if(pos_checker_->checkCollisionInSlideBox(pt,collision_id))
+        int object_id;
+        Vector3d object_pos;
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(pt,object_id,object_pos))
         {
             sample_time += (ros::Time::now() - t1).toSec();
             continue;
@@ -274,23 +277,54 @@ Eigen::Vector3d TopoPRM::getSample()
     return pt;
 }
 
-bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& pc, int caster_id)
+bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& pc, int &object_id, Vector3d &object_pos, int caster_id)
 {
     Eigen::Vector3d ray_pt;
-    Eigen::Vector3i pt_id;
+    // Eigen::Vector3i pt_id;
 
     casters_[caster_id].setInput(p1 / resolution_, p2 /resolution_);
     while(casters_[caster_id].step(ray_pt))
     {
-        pt_id = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        Vector3d tmp = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+
+        // pt_id = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(0) = (ray_pt(0) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(1) = (ray_pt(1) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(2) = (ray_pt(2) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(0) = ray_pt(0) + offset_(0);
         // pt_id(1) = ray_pt(1) + offset_(1);
         // pt_id(2) = ray_pt(2) + offset_(2);
-        int collision_id;
-        if(pos_checker_->checkCollisionInSlideBox(pt_id,collision_id)) // 占据
+        // int collision_id;
+        
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp,object_id,object_pos)) // 占据
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& pc, int caster_id)
+{
+    Eigen::Vector3d ray_pt;
+
+    int object_id;
+    Vector3d object_pos;
+    casters_[caster_id].setInput(p1 / resolution_, p2 /resolution_);
+    while(casters_[caster_id].step(ray_pt))
+    {
+        Vector3d tmp = (ray_pt ) * resolution_;
+
+        // pt_id = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        // pt_id(0) = (ray_pt(0) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        // pt_id(1) = (ray_pt(1) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        // pt_id(2) = (ray_pt(2) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        // pt_id(0) = ray_pt(0) + offset_(0);
+        // pt_id(1) = ray_pt(1) + offset_(1);
+        // pt_id(2) = ray_pt(2) + offset_(2);
+        // int collision_id;
+
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp,object_id,object_pos)) // 占据
         {
             return false;
         }
@@ -439,6 +473,8 @@ bool TopoPRM::sameTopoPath(const vector<Eigen::Vector3d>& path1,const vector<Eig
     vector<Eigen::Vector3d> pts2 = discretizePath(path2, pt_num);
 
     Eigen::Vector3d pc;
+    int object_id;
+    Vector3d object_pos;
     for (int i = 0; i < pt_num; ++i) 
     {
         if (!lineVisib(pts1[i], pts2[i], pc)) 
@@ -543,7 +579,6 @@ void TopoPRM::shortcutPath(vector<Eigen::Vector3d> path, int path_id, int iter_n
             short_paths_[path_id] = dis_path;
             return ;
         }
-
 
         /* visibiliry path shortening */
 

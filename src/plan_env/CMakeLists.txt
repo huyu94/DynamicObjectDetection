@@ -78,6 +78,8 @@ add_executable(env_node
     src/tracker_pool.cpp
     src/env_manager.cpp
     src/map_visualizer.cpp
+    src/pos_checker.cpp
+
 )
 
 target_link_libraries(env_node

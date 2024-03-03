@@ -31,6 +31,7 @@
 #include "plan_env/ikd-Tree/ikd_Tree.h"
 #include "plan_env/static/grid_map.h"
 #include "plan_env/map_visualizer.h"
+#include "plan_env/pos_checker.h"
 
 using PointType = ikdTree_PointType;
 using PointVector = KD_TREE<PointType>::PointVector;
@@ -80,6 +81,8 @@ private:
     bool cloud_odom_window_ready_;
     vector<Vector3d> static_points_;
 
+/* poschecker */
+    PosChecker::Ptr pos_checker_ptr_;
 
 /* visualizer */
     MapVisualizer::Ptr map_vis_ptr_;
@@ -131,6 +134,7 @@ public:
     GridMap::Ptr getGridMap(){return grid_map_ptr_;};
     TrackerPool::Ptr getTrackerPool(){return tracker_pool_ptr_;};
     MapVisualizer::Ptr getMapVisualizer(){return map_vis_ptr_;};
+    PosChecker::Ptr getPosChecker(){return pos_checker_ptr_;};
 private:
 
     /*

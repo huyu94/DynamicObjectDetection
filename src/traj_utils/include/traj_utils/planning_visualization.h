@@ -28,6 +28,13 @@ namespace ego_planner
     ros::Publisher guide_vector_pub;
     ros::Publisher intermediate_state_pub;
 
+    ros::Publisher topo_paths_pub;
+    ros::Publisher topo_sample_pub; // 采样空间展示
+
+
+    std::vector<Eigen::Vector4d> colorMap;
+
+
   public:
     PlanningVisualization(/* args */) {}
     ~PlanningVisualization() {}
@@ -50,6 +57,9 @@ namespace ego_planner
     void displayArrowList(ros::Publisher &pub, const vector<Eigen::Vector3d> &list, double scale, Eigen::Vector4d color, int id);
     // void displayIntermediateState(ros::Publisher& intermediate_pub, ego_planner::BsplineOptimizer::Ptr optimizer, double sleep_time, const int start_iteration);
     // void displayNewArrow(ros::Publisher& guide_vector_pub, ego_planner::BsplineOptimizer::Ptr optimizer);
+
+    void displayTopoPathsList(vector<vector<Eigen::Vector3d>> paths);
+    void displayTopoSampleBox(Eigen::Vector3d translation, Eigen::Vector3d scale, Eigen::Quaterniond q, int id);
   };
 } // namespace ego_planner
 #endif

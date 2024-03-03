@@ -61,7 +61,8 @@
         <param name="fsm/waypoint4_y" value="$(arg point4_y)" type="double"/>
         <param name="fsm/waypoint4_z" value="$(arg point4_z)" type="double"/>
 
-        <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic)"/>
+        <!-- <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic)"/> -->
+        <remap from="~cloud" to="/dynamic_env/global_cloud"/> 
         <remap from="~odom"  to="/drone_$(arg drone_id)/$(arg odometry_topic)"/>
         <param name="env_manager/dbscan_eps"                    value="0.5"/>
         <param name="env_manager/dbscan_min_ptn"                value="10"/>
@@ -73,10 +74,12 @@
         <param name="env_manager/slide_window_size"         value="5"/>
         <param name="env_manager/distance_gate"         value="0.8"/>
         <param name="env_manager/cluster_max_height"         value="1.5"/>
-        
-
         <param name="tracker_pool/missing_tracking_threshold"    value="0.5"/>
+        <param name="pos_checker/virtual_wall"                  value="true"/>
+        <param name="pos_checker/virtual_ground"                  value="0.0"/>
+        <param name="pos_checker/virtual_ceil"                  value="2.0"/>
 
+        
         <param name="grid_map/resolution" value="0.2" />
         <param name="grid_map/local_update_range_x" value="5.5" />
         <param name="grid_map/local_update_range_y" value="5.5" />
@@ -102,6 +105,26 @@
         <param name="grid_map/pose_type" value="1"/>
         <param name="grid_map/frame_id" value="world"/>
         
+        <!-- topo prm -->
+        <param name="topo_prm/sample_inflate_x" value="5.0" type="double"/>
+        <param name="topo_prm/sample_inflate_y" value="5.5" type="double"/>
+        <param name="topo_prm/sample_inflate_z" value="2.0" type="double"/>
+        <param name="topo_prm/clearance" value="0.3" type="double"/>
+        <param name="topo_prm/max_sample_time" value="0.025" type="double"/>
+        <param name="topo_prm/max_sample_num" value="2000" type="int"/>
+        <param name="topo_prm/max_raw_path" value="300" type="int"/>
+        <param name="topo_prm/max_raw_path2" value="15" type="int"/>
+        <param name="topo_prm/short_cut_num" value="4" type="int"/>
+        <param name="topo_prm/reserve_num" value="4" type="int"/>
+        <param name="topo_prm/ratio_to_short" value="5.5" type="double"/>
+        <param name="topo_prm/parallel_shortcut" value="false" type="bool"/>
+        
+        <!-- <param name="topo_prm/risk_thresh" value="0.05" type="double"/> -->
+        <!-- <param name="topo_prm/init_x" value="-10" type="double"/>
+        <param name="topo_prm/init_y" value="0" type="double"/>
+        <param name="topo_prm/init_z" value="2.0" type="double"/> -->
+
+
 
         <!-- planner manager -->
         <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
@@ -114,10 +137,20 @@
         <param name="manager/drone_id" value="$(arg drone_id)"/>
 
         <!-- trajectory optimization -->
-        <param name="optimization/lambda_smooth" value="1.0" type="double"/>
+        <!-- <param name="optimization/lambda_smooth" value="1.0" type="double"/>
         <param name="optimization/lambda_collision" value="0.5" type="double"/>
         <param name="optimization/lambda_feasibility" value="0.1" type="double"/>
-        <param name="optimization/lambda_fitness" value="1.0" type="double"/>
+        <param name="optimization/lambda_fitness" value="1.0" type="double"/> -->
+
+        <param name="optimization/lambda1_s" value="1.0" type="double"/>
+        <param name="optimization/lambda1_g" value="2.0" type="double"/>
+        <param name="optimization/lambda2_s" value="1.0" type="double"/>
+        <param name="optimization/lambda2_f" value="0.1" type="double"/>
+        <param name="optimization/lambda2_c" value="0.5" type="double"/>
+        <param name="optimization/lambda2_d" value="1.0" type="double"/>
+        <param name="optimization/lambda3_s" value="1.0" type="double"/>
+        <param name="optimization/lambda3_f" value="0.1" type="double"/>
+        <param name="optimization/lambda3_cf" value="1.0" type="double"/>
         <param name="optimization/dist0" value="0.5" type="double"/>
         <param name="optimization/swarm_clearance" value="0.5" type="double"/>
         <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>

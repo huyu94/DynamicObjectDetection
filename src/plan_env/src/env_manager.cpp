@@ -34,6 +34,15 @@ void EnvManager::init(const ros::NodeHandle &nh)
 /* set grid map */
     setGridMap();
 
+/* visualizer */
+    map_vis_ptr_.reset(new MapVisualizer(node_));
+
+/* set pos checker */
+    pos_checker_ptr_.reset(new PosChecker);
+    pos_checker_ptr_->init(nh);
+    pos_checker_ptr_->setGridMap(grid_map_ptr_);
+    pos_checker_ptr_->setTrackerPool(tracker_pool_ptr_);
+    pos_checker_ptr_->setMapVisualizer(map_vis_ptr_);
 
 /* record */
     node_.param<bool>("env_manager/record",record_,false);
@@ -68,8 +77,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
     node_.param<int>("env_manager/slide_window_size",slide_window_size_,5);
     node_.param<double>("env_manager/tracking_update_timeout",tracking_update_timeout_,1.0);
 
-/* visualizer */
-    map_vis_ptr_.reset(new MapVisualizer(node_));
+
 
 
 
@@ -104,7 +112,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 
 /* timer */
-    update_timer_ = node_.createTimer(ros::Duration(0.1), &EnvManager::updateCallback, this);
+    update_timer_ = node_.createTimer(ros::Duration(0.15), &EnvManager::updateCallback, this);
     vis_timer_ = node_.createTimer(ros::Duration(0.05), &EnvManager::visCallback, this);
 
 }
@@ -235,7 +243,7 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     cluster_ptr->state = VectorXd(6);
     cluster_ptr->state.head(3) = position;
     cluster_ptr->state.tail(3) = Vector3d::Zero();
-    cluster_ptr->length = length;
+    cluster_ptr->length = length + Eigen::Vector3d(1.0,1.0,1.0);
     cluster_ptr->min_bound = min_bound;
     cluster_ptr->max_bound = max_bound;
     cluster_ptr->motion_type = -1;
@@ -615,22 +623,22 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
 void EnvManager::visCallback(const ros::TimerEvent&)
 {
 
-    vector<SlideBox> slide_boxes;
-    // vector<TrackerOutput> predicted_trackers;
-    tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(2.0));
-    // tracker_pool_ptr_->forwardPool(predicted_trackers,ros::Time::now() + ros::Duration(2.0));
-    vector<VisualizeSlideBox> visual_slide_boxes;
-    // vector<VisualKalmanTracker> visual_trackers;
-    for(auto &t : slide_boxes)
-    {
-        visual_slide_boxes.emplace_back(t.getCenter(),t.getLength(),t.getRotation(),t.getId());
-    }
-
-    // for(auto &t : predicted_trackers)
+    // vector<SlideBox> slide_boxes;
+    // // vector<TrackerOutput> predicted_trackers;
+    // tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(2.0));
+    // // tracker_pool_ptr_->forwardPool(predicted_trackers,ros::Time::now() + ros::Duration(2.0));
+    // vector<VisualizeSlideBox> visual_slide_boxes;
+    // // vector<VisualKalmanTracker> visual_trackers;
+    // for(auto &t : slide_boxes)
     // {
-    //     visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
+    //     visual_slide_boxes.emplace_back(t.getCenter(),t.getLength(),t.getRotation(),t.getId());
     // }
-    map_vis_ptr_->visualizeSlideBox(visual_slide_boxes);
+
+    // // for(auto &t : predicted_trackers)
+    // // {
+    // //     visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
+    // // }
+    // map_vis_ptr_->visualizeSlideBox(visual_slide_boxes);
     // map_vis_ptr_->visualizeKalmanTracker(visual_trackers);
 }
 

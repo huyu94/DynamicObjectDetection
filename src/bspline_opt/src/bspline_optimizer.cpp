@@ -7,10 +7,22 @@ namespace ego_planner
 
   void BsplineOptimizer::setParam(ros::NodeHandle &nh)
   {
-    nh.param("optimization/lambda_smooth", lambda1_, -1.0);
-    nh.param("optimization/lambda_collision", lambda2_, -1.0);
-    nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
-    nh.param("optimization/lambda_fitness", lambda4_, -1.0);
+    nh.param("optimization/lambda1_s",lambda1_s_,-1.0);
+    nh.param("optimization/lambda1_g",lambda1_g_,-1.0);
+    nh.param("optimization/lambda2_s",lambda2_s_,-1.0);
+    nh.param("optimization/lambda2_f",lambda2_f_,-1.0);
+    nh.param("optimization/lambda2_c",lambda2_c_,-1.0);
+    nh.param("optimization/lambda2_d",lambda2_d_,-1.0);
+    nh.param("optimization/lambda3_s",lambda3_s_,-1.0);
+    nh.param("optimization/lambda3_f",lambda3_f_,-1.0);
+    nh.param("optimization/lambda3_cf",lambda3_cf_,-1.0);
+    
+    
+
+    // nh.param("optimization/lambda_smooth", lambda1_, -1.0);
+    // nh.param("optimization/lambda_collision", lambda2_, -1.0);
+    // nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
+    // nh.param("optimization/lambda_fitness", lambda4_, -1.0);
 
     nh.param("optimization/dist0", dist0_, -1.0);
     nh.param("optimization/swarm_clearance", swarm_clearance_, -1.0);
@@ -51,6 +63,13 @@ namespace ego_planner
   void BsplineOptimizer::setSwarmTrajs(SwarmTrajData *swarm_trajs_ptr) { swarm_trajs_ = swarm_trajs_ptr; }
 
   void BsplineOptimizer::setDroneId(const int drone_id) { drone_id_ = drone_id; }
+
+  void BsplineOptimizer::setGuidePath(const vector<Eigen::Vector3d> &guide_pt)
+  {
+    guide_pts_ = guide_pt;
+  }
+
+
 
   std::vector<ControlPoints> BsplineOptimizer::distinctiveTrajs(vector<std::pair<int, int>> segments)
   {
@@ -783,6 +802,16 @@ namespace ego_planner
     return cost;
   }
 
+  double BsplineOptimizer::costFunctionGuide(void *func_data, const double *x, double *grad, const int n)
+  {
+    BsplineOptimizer *opt = reinterpret_cast<BsplineOptimizer *>(func_data);
+
+    double cost;
+    opt->combineCostGuide(x,grad,cost,n);
+    opt->iter_num_ += 1;
+    return cost;
+  }
+
   void BsplineOptimizer::calcSwarmCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
   {
     cost = 0.0;
@@ -856,7 +885,7 @@ namespace ego_planner
         Eigen::VectorXd obj_prid_state = alive_trackers[id]->forward(t_now + inc_time);
         Eigen::Vector3d obj_prid_pos = obj_prid_state.head(3);
         double dist = (cps_.points.col(i) - obj_prid_pos).norm();
-        double dist_err = CLEARANCE - dist;
+        double dist_err = swarm_clearance_ - dist;
 
         Eigen::Vector3d dist_grad = (cps_.points.col(i) - obj_prid_pos).normalized();
 
@@ -978,6 +1007,18 @@ namespace ego_planner
       gradient.col(i - 1) += df_dx / 6;
       gradient.col(i) += 4 * df_dx / 6;
       gradient.col(i + 1) += df_dx / 6;
+    }
+  }
+
+  void BsplineOptimizer::calcGuideCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
+  {
+    cost = 0.0;
+    int end_idx = q.cols() - order_;
+    for(int i=order_; i < end_idx; i++)
+    {
+      Eigen::Vector3d gpt = guide_pts_[i-order_];
+      cost += (q.col(i) - gpt).squaredNorm();
+      gradient.col(i) += 2 * (q.col(i) - gpt);
     }
   }
 
@@ -1452,6 +1493,12 @@ namespace ego_planner
 
     return flag_success;
   }
+  bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, double ts)
+  {
+    bool flag_success = rebound_optimize(final_cost);
+    optimal_points = cps_.points;
+    return flag_success;
+  }
 
   bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, const ControlPoints &control_points, double ts)
   {
@@ -1479,6 +1526,16 @@ namespace ego_planner
     return flag_success;
   }
 
+  bool BsplineOptimizer::BsplineOptimizeTrajGuide(const Eigen::MatrixXd &init_points, Eigen::MatrixXd &optimal_points, double ts)
+  {
+    setControlPoints(init_points);
+    setBsplineInterval(ts);
+    bool flag_success = guide_optimize();
+
+    optimal_points = cps_.points;
+    return flag_success;
+  }
+
   bool BsplineOptimizer::rebound_optimize(double &final_cost)
   {
     iter_num_ = 0;
@@ -1491,7 +1548,7 @@ namespace ego_planner
     int restart_nums = 0, rebound_times = 0;
     ;
     bool flag_force_return, flag_occ, success;
-    new_lambda2_ = lambda2_;
+    new_lambda2_c_ = lambda2_c_;
     constexpr int MAX_RESART_NUMS_SET = 3;
     do
     {
@@ -1534,7 +1591,7 @@ namespace ego_planner
           success = false;
           restart_nums++;
           initControlPoints(cps_.points, false);
-          new_lambda2_ *= 2;
+          new_lambda2_c_ *= 2;
 
           printf("\033[32miter(+1)=%d,time(ms)=%5.3f, swarm too close, keep optimizing\n\033[0m", iter_num_, time_ms);
 
@@ -1630,7 +1687,7 @@ namespace ego_planner
         {
           restart_nums++;
           initControlPoints(cps_.points, false);
-          new_lambda2_ *= 2;
+          new_lambda2_c_ *= 2;
 
           printf("\033[32miter(+1)=%d,time(ms)=%5.3f, collided, keep optimizing\n\033[0m", iter_num_, time_ms);
         }
@@ -1666,7 +1723,7 @@ namespace ego_planner
 
     memcpy(q, cps_.points.data() + 3 * start_id, variable_num_ * sizeof(q[0]));
 
-    double origin_lambda4 = lambda4_;
+    double origin_lambda4 = lambda3_cf_;
     bool flag_safe = true;
     int iter_count = 0;
     do
@@ -1712,16 +1769,50 @@ namespace ego_planner
       }
 
       if (!flag_safe)
-        lambda4_ *= 2;
+        lambda3_cf_ *= 2;
 
       iter_count++;
     } while (!flag_safe && iter_count <= 0);
 
-    lambda4_ = origin_lambda4;
+    lambda3_cf_ = origin_lambda4;
 
     //cout << "iter_num_=" << iter_num_ << endl;
 
     return flag_safe;
+  }
+
+  bool BsplineOptimizer::guide_optimize()
+  {    
+    iter_num_ = 0;
+    int start_id = order_;
+    int end_id = this->cps_.points.cols() - order_;
+    variable_num_ = 3 * (end_id - start_id);
+
+    double q[variable_num_];
+    double final_cost;
+
+    memcpy(q, cps_.points.data() + 3 * start_id, variable_num_ * sizeof(q[0]));
+
+    lbfgs::lbfgs_parameter_t lbfgs_params;
+    lbfgs::lbfgs_load_default_parameters(&lbfgs_params);
+    lbfgs_params.mem_size = 16;
+    lbfgs_params.max_iterations = 200;
+    lbfgs_params.g_epsilon = 0.001;
+
+    int result = lbfgs::lbfgs_optimize(variable_num_, q, &final_cost, BsplineOptimizer::costFunctionGuide, NULL, NULL, this, &lbfgs_params);
+    if (result == lbfgs::LBFGS_CONVERGENCE ||
+        result == lbfgs::LBFGSERR_MAXIMUMITERATION ||
+        result == lbfgs::LBFGS_ALREADY_MINIMIZED ||
+        result == lbfgs::LBFGS_STOP)
+    {
+      return true;
+    }
+    else
+    {
+      ROS_ERROR("Solver error in refining!, return = %d, %s", result, lbfgs::lbfgs_strerror(result));
+      return false;
+    }
+
   }
 
   void BsplineOptimizer::combineCostRebound(const double *x, double *grad, double &f_combine, const int n)
@@ -1751,11 +1842,11 @@ namespace ego_planner
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 
     // f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_swarm + lambda2_ * f_terminal;
-    f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_mov_objs;
+    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + new_lambda2_d_ * f_mov_objs;
     //printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_combine);
 
     // Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_swarm + lambda2_ * g_terminal;
-    Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_mov_objs;
+    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + new_lambda2_d_ * g_mov_objs;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
   }
 
@@ -1778,11 +1869,29 @@ namespace ego_planner
     calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
 
     /* ---------- convert to solver format...---------- */
-    f_combine = lambda1_ * f_smoothness + lambda4_ * f_fitness + lambda3_ * f_feasibility;
+    f_combine = lambda3_s_ * f_smoothness + lambda3_cf_ * f_fitness + lambda3_f_ * f_feasibility;
     // printf("origin %f %f %f %f\n", f_smoothness, f_fitness, f_feasibility, f_combine);
 
-    Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + lambda4_ * g_fitness + lambda3_ * g_feasibility;
+    Eigen::MatrixXd grad_3D = lambda3_s_ * g_smoothness + lambda3_cf_ * g_fitness + lambda3_f_ * g_feasibility;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
+  }
+
+  void BsplineOptimizer::combineCostGuide(const double *x, double *grad, double &f_combine, const int n)
+  {
+    memcpy(cps_.points.data() + 3 * order_, x, n * sizeof(x[0]));
+    /* ---------- evaluate cost and gradient ---------- */
+    double f_smoothness, f_guide;
+
+    Eigen::MatrixXd g_smoothness = Eigen::MatrixXd::Zero(3, cps_.points.cols());
+    Eigen::MatrixXd g_guide = Eigen::MatrixXd::Zero(3, cps_.points.cols());
+
+    calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
+    calcGuideCost(cps_.points, f_guide,g_guide);
+
+    f_combine = lambda1_s_ * f_smoothness + lambda1_g_ * f_guide;
+    Eigen::MatrixXd grad_3D = lambda1_s_ * g_smoothness + lambda1_g_ * g_guide;
+    memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
+
   }
 
 } // namespace ego_planner

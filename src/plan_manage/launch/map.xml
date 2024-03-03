@@ -46,6 +46,9 @@
         <param name="circlegate/theta" value="1.2"/>   
         
         <!-- <param name="odom_topic" value="/odometry"/> -->
+
+        <param name="odom_topic" value="/drone_0/odometry"/>
+
         <param name="enable_ground" value="false"/>
         
         <!-- <remap from="~dynamic_map_generator/_local_map" to="drone_$(arg drone_id)_local_map"/> -->
@@ -62,7 +65,7 @@
         <param name="map/resolution"    value="0.1"/>        
     
         <param name="ObstacleShape/seed" value="$(arg seed_)"/>
-        <param name="map/obs_num"    value="15"/>
+        <param name="map/obs_num"    value="1"/>
         <param name="ObstacleShape/lower_rad" value="0.5"/>
         <param name="ObstacleShape/upper_rad" value="1.0"/>
         <param name="ObstacleShape/lower_hei" value="0.5"/>
@@ -78,7 +81,7 @@
         <param name="sensing/radius"    value="5.0"/>        
         <param name="sensing/rate"      value="10.0"/>  
         
-        <param name="wall"              value="true"/>
+        <param name="wall"              value="false"/>
         <param name="cylinder"          value="true"/>
         <param name="min_distance"      value="1.2"/>         
         <param name="seed"              value="$(arg seed_)"/>

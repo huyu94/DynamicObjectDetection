@@ -8,6 +8,7 @@
 #include "static/grid_map.h"
 #include "static/raycast.h"
 #include "dynamic/tracker_pool.h"
+#include "map_visualizer.h"
 #include <ros/ros.h>
 #include <Eigen/Eigen>
 
@@ -34,6 +35,7 @@ class PosChecker
 
 
 private:
+    ros::NodeHandle nh_;
     GridMap::Ptr grid_map_;
     TrackerPool::Ptr tracker_pool_;
     double hrz_safe_radius_, vtc_safe_radius_; // 水平安全半径，竖直安全半径
@@ -41,14 +43,17 @@ private:
     double resolution_; // 地图分辨率
     double dt_; // 遍历轨迹用的步长
     bool inflate_; // 是否膨胀
+    bool virtual_wall_; // 虚拟地板和天花板
+    double virtual_ground_, virtual_ceil_;
 
 
 private:
     vector<SlideBox> tracker_slide_boxs_; // 用于一次性生成本次拓扑运动规划的滑动立方体
-
+    MapVisualizer::Ptr map_visualizer_ptr_;
 public:
     // 获取一条线从起点到终点经历的网格
     void getlineGrids(const Vector3d &s_p, const Vector3d &e_p, std::vector<Vector3d> &grids);
+
 
     /**
      * @brief check the state of the position
@@ -56,8 +61,8 @@ public:
      * @param check_time time to check
      * @param collision_type 0: grid map collision, 1: slide box collision
     */
-    bool checkState(const Vector3d &pos, ros::Time check_time, int &collision_type );
-
+    bool checkCollision(const Vector3d &pos, ros::Time check_time, int &collision_type, int &collision_id);
+    
     bool checkCollisionInGridMap(const Vector3d &pos);
 
     bool checkCollisionInTrackerPool(const Vector3d &pos, const ros::Time &pos_time, int &collision_id);
@@ -68,10 +73,12 @@ public:
     */
     void generateSlideBox(double forward_time);
 
+
     /**
      * @brief check collision in slide box
     */
-    bool checkCollisionInSlideBox(const Vector3d &pos, int &collision_id);
+    bool checkCollisionInSlideBox(const Vector3d &pos, int &object, Vector3d &object_pos);
+    // bool checkCollisionInSlideBox(const Vector3d &pos, int &collision_id);
 
 public:
     PosChecker(){};
@@ -97,16 +104,25 @@ public:
         tracker_pool_ = tracker_pool;
     };
 
+    void setMapVisualizer(const MapVisualizer::Ptr &map_visualizer)
+    {
+        map_visualizer_ptr_ = map_visualizer;
+    };
+
     ros::Time getLocalTime()
     {
         return grid_map_->getLocalTime();
     }
 
-    void getResolution()
+    double getResolution()
     {
         return resolution_;
     }
 
+    vector<SlideBox> getSlideBox()
+    {
+        return tracker_slide_boxs_;
+    }
 
 
 

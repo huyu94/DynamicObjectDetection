@@ -17,7 +17,10 @@ find_package(catkin REQUIRED COMPONENTS
   plan_env
   cv_bridge
 )
-
+include_directories(/usr/local/include/munkres)
+set(MunkresLIB
+        /usr/local/lib/libmunkres.a
+        )
 
 catkin_package(
  INCLUDE_DIRS include
