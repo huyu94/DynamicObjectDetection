@@ -116,6 +116,15 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
     // static int count = 0;
     // std::cout << endl
     //         << "[create graph]: -------------------------------------" << count++ << std::endl;
+
+    if(env_manager_->getPosChecker()->checkCollisionInSlideBox(start))
+    {  
+        cout << "start in collision" << endl;
+    }
+    if(env_manager_->getPosChecker()->checkCollisionInSlideBox(end))
+    {
+        cout << "end in collision " << endl;
+    }
     graph_.clear();
     
     GraphNode::Ptr start_node = GraphNode::Ptr(new GraphNode(start, GraphNode::Guard, 0));
@@ -157,9 +166,8 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
 
         pt = getSample();
         ++sample_num;
-        int object_id;
-        Vector3d object_pos;
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(pt,object_id,object_pos))
+
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(pt))
         {
             sample_time += (ros::Time::now() - t1).toSec();
             continue;
@@ -296,7 +304,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(2) = ray_pt(2) + offset_(2);
         // int collision_id;
         
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp,object_id,object_pos)) // 占据
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp)) // 占据
         {
             return false;
         }
@@ -308,8 +316,6 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
 {
     Eigen::Vector3d ray_pt;
 
-    int object_id;
-    Vector3d object_pos;
     casters_[caster_id].setInput(p1 / resolution_, p2 /resolution_);
     while(casters_[caster_id].step(ray_pt))
     {
@@ -324,7 +330,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(2) = ray_pt(2) + offset_(2);
         // int collision_id;
 
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp,object_id,object_pos)) // 占据
+        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp)) // 占据
         {
             return false;
         }

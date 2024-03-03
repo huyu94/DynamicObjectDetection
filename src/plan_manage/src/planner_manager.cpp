@@ -47,7 +47,7 @@ namespace ego_planner
     bspline_optimizer_->setParam(nh);
     bspline_optimizer_->setEnvironment(env_manager_->getGridMap(), obj_predictor_);
     bspline_optimizer_->a_star_.reset(new AStar);
-    bspline_optimizer_->a_star_->initGridMap(env_manager_->getGridMap(), Eigen::Vector3i(100, 100, 100));
+    bspline_optimizer_->a_star_->initGridMap(env_manager_->getGridMap(), Eigen::Vector3i(400, 400, 400));
     bspline_optimizer_->setTrackerPool(env_manager_->getTrackerPool());
     bspline_optimizer_->setMapVisualizer(env_manager_->getMapVisualizer());
     visualization_ = vis;
@@ -319,7 +319,9 @@ namespace ego_planner
     }
     else
     {
-      flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, ts);
+      bspline_optimizer_->initControlPoints(ctrl_pts,true);
+      double final_cost;
+      flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, final_cost,ts);
       t_opt = ros::Time::now() - t_start;
       if(flag_step_1_success)
       {

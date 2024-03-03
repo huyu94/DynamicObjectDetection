@@ -26,6 +26,7 @@ namespace ego_planner
 
     nh.param("optimization/dist0", dist0_, -1.0);
     nh.param("optimization/swarm_clearance", swarm_clearance_, -1.0);
+    printf("swarm_clearance : %f", swarm_clearance_);
     nh.param("optimization/max_vel", max_vel_, -1.0);
     nh.param("optimization/max_acc", max_acc_, -1.0);
 
@@ -885,7 +886,7 @@ namespace ego_planner
         Eigen::VectorXd obj_prid_state = alive_trackers[id]->forward(t_now + inc_time);
         Eigen::Vector3d obj_prid_pos = obj_prid_state.head(3);
         double dist = (cps_.points.col(i) - obj_prid_pos).norm();
-        double dist_err = swarm_clearance_ - dist;
+        double dist_err = CLEARANCE - dist;
 
         Eigen::Vector3d dist_grad = (cps_.points.col(i) - obj_prid_pos).normalized();
 
@@ -897,7 +898,6 @@ namespace ego_planner
         {
           cost += pow(dist_err,2);
           gradient.col(i) += -2.0 * dist_err * dist_grad;
-
         }
       }
 
@@ -1495,21 +1495,9 @@ namespace ego_planner
   }
   bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, double ts)
   {
-    bool flag_success = rebound_optimize(final_cost);
-    optimal_points = cps_.points;
-    return flag_success;
-  }
-
-  bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, const ControlPoints &control_points, double ts)
-  {
     setBsplineInterval(ts);
-
-    cps_ = control_points;
-
     bool flag_success = rebound_optimize(final_cost);
-
     optimal_points = cps_.points;
-
     return flag_success;
   }
 
@@ -1842,11 +1830,12 @@ namespace ego_planner
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 
     // f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_swarm + lambda2_ * f_terminal;
-    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + new_lambda2_d_ * f_mov_objs;
-    //printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_combine);
+    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + lambda2_d_ * f_mov_objs;
+    // printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_mov_objs);
+    // printf("lambda2d_=%f\n", lambda2_d_);
 
     // Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_swarm + lambda2_ * g_terminal;
-    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + new_lambda2_d_ * g_mov_objs;
+    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + lambda2_d_ * g_mov_objs;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
   }
 

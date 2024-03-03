@@ -77,7 +77,7 @@ public:
     /**
      * @brief check collision in slide box
     */
-    bool checkCollisionInSlideBox(const Vector3d &pos, int &object, Vector3d &object_pos);
+    bool checkCollisionInSlideBox(const Vector3d &pos);
     // bool checkCollisionInSlideBox(const Vector3d &pos, int &collision_id);
 
 public:

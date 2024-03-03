@@ -143,18 +143,18 @@ void PosChecker::generateSlideBox(double forward_time)
     map_visualizer_ptr_->visualizeSlideBox(visual_slide_boxes);
 }
 
-bool PosChecker::checkCollisionInSlideBox(const Vector3d &pos, int &object_id, Vector3d &object_pos)
+bool PosChecker::checkCollisionInSlideBox(const Vector3d &pos)
 {
     for(auto & slide_box : tracker_slide_boxs_)
     {
         if(slide_box.isInBox(pos))
         {
-            object_pos = slide_box.getCenter();
-            object_id = slide_box.getId();
+            // object_pos = slide_box.getCenter();
+            // object_id = slide_box.getId();
             return true;
         }
     }
-    object_id = -1;
+    // object_id = -1;
     if(virtual_wall_)
     {
         if(pos(2) > virtual_ceil_ || pos(2) < virtual_ground_)
