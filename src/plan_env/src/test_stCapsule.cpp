@@ -6,6 +6,7 @@
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <chrono>
 
 using namespace std;
 using Eigen::Vector3d;
@@ -241,7 +242,7 @@ Cube generateCube(const Cluster &input, double t)
 
     // 2. 椭球的半长轴
     Vector3d cube_len;
-    // cube_len(0) = (pt - p0).norm() / 2 + el_len(0) + (pt-p0).norm() * 0.1;
+    // cube_len(0) = (pt - p0).norm() / 2 + el_len(0) + (pt-p0).norm() * 0.2;
     // cube_len(1) = el_len(1);
     // cube_len(2) = el_len(2) + 0.5 * el_len(0) *el_len(0);
     cube_len(0) = (pt - p0).norm() / 2 + el_len(0);
@@ -343,8 +344,29 @@ Eigen::Vector3d randomPointInCube(Vector3d center, Vector3d length) {
     return point;
 }
 
+
+class HighPrecisionTimer {
+public:
+    void start() {
+        start_time_ = std::chrono::high_resolution_clock::now();
+    }
+
+    void stop() {
+        end_time_ = std::chrono::high_resolution_clock::now();
+    }
+
+    double elapsedMilliseconds() const {
+        return std::chrono::duration<double, std::milli>(end_time_ - start_time_).count();
+    }
+
+private:
+    std::chrono::high_resolution_clock::time_point start_time_;
+    std::chrono::high_resolution_clock::time_point end_time_;
+};
+
 int main(int argc, char ** argv)
 {
+    /*
     ros::init(argc, argv, "test_stCapsule");
     ros::NodeHandle nh("~");
 
@@ -353,11 +375,16 @@ int main(int argc, char ** argv)
     ellipse_pub = nh.advertise<visualization_msgs::MarkerArray>("ellipse", 1);
     capsule_pub = nh.advertise<visualization_msgs::MarkerArray>("capsule", 1); 
     point_pub = nh.advertise<visualization_msgs::MarkerArray>("point", 1);
-    double t=4;
-    Vector3d v = Vector3d(1,0,0);
-    Cluster cl(Vector3d(0,2,2), v, Vector3d(0.3,0.3,4));
-    Cluster c2(Vector3d(0,2,2) + v * t, Vector3d(1,1,0), Vector3d(0.3,0.3,4));
+    double t=1;
+    Vector3d v = Vector3d(1,1,0);
+    Cluster cl(Vector3d(0,2,2), v, Vector3d(0.2,0.3,0.4));
+    Cluster c2(Vector3d(0,2,2) + v * t, Vector3d(1,1,0), Vector3d(0.2,0.3,0.4));
+    HighPrecisionTimer timer;
+    timer.start();
     Cube cb = generateCube(cl, t);
+    timer.stop();
+    std::cout << "Elapsed time: " << timer.elapsedMilliseconds() << " ms" << std::endl;
+
 
 
     visualization_msgs::MarkerArray ellipse_array, capsule_array,point_array;
@@ -421,6 +448,14 @@ int main(int argc, char ** argv)
     }
 
     // ros::spin();
+    */
+
+    Vector3d p0(0,0,0);
+    Vector3d l0(1,1,1);
+    Quaterniond q0(1,0,0,0);
     
+
+
+
     return 0;
 }

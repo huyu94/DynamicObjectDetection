@@ -46,7 +46,9 @@ public:
         double dt = (targetTime - a->getUpdateTime()).toSec();
         id_ = a->getId();
         Vector3d p0 = a->getState().head(3);
-        Vector3d pt = a->getState().head(3) + a->getState().tail(3) * dt;
+        Vector3d v = a->getState().tail(3);
+        v(2) = 0; //去除z轴方向的移动
+        Vector3d pt = a->getState().head(3) + v * dt;
         center_ = (p0 + pt) / 2;
 
 
@@ -106,13 +108,13 @@ public:
         Vector3d diff = pos - center_;
         Vector3d local_diff = rotation_.transpose() * diff;
         for(size_t i = 0; i < 3; i++)
-        {
-            if(abs(local_diff(i)) < length_(i)) // in box
+        {   
+            if(abs(local_diff(i)) > length_(i)) // out of box
             {
-                return true;
+                return false;
             }
         }
-        return false;
+        return true; // The point is inside the box only if it passes all checks
     }
 };
 
@@ -134,12 +136,7 @@ private:
 
 
 private:
-    /**
-     * @brief single tracker predict, just predict, no update, no covariance matrix calculation
-     * @param id id of the tracker in the pool
-     * @param tracker tracker object
-    */
-    void forwardTracker(int id, VectorXd &state, Vector3d &length, ros::Time current_time);
+
 
 
     /**
@@ -175,7 +172,12 @@ public:
     */
     bool getTracker(int id, Tracker::Ptr &tracker_ptr);
     
-
+    /**
+     * @brief single tracker predict, just predict, no update, no covariance matrix calculation
+     * @param id id of the tracker in the pool
+     * @param tracker tracker object
+    */
+    void forwardTracker(int id, VectorXd &state, Vector3d &length, ros::Time current_time);
 
 public:
     TrackerPool(){};
@@ -193,12 +195,19 @@ public:
     }
 
     /**
+     * @brief get all alive tracker
+    */
+    void getAliveTracker(vector<Tracker::Ptr> &alive_tracker);
+
+
+    /**
      * @brief predcit all object in the pool in dt
      * @param target_time target time
      * @param current_objects TrackerOutput 
     */
     void forwardPool(vector<TrackerOutput> &predict_objects, ros::Time target_time);
     // void forwardPool(vector<TrackerOutput> &output, double dt);
+
 
 
     /**

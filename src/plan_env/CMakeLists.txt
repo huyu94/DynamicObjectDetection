@@ -17,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   visualization_msgs
-  cv_bridge
   message_filters
   roslib
 )
@@ -51,17 +50,24 @@ set(MunkresLIB
 #     "src/*.cpp"
 # )
 
-# add_library( plan_env 
-#     ${plan_env_SRC}
-#     # src/grid_map.cpp 
-#     # src/raycast.cpp
-# )
-# target_link_libraries( plan_env
-#     ${catkin_LIBRARIES} 
-#     ${PCL_LIBRARIES}
-#     ${MunkresLIB}
-#     ${OpenCV_LIBS}
-# )  
+add_library( plan_env 
+    ${plan_env_SRC}
+    include/plan_env/ikd-Tree/ikd_Tree.cpp
+    src/grid_map.cpp
+    src/kalman_filter.cpp
+    src/raycast.cpp
+    src/tracker_pool.cpp
+    src/env_manager.cpp
+    src/map_visualizer.cpp
+    src/pos_checker.cpp
+)
+
+target_link_libraries( plan_env
+    ${catkin_LIBRARIES} 
+    ${PCL_LIBRARIES}
+    ${MunkresLIB}
+    ${OpenCV_LIBS}
+)  
 
 add_executable(env_node
     src/env_node.cpp

@@ -86,8 +86,9 @@ public:
      * @brief just used to predict future status, no update and covariance matrix calculation 
      * @param dt prediction time shift  
     */
-    VectorXd forward(double dt)
+    VectorXd forward(const ros::Time &target_time)
     {
+        double dt = (target_time - udpate_time_).toSec();
         return kf_.forward(dt);
     }
 

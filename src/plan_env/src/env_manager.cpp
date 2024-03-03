@@ -89,6 +89,10 @@ void EnvManager::init(const ros::NodeHandle &nh)
     node_.param<double>("env_manager/gamma2_threshold",gamma2_threshold_,0.5);
     segmentation_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
     
+/* match */
+    node_.param<double>("env_manager/distance_gate",distance_gate_,0.5);
+    node_.param<double>("env_manager/cluster_max_height",cluster_max_height_,1.5);
+    
 
 /* sync subscriber */
     cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "cloud", 1));
@@ -100,7 +104,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 
 /* timer */
-    update_timer_ = node_.createTimer(ros::Duration(0.05), &EnvManager::updateCallback, this);
+    update_timer_ = node_.createTimer(ros::Duration(0.1), &EnvManager::updateCallback, this);
     vis_timer_ = node_.createTimer(ros::Duration(0.05), &EnvManager::visCallback, this);
 
 }
@@ -137,6 +141,19 @@ void EnvManager::cluster()
     ec.setInputCloud(pcl_cloud_ptr_);
     ec.extract(cluster_indices);
 
+    // 其余的点设置为静态点
+    static_points_.clear();
+    pcl::Indices static_indices;
+    ec.getOtherPoints(static_indices);
+    PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
+    PointVector &cloud_ref = (*cloud);
+    for(auto &t : static_indices)
+    {
+        Vector3d p;
+        p << cloud_ref[t].x,cloud_ref[t].y,cloud_ref[t].z;
+        static_points_.push_back(p);
+    }
+
     /* 添加索引 ，并创建对应聚类 */
     cluster_features_.clear(); 
     cluster_features_.resize(cluster_indices.size());
@@ -147,6 +164,7 @@ void EnvManager::cluster()
             cluster_features_[i] = make_shared<ClusterFeature>();
         }
         cluster_features_[i]->cluster_indices = cluster_indices[i];
+        // std::cout << "cluster size : " << cluster_indices[i].indices.size() << std::endl;
     }
 
 
@@ -220,7 +238,7 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     cluster_ptr->length = length;
     cluster_ptr->min_bound = min_bound;
     cluster_ptr->max_bound = max_bound;
-    cluster_ptr->motion_type = 2;
+    cluster_ptr->motion_type = -1;
     cluster_ptr->gamma_1 = 0;
     cluster_ptr->gamma_2 = 0;
     cluster_ptr->match_id = -1;
@@ -275,6 +293,11 @@ void EnvManager::segmentation()
 
         // ROS_INFO("gamma1: %lf, gamma2: %lf",gamma_1,gamma_2);
 
+        if(cluster->state(2) > cluster_max_height_) //排除过高的物体,例如墙体等
+        {
+            cluster->motion_type = 2;
+            continue;
+        }
         if(cluster->gamma_1 < gamma1_threshold_)
         {
             cluster->motion_type = 1;
@@ -283,18 +306,34 @@ void EnvManager::segmentation()
         {
             cluster->motion_type = 0;
         }
-        else
+        else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 > gamma2_threshold_)
         {
             cluster->motion_type = 2;
         }
+        else{
+            ROS_WARN("gamma1 or gamma2 is nan");
+            cluster->motion_type = -1;
+        }
     }
+
 
     std::vector<VisualCluster> visual_clusters;
     for(auto &t : cluster_features_)
     {
-        if(t->motion_type == 0)
+        // std::cout << "cluster motion type: " << t->motion_type << std::endl;
+        if(t->motion_type == 0) // 
         {
+            // std::cout << " cluster size : " << t->length.transpose() << std::endl;
             visual_clusters.push_back(VisualCluster(t->state.head(3),t->length,t->min_bound,t->max_bound,t->state.tail(3)));
+        }
+        else if(t->motion_type == 1 || t->motion_type == 2) // static or unkown
+        {
+            for(int j=0;j<t->cluster_indices.indices.size();j++)
+            {
+                int index = t->cluster_indices.indices[j];
+                Vector3d p((*pcl_cloud_ptr_)[index].x,(*pcl_cloud_ptr_)[index].y,(*pcl_cloud_ptr_)[index].z);
+                static_points_.push_back(p);
+            }
         }
     }
     map_vis_ptr_->visualizeSegmentationResult(visual_clusters);
@@ -310,7 +349,7 @@ void EnvManager::match()
     vector<TrackerOutput> tracker_last_outputs;
     tracker_pool_ptr_->forwardPool(tracker_outputs,odom_time_);
     // float dt = (current_time_ - last_update_time_).toSec();
-    float distance_gate = 1.5;
+    ;
 
 /* visualize current kalman filter tracker */
     vector<VisualKalmanTracker> visual_trackers;
@@ -335,7 +374,7 @@ void EnvManager::match()
     // ROS_INFO("measurment cluster size: %d, tracker size: %d",measurement_moving_clusters.size(),tracker_outputs.size());
     if(measurement_moving_clusters.size() == 0)
     {
-        std::cout << " current_moving_clusters size == 0" << std::endl;
+        // std::cout << " current_moving_clusters size == 0" << std::endl;
         return ;
     }
 
@@ -360,8 +399,8 @@ void EnvManager::match()
                 1. 在距离大于gate的时候，不会被关联中
                 2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
                 float feature_distance = (measurement_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
-                matrix_cost(row,col) = feature_distance < distance_gate ? feature_distance : 5000 * feature_distance;
-                matrix_gate(row,col) = matrix_cost(row,col) < distance_gate;
+                matrix_cost(row,col) = feature_distance < distance_gate_ ? feature_distance : 5000 * feature_distance;
+                matrix_gate(row,col) = matrix_cost(row,col) < distance_gate_;
             }
         }
 
@@ -392,6 +431,13 @@ void EnvManager::match()
                     double dt = (odom_time_ - match_tracker->getUpdateTime()).toSec();
                     measurement_moving_clusters[row]->state.tail(3) = (measurement_moving_clusters[row]->state.head(3) - tracker_last_frame_state.head(3));
                     measurement_moving_clusters[row]->state.tail(3) /= dt;
+                    measurement_moving_clusters[row]->state.tail(3)(2) = 0;
+
+                    if(measurement_moving_clusters[row]->state.tail(3).norm() < 0.3)
+                    {
+                        measurement_moving_clusters[row]->state.tail(3) = Vector3d::Zero();
+                    }
+
                 }
             }
             if(!find_match) // if cannot find a match for a new moving clusterFeature
@@ -441,15 +487,15 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
     
     if(!checkNeedUpdate())
     {
-        ROS_WARN("cloud window is not ready || no new cloud and odom !!");
+        // ROS_WARN("cloud window is not ready || no new cloud and odom !!");
         return ;
     }
-    ROS_INFO("in [updateCallback]");
+    // ROS_INFO("in [updateCallback]");
     
     static int update_count = 1;
     static double cluster_time, segmentation_time, match_time,total_time;
     // lock of slide window  
-    std::lock_guard<std::mutex> guard(slide_window_mtx_);
+    // std::lock_guard<std::mutex> guard(slide_window_mtx_);
     ros::Time t0 = ros::Time::now();
     ros::Time t1,t2;
     t1 = ros::Time::now();
@@ -463,6 +509,9 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
     t2 = ros::Time::now();
     segmentation_time = updateMean(segmentation_time,(t2-t1).toSec(),update_count);
     
+    map_vis_ptr_->visualizeStaticPoint(static_points_);
+    grid_map_ptr_->updateOccupancy(static_points_,cloud_odom_slide_window_.back().second);
+
     t1 = ros::Time::now();
     match();
     t2 = ros::Time::now();
@@ -529,14 +578,14 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
     PointVectorPtr cloud_ptr;
     OdomPtr odom_ptr;
 
-    ROS_INFO("Receive odom & cloud");
+    // ROS_INFO("Receive odom & cloud");
 /* odom */
     odom_ptr = make_shared<nav_msgs::Odometry>(*odom);
 
 
 /* point cloud */
     // mutex, let pcl_cloud_ptr_ and slide window buffer operate in the same time
-    std::lock_guard<std::mutex> guard(slide_window_mtx_);
+    // std::lock_guard<std::mutex> guard(slide_window_mtx_);
 
     pcl_cloud_ptr_->clear();
     pcl::fromROSMsg(*cloud,*pcl_cloud_ptr_);
@@ -567,22 +616,22 @@ void EnvManager::visCallback(const ros::TimerEvent&)
 {
 
     vector<SlideBox> slide_boxes;
-    vector<TrackerOutput> predicted_trackers;
+    // vector<TrackerOutput> predicted_trackers;
     tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(2.0));
-    tracker_pool_ptr_->forwardPool(predicted_trackers,ros::Time::now() + ros::Duration(2.0));
+    // tracker_pool_ptr_->forwardPool(predicted_trackers,ros::Time::now() + ros::Duration(2.0));
     vector<VisualizeSlideBox> visual_slide_boxes;
-    vector<VisualKalmanTracker> visual_trackers;
+    // vector<VisualKalmanTracker> visual_trackers;
     for(auto &t : slide_boxes)
     {
         visual_slide_boxes.emplace_back(t.getCenter(),t.getLength(),t.getRotation(),t.getId());
     }
 
-    for(auto &t : predicted_trackers)
-    {
-        visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
-    }
+    // for(auto &t : predicted_trackers)
+    // {
+    //     visual_trackers.emplace_back(t.state.head(3),t.state.tail(3),t.length,t.id);
+    // }
     map_vis_ptr_->visualizeSlideBox(visual_slide_boxes);
-    map_vis_ptr_->visualizeKalmanTracker(visual_trackers);
+    // map_vis_ptr_->visualizeKalmanTracker(visual_trackers);
 }
 
 

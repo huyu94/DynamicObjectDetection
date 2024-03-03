@@ -46,7 +46,7 @@ struct ClusterFeature
     pcl::PointIndices cluster_indices;
     double gamma_1; // global_average_minimum_distance
     double gamma_2; // normalized average variance of distance
-    int motion_type; // 0:moving; 1:static; 2:Unkown 
+    int motion_type; // 0:moving; 1:static; 2:Unkown ; -1:undefine
     typedef std::shared_ptr<ClusterFeature> Ptr;   
 };
 
@@ -78,6 +78,7 @@ private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
     int slide_window_size_; 
     bool cloud_odom_window_ready_;
+    vector<Vector3d> static_points_;
 
 
 /* visualizer */
@@ -95,6 +96,10 @@ private:
     KD_TREE<PointType>::Ptr segmentation_ikdtree_ptr_;
 
     double gamma1_threshold_,gamma2_threshold_;
+
+/* match */
+    double distance_gate_;
+    double cluster_max_height_;
 
 /* synchronizer */
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, nav_msgs::Odometry> SyncPolicyCloudOdom;
@@ -123,7 +128,9 @@ public:
     void init(const ros::NodeHandle& nh);
     void setGridMap();
     void setTrackerPool();
-
+    GridMap::Ptr getGridMap(){return grid_map_ptr_;};
+    TrackerPool::Ptr getTrackerPool(){return tracker_pool_ptr_;};
+    MapVisualizer::Ptr getMapVisualizer(){return map_vis_ptr_;};
 private:
 
     /*

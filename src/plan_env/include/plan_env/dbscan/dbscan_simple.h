@@ -26,6 +26,7 @@ public:
     }
 
     void extract(std::vector<pcl::PointIndices>& cluster_indices) {
+        other_points_indices.clear();
         std::vector<int> nn_indices;
         std::vector<float> nn_distances;
         std::vector<bool> is_noise(input_cloud_->points.size(), false);
@@ -86,6 +87,13 @@ public:
                 r.header = input_cloud_->header;
                 cluster_indices.push_back (r);   // We could avoid a copy by working directly in the vector
             }
+            else
+            {
+                for(int j=0; j< seed_queue.size(); j++)
+                {
+                    other_points_indices.push_back(seed_queue[j]);
+                }
+            }
         } // for every point in input cloud
         std::sort (cluster_indices.rbegin (), cluster_indices.rend (), comparePointClusters);
     }
@@ -106,6 +114,10 @@ public:
         minPts_ = core_point_min_pts;
     }
 
+    void getOtherPoints(pcl::Indices &indices) {
+        indices = other_points_indices;
+    }
+
 protected:
     PointCloudPtr input_cloud_;
     
@@ -113,7 +125,7 @@ protected:
     int minPts_ {1}; // not including the point itself.
     int min_pts_per_cluster_ {1};
     int max_pts_per_cluster_ {std::numeric_limits<int>::max()};
-
+    pcl::Indices other_points_indices;
     KdTreePtr search_method_;
 
     virtual int radiusSearch(

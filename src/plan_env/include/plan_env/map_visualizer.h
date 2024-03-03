@@ -14,6 +14,7 @@
 
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
+using std::vector;
 
 class Color : public std_msgs::ColorRGBA {
  public:
@@ -96,6 +97,7 @@ public:
     void visualizeClusterResult(std::vector<VisualCluster> &visual_clusters);
     void visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters);
     // void visualizeKMResult(std::vector<VisualKMResult> &kmresult); // 滑匹配的线
+    void visualizeStaticPoint(vector<Eigen::Vector3d> &static_points);
     void visualizeKalmanTracker(std::vector<VisualKalmanTracker> &visual_trackers);
     void visualizeSlideBox(std::vector<VisualizeSlideBox> &visual_slideboxes);
     void visualizeMovingObjectBox();
@@ -110,6 +112,7 @@ private:
     ros::Publisher segmentation_result_pub_;
     ros::Publisher km_result_pub_;
     ros::Publisher kalman_tracker_pub_;
+    ros::Publisher static_point_pub_;
     ros::Publisher moving_object_box_pub_;
     ros::Publisher moving_object_traj_pub_;
     ros::Publisher slide_box_pub_;

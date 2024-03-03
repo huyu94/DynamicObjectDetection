@@ -6,6 +6,7 @@ MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
 {
     cluster_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("cluster_result", 1);
     segmentation_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("segmentation_result", 1);
+    static_point_pub_ = node_.advertise<sensor_msgs::PointCloud2>("static_point", 1);
     km_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("km_result", 1);
     kalman_tracker_pub_ = node_.advertise<visualization_msgs::MarkerArray>("kalman_filter",1);
     slide_box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("slide_box",1);
@@ -14,6 +15,30 @@ MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
     receive_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("received_cloud",1);
 }
 
+void MapVisualizer::visualizeStaticPoint(std::vector<Eigen::Vector3d> &static_points)
+{
+    if(static_points.size() == 0)
+    {
+        return;
+    }
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    sensor_msgs::PointCloud2 cloud_msg;
+    for(size_t i=0;i<static_points.size();i++)
+    {
+        pcl::PointXYZ p;
+        p.x = static_points[i].x();
+        p.y = static_points[i].y();
+        p.z = static_points[i].z();
+        cloud->points.push_back(p);
+    }
+    cloud->width = static_points.size();
+    cloud->height = 1;
+    cloud->header.frame_id = "world";
+
+    pcl::toROSMsg(*cloud, cloud_msg);
+    static_point_pub_.publish(cloud_msg);
+
+}
 
 
 void MapVisualizer::visualizeReceiveCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)

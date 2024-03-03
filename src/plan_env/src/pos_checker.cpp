@@ -1,5 +1,24 @@
-#include "plan_env/pos_checker.h"
-#include "pos_checker.h"
+#include <plan_env/pos_checker.h>
+// #include "pos_checker.h"
+
+void PosChecker::init(const ros::NodeHandle &nh)
+{
+    nh.param("pos_checker/hrz_safe_radius", hrz_safe_radius_, 0.0);
+    nh.param("pos_checker/vtc_safe_radius", vtc_safe_radius_, 0.0);
+    nh.param("pos_checker/copter_diag_len", copter_diag_len_, 0.0); // 无人机的对角长度
+    nh.param("pos_checker/dt", dt_, 0.0); // 
+    nh.param("pos_checker/inflate", inflate_, false);
+    ROS_WARN_STREAM("[pos_checker] param: hrz_safe_radius: " << hrz_safe_radius_);
+    ROS_WARN_STREAM("[pos_checker] param: vtc_safe_radius: " << vtc_safe_radius_);
+    ROS_WARN_STREAM("[pos_checker] param: copter_diag_len: " << copter_diag_len_);
+    ROS_WARN_STREAM("[pos_checker] param: dt: " << dt_);
+    ROS_WARN_STREAM("[pos_checker] param: inflate: " << inflate_);
+};
+
+
+
+
+
 
 void PosChecker::getlineGrids(const Vector3d &s_p, const Vector3d &e_p, std::vector<Vector3d> &grids)
 {
@@ -45,7 +64,7 @@ bool PosChecker::checkState(const Vector3d &pos, ros::Time check_time, int &coll
     }
 
     int collision_id; 
-    if(checkCollisionInSlideBox(pos, ros::Time::now(),collision_id))
+    if(checkCollisionInTrackerPool(pos, check_time,collision_id))
     {
         collision_type = 1;
         return false;
@@ -74,11 +93,43 @@ bool PosChecker::checkCollisionInGridMap(const Vector3d &pos)
 }
 
 
-bool PosChecker::checkCollisionInSlideBox(const Vector3d &pos, const ros::Time &pos_time, int &collision_id)
+bool PosChecker::checkCollisionInTrackerPool(const Vector3d &pos , const ros::Time &pos_time, int &collision_id)
 {
-    vector<SlideBox> slide_boxes;
-    tracker_pool_->forwardSlideBox(slide_boxes, pos_time);
-    for (auto &slide_box : slide_boxes)
+    collision_id = -1;
+    vector<TrackerOutput> target_tracker_outputs;
+    tracker_pool_->forwardPool(target_tracker_outputs, pos_time);
+    for(auto &obj : target_tracker_outputs)
+    {
+        Vector3d obj_pos = obj.state.head(3);
+        Vector3d obj_axis = obj.length/2;
+
+        if(abs(pos.x() - obj_pos.x()) < obj_axis.x()  / 2 &&
+           abs(pos.y() - obj_pos.y()) < obj_axis.y()  / 2 &&
+           abs(pos.z() - obj_pos.z()) < obj_axis.z()  / 2)
+        {
+            collision_id = obj.id;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void PosChecker::generateSlideBox(double forward_time)
+{
+    tracker_slide_boxs_.clear();
+    tracker_pool_->forwardSlideBox(tracker_slide_boxs_,ros::Time::now() + ros::Duration(0.5));
+    // vector<VisualizeSlideBox> visual_slide_boxes;
+    // for(auto &t : tracker_slide_boxs_)
+    // {
+    //     visual_slide_boxes.emplace_back(t.getCenter(),t.getLength(),t.getRotation(),t.getId());
+    // }
+    // map_vis_ptr_->visualizeSlideBox(visual_slide_boxes);
+}
+
+bool PosChecker::checkCollisionInSlideBox(const Vector3d &pos, int &collision_id)
+{
+    for(auto & slide_box : tracker_slide_boxs_)
     {
         if(slide_box.isInBox(pos))
         {
@@ -86,6 +137,9 @@ bool PosChecker::checkCollisionInSlideBox(const Vector3d &pos, const ros::Time &
             return true;
         }
     }
+    collision_id = -1;
     return false;
+
+
     
 }

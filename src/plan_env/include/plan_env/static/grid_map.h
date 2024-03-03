@@ -3,7 +3,7 @@
 
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
-#include <cv_bridge/cv_bridge.h>
+// #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <iostream>
 #include <random>
@@ -28,6 +28,7 @@
 #define GRID_MAP_NEW_PLATFORM_TEST false
 
 using namespace std;
+typedef shared_ptr<nav_msgs::Odometry> OdomPtr;
 
 
 
@@ -105,7 +106,7 @@ struct MappingData
 
   // depth image data
 
-  cv::Mat depth_image_, last_depth_image_;
+  // cv::Mat depth_image_, last_depth_image_;
 
   // flags of map state
 
@@ -148,7 +149,7 @@ public:
   inline double getResolution();
   ros::Time getLocalTime(){return md_.last_occ_update_time_;}
 
-  void updateOccupancy(vector<Eigen::Vector3d> &points, nav_msgs::Odometry::Ptr odom);
+  void updateOccupancy(vector<Eigen::Vector3d> &points, OdomPtr odom);
 
   // bool getOdomDepthTimeout() { return md_.flag_depth_odom_timeout_; }
 
@@ -189,6 +190,7 @@ private:
   // void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &img);
   // void odomCallback(const nav_msgs::OdometryConstPtr &odom);
 
+
   // update occupancy by raycasting
   // void updateOccupancyCallback(const ros::TimerEvent & /*event*/);
   void visCallback(const ros::TimerEvent & /*event*/);
@@ -196,10 +198,11 @@ private:
 
   void clearBuffer(char casein, int bound);
 
+  void setInputPointAndOdom(vector<Eigen::Vector3d> &cloud, std::shared_ptr<nav_msgs::Odometry> odom);
+
   // main update process
   void moveRingBuffer();
   void projectDepthImage();
-  void setInputPointAndOdom(vector<Eigen::Vector3d> &points, nav_msgs::Odometry::Ptr odom);
   void raycastProcess();
   void clearAndInflateLocalMap();
 

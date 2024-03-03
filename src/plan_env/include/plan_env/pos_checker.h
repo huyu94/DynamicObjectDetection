@@ -7,14 +7,32 @@
 
 #include "static/grid_map.h"
 #include "static/raycast.h"
-#include "tracker_pool.h"
+#include "dynamic/tracker_pool.h"
 #include <ros/ros.h>
 #include <Eigen/Eigen>
 
 using Eigen::Vector3d;
+using Eigen::Quaterniond;
+
+
+
 
 class PosChecker
 {
+
+// struct SlideBox
+// {
+//     Vector3d min_bound;
+//     Vector3d max_bound;
+//     Quaterniond orientation;
+//     int id;
+//     // typedef shared_ptr<SlideBox> Ptr;
+// };
+
+
+
+
+
 private:
     GridMap::Ptr grid_map_;
     TrackerPool::Ptr tracker_pool_;
@@ -24,6 +42,11 @@ private:
     double dt_; // 遍历轨迹用的步长
     bool inflate_; // 是否膨胀
 
+
+private:
+    vector<SlideBox> tracker_slide_boxs_; // 用于一次性生成本次拓扑运动规划的滑动立方体
+
+public:
     // 获取一条线从起点到终点经历的网格
     void getlineGrids(const Vector3d &s_p, const Vector3d &e_p, std::vector<Vector3d> &grids);
 
@@ -35,33 +58,35 @@ private:
     */
     bool checkState(const Vector3d &pos, ros::Time check_time, int &collision_type );
 
-
     bool checkCollisionInGridMap(const Vector3d &pos);
 
-    bool checkCollisionInSlideBox(const Vector3d &pos, const ros::Time &pos_time, int &collision_id);
+    bool checkCollisionInTrackerPool(const Vector3d &pos, const ros::Time &pos_time, int &collision_id);
+
+
+    /**
+     * @brief generate slide box for the current tracker
+    */
+    void generateSlideBox(double forward_time);
+
+    /**
+     * @brief check collision in slide box
+    */
+    bool checkCollisionInSlideBox(const Vector3d &pos, int &collision_id);
 
 public:
     PosChecker(){};
 
     ~PosChecker(){};
 
-    void init(const ros::NodeHandle &nh)
-    {
-        nh.param("pos_checker/hrz_safe_radius", hrz_safe_radius_, 0.0);
-        nh.param("pos_checker/vtc_safe_radius", vtc_safe_radius_, 0.0);
-        nh.param("pos_checker/copter_diag_len", copter_diag_len_, 0.0); // 无人机的对角长度
-        nh.param("pos_checker/dt", dt_, 0.0); // 
-        nh.param("pos_checker/inflate", inflate_, false);
-        ROS_WARN_STREAM("[pos_checker] param: hrz_safe_radius: " << hrz_safe_radius_);
-        ROS_WARN_STREAM("[pos_checker] param: vtc_safe_radius: " << vtc_safe_radius_);
-        ROS_WARN_STREAM("[pos_checker] param: copter_diag_len: " << copter_diag_len_);
-        ROS_WARN_STREAM("[pos_checker] param: dt: " << dt_);
-        ROS_WARN_STREAM("[pos_checker] param: inflate: " << inflate_);
-    };
+    void init(const ros::NodeHandle &nh);
+
+
+
+
 
 
     // 设置地图类
-    void setMap(const GridMap::Ptr &grid_map)
+    void setGridMap(const GridMap::Ptr &grid_map)
     {
         grid_map_ = grid_map;
         resolution_ = grid_map_->getResolution();
@@ -72,16 +97,17 @@ public:
         tracker_pool_ = tracker_pool;
     };
 
-
-
     ros::Time getLocalTime()
     {
         return grid_map_->getLocalTime();
     }
 
+    void getResolution()
+    {
+        return resolution_;
+    }
 
-    void generateSlideBox(vector<TrackerOutput> &current_tracker, vector<TrackerOutput>& tracker_outputs);
-    
+
 
 
 
@@ -89,7 +115,7 @@ public:
     bool validatePosSurround(const Vector3d &pos);
 
 
-    typedef share_ptr<PosChecker> Ptr;
+    typedef shared_ptr<PosChecker> Ptr;
 };
 
 

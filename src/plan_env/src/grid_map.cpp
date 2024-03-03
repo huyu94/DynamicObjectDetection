@@ -147,7 +147,7 @@ void GridMap::initMap(ros::NodeHandle &nh)
 
 
 
-void GridMap::updateOccupancy(vector<Eigen::Vector3d> &points, nav_msgs::Odometry::Ptr odom)
+void GridMap::updateOccupancy(vector<Eigen::Vector3d> &points, OdomPtr odom)
 {
   // if (!checkDepthOdomNeedupdate())
   //   return;
@@ -159,18 +159,23 @@ void GridMap::updateOccupancy(vector<Eigen::Vector3d> &points, nav_msgs::Odometr
 
   moveRingBuffer();
   t2 = ros::Time::now();
-
+  // std::cout << "finish move ringbuffer" << std::endl;
   // projectDepthImage();
   setInputPointAndOdom(points,odom);
   t3 = ros::Time::now();
+  // std::cout << "finish set point" << std::endl;
 
   if (md_.proj_points_cnt_ > 0)
   {
+    // std::cout << "md_.proj_points_cnt_" << md_.proj_points_cnt_ << std::endl;
     raycastProcess();
     t4 = ros::Time::now();
 
+    // std::cout << "finish raycasr" << std::endl;
+
     clearAndInflateLocalMap();
     t5 = ros::Time::now();
+    // std::cout << "finish clearAndInflateLocalMap" << std::endl;
 
     if (mp_.show_occ_time_)
     {
@@ -319,7 +324,7 @@ void GridMap::visCallback(const ros::TimerEvent & /*event*/)
 // }
 
 
-void GridMap::setInputPointAndOdom(vector<Eigen::Vector3d> &cloud, nav_msgs::Odometry::Ptr odom)
+void GridMap::setInputPointAndOdom(vector<Eigen::Vector3d> &cloud, OdomPtr odom)
 {
   /* set odom */
   Eigen::Quaterniond body_q = Eigen::Quaterniond(odom->pose.pose.orientation.w,
@@ -342,6 +347,7 @@ void GridMap::setInputPointAndOdom(vector<Eigen::Vector3d> &cloud, nav_msgs::Odo
 
   /* set input cloud */
   md_.proj_points_.clear();
+  md_.proj_points_cnt_ = 0;
   for(auto &t : cloud)
   {
     md_.proj_points_.push_back(t);
@@ -895,7 +901,7 @@ void GridMap::publishMap()
   if (map_pub_.getNumSubscribers() <= 0)
     return;
 
-  Eigen::Vector3d heading = (md_.camera_r_m_ * md_.cam2body_.block<3, 3>(0, 0).transpose()).block<3, 1>(0, 0);
+  // Eigen::Vector3d heading = (md_.camera_r_m_ * md_.cam2body_.block<3, 3>(0, 0).transpose()).block<3, 1>(0, 0);
   pcl::PointCloud<pcl::PointXYZ> cloud;
   double lbz = mp_.enable_virtual_walll_ ? max(md_.ringbuffer_lowbound3d_(2), mp_.virtual_ground_) : md_.ringbuffer_lowbound3d_(2);
   double ubz = mp_.enable_virtual_walll_ ? min(md_.ringbuffer_upbound3d_(2), mp_.virtual_ceil_) : md_.ringbuffer_upbound3d_(2);
@@ -905,12 +911,14 @@ void GridMap::publishMap()
         for (double zd = lbz + mp_.resolution_ / 2; zd <= ubz; zd += mp_.resolution_)
         {
           // 只发布在前向市场角以内的点云
-          Eigen::Vector3d relative_dir = (Eigen::Vector3d(xd, yd, zd) - md_.camera_pos_);
-          if (heading.dot(relative_dir.normalized()) > 0.5)
-          {
+          // Eigen::Vector3d relative_dir = (Eigen::Vector3d(xd, yd, zd) - md_.camera_pos_);
+          // if (heading.dot(relative_dir.normalized()) > 0.5)
+          // {
             if (md_.occupancy_buffer_[globalIdx2BufIdx(pos2GlobalIdx(Eigen::Vector3d(xd, yd, zd)))] >= mp_.min_occupancy_log_)
+            {
               cloud.push_back(pcl::PointXYZ(xd, yd, zd));
-          }
+            }
+          // }
         }
 
   cloud.width = cloud.points.size();

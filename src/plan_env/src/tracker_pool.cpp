@@ -10,8 +10,8 @@ void TrackerPool::forwardTracker(int id, VectorXd &state, Vector3d &length, ros:
     {
         return ;
     }
-    double dt = (target_time - tracker->getUpdateTime()).toSec();
-    state = pool_[id]->forward(dt);
+    // double dt = (target_time - tracker->getUpdateTime()).toSec();
+    state = pool_[id]->forward(target_time);
     length = pool_[id]->getLength();
 }
 
@@ -108,6 +108,18 @@ void TrackerPool::init(ros::NodeHandle& nh)
 }
 
 
+void TrackerPool::getAliveTracker(vector<Tracker::Ptr> &alive_tracker)
+{
+    alive_tracker.clear();
+    for(auto &track : pool_)
+    {
+        if(track != nullptr)
+        {
+            alive_tracker.emplace_back(track);
+        }
+    }
+}
+
 
 void TrackerPool::forwardPool(vector<TrackerOutput> &output, ros::Time target_time)
 {
@@ -123,6 +135,8 @@ void TrackerPool::forwardPool(vector<TrackerOutput> &output, ros::Time target_ti
         }
     }
 }
+
+
 
 void TrackerPool::forwardSlideBox(vector<SlideBox> &slide_boxes, ros::Time target_time)
 {
