@@ -284,7 +284,6 @@ namespace ego_planner
             ROS_WARN("guide_pts size : %d", guide_pts.size());
             ROS_WARN("ctrl_pts size : %d", ctrl_pts_temp.cols());            
         }
-        std::cout << "hrere" << std::endl;
 
         // 2.1 guide 
         bspline_optimizer_->setGuidePath(guide_pts);
@@ -294,7 +293,6 @@ namespace ego_planner
           std::cout << "guide optimize failed " << std::endl;
           continue;
         }
-        std::cout << "hrere" << std::endl;
 
         // 2.2 rebound 
         bspline_optimizer_->initControlPoints(ctrl_pts_temp);
@@ -304,7 +302,6 @@ namespace ego_planner
           std::cout << "bound optimize failed " << std::endl;
           continue;
         }
-        std::cout << "finish rebound " << std::endl;
         if(final_cost < min_cost)
         {
           min_cost = final_cost;

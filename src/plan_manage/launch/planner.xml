@@ -142,17 +142,17 @@
         <param name="optimization/lambda_feasibility" value="0.1" type="double"/>
         <param name="optimization/lambda_fitness" value="1.0" type="double"/> -->
 
-        <param name="optimization/lambda1_s" value="1.0" type="double"/>
-        <param name="optimization/lambda1_g" value="2.0" type="double"/>
+        <param name="optimization/lambda1_s" value="2.0" type="double"/>
+        <param name="optimization/lambda1_g" value="1.0" type="double"/>
         <param name="optimization/lambda2_s" value="1.0" type="double"/>
         <param name="optimization/lambda2_f" value="0.1" type="double"/>
         <param name="optimization/lambda2_c" value="0.5" type="double"/>
-        <param name="optimization/lambda2_d" value="1.0" type="double"/>
+        <param name="optimization/lambda2_d" value="2.0" type="double"/>
         <param name="optimization/lambda3_s" value="1.0" type="double"/>
         <param name="optimization/lambda3_f" value="0.1" type="double"/>
         <param name="optimization/lambda3_cf" value="1.0" type="double"/>
         <param name="optimization/dist0" value="0.5" type="double"/>
-        <param name="optimization/swarm_clearance" value="0.5" type="double"/>
+        <param name="optimization/swarm_clearance" value="1.0" type="double"/>
         <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
         <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>
 

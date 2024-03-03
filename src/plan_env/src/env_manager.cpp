@@ -243,7 +243,7 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     cluster_ptr->state = VectorXd(6);
     cluster_ptr->state.head(3) = position;
     cluster_ptr->state.tail(3) = Vector3d::Zero();
-    cluster_ptr->length = length + Eigen::Vector3d(1.0,1.0,1.0);
+    cluster_ptr->length = length + Eigen::Vector3d(0.5,0.5,0.5);
     cluster_ptr->min_bound = min_bound;
     cluster_ptr->max_bound = max_bound;
     cluster_ptr->motion_type = -1;
