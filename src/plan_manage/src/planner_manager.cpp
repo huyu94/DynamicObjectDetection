@@ -36,7 +36,7 @@ namespace ego_planner
     // obj_predictor_->init();
     // obj_pub_ = nh.advertise<visualization_msgs::Marker>("/dynamic/obj_prdi", 10); // zx-todo
     topo_prm_.reset(new TopoPRM);
-    topo_prm_->setEnvManager(env_manager);
+    topo_prm_->setPosChecker(env_manager->getPosChecker());
     // topo_prm_->setPosChecker(env_manager->getPosChecker());
     topo_prm_->init(nh);
     // topo_prm_->setEnvironment(grid);
@@ -45,9 +45,9 @@ namespace ego_planner
 
     bspline_optimizer_.reset(new BsplineOptimizer);
     bspline_optimizer_->setParam(nh);
-    bspline_optimizer_->setEnvironment(env_manager_->getGridMap(), obj_predictor_);
+    bspline_optimizer_->setPosChecker(env_manager_->getPosChecker());
     bspline_optimizer_->a_star_.reset(new AStar);
-    bspline_optimizer_->a_star_->initGridMap(env_manager_->getGridMap(), Eigen::Vector3i(400, 400, 400));
+    bspline_optimizer_->a_star_->initPosChecker(env_manager_->getPosChecker(), Eigen::Vector3i(400, 400, 400));
     bspline_optimizer_->setTrackerPool(env_manager_->getTrackerPool());
     bspline_optimizer_->setMapVisualizer(env_manager_->getMapVisualizer());
     visualization_ = vis;
@@ -244,16 +244,7 @@ namespace ego_planner
     topo_prm_->getBox(tr,sc,rot);
     visualization_->displayTopoSampleBox(tr,sc,rot,0);
     // 2. topo prm generate 
-    Htimer.start();
-    list<GraphNode::Ptr>            graph;
-    vector<vector<Eigen::Vector3d>> raw_paths, filtered_paths, select_paths;
-    vector<Eigen::Vector3d> start_pts, end_pts;
-    std::cout << "generate topo path " << std:: endl;
-    topo_prm_->findTopoPaths(start_pt, local_target_pt, start_pts, end_pts, graph,
-                            raw_paths, filtered_paths, select_paths);
-    Htimer.stop();
-    std::cout << "generate topo path: " << Htimer.elapsedMilliseconds() << " ms" << std::endl;
-    visualization_->displayTopoPathsList(select_paths);
+    
 
     // vector<std::pair<int, int>> segments;
     // segments = bspline_optimizer_->initControlPoints(ctrl_pts, true);
@@ -268,6 +259,17 @@ namespace ego_planner
     Eigen::MatrixXd optimal_pts;
     if (pp_.use_distinctive_trajs)
     {
+
+      Htimer.start();
+      list<GraphNode::Ptr>            graph;
+      vector<vector<Eigen::Vector3d>> raw_paths, filtered_paths, select_paths;
+      vector<Eigen::Vector3d> start_pts, end_pts;
+      std::cout << "generate topo path " << std:: endl;
+      topo_prm_->findTopoPaths(start_pt, local_target_pt, start_pts, end_pts, graph,
+                              raw_paths, filtered_paths, select_paths);
+      Htimer.stop();
+      std::cout << "generate topo path: " << Htimer.elapsedMilliseconds() << " ms" << std::endl;
+      visualization_->displayTopoPathsList(select_paths);
       bool guide_success = false;
       double final_cost, min_cost = 999999.0;
       for(int i=0;i<select_paths.size();i++)
@@ -322,7 +324,6 @@ namespace ego_planner
       bspline_optimizer_->initControlPoints(ctrl_pts,true);
       double final_cost;
       flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, final_cost,ts);
-      t_opt = ros::Time::now() - t_start;
       if(flag_step_1_success)
       {
         optimal_pts = ctrl_pts;
@@ -330,6 +331,7 @@ namespace ego_planner
       //static int vis_id = 0;
       visualization_->displayInitPathList(point_set, 0.2, 0);
     }
+    t_opt = ros::Time::now() - t_start;
 
     cout << "plan_success=" << flag_step_1_success << endl;
     if (!flag_step_1_success)

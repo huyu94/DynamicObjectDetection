@@ -52,8 +52,8 @@ class TopoPRM
 {
 private:
     // DspMap::Ptr dsp_map_;
-    // PosChecker::Ptr pos_checker_;
-    EnvManager::Ptr env_manager_;
+    PosChecker::Ptr pos_checker_;
+    // EnvManager::Ptr env_manager_;
 
     // sampling generator
     std::random_device rd_; // Add missing 'std::' namespace
@@ -138,8 +138,8 @@ public:
     void init(const ros::NodeHandle& nh);
 
     // void setEnvironment(const DspMap::Ptr dsp_map);
-    // void setPosChecker(const PosChecker::Ptr pos_checker);
-    void setEnvManager(const EnvManager::Ptr env_manager);
+    void setPosChecker(const PosChecker::Ptr pos_checker);
+    // void setEnvManager(const EnvManager::Ptr env_manager);
 
     void getBox(Eigen::Vector3d &pt, Eigen::Vector3d &scale, Eigen::Quaterniond &quat);
     void findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end, std::vector<Eigen::Vector3d> start_pts,

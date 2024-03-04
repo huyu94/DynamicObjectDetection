@@ -9,6 +9,7 @@
 #include <plan_env/dynamic/tracker_pool.h> 
 #include <obj_predictor/obj_predictor.h>
 #include <plan_env/map_visualizer.h>
+#include <plan_env/pos_checker.h>
 #include <ros/ros.h>
 #include "bspline_opt/lbfgs.hpp"
 #include <traj_utils/plan_container.hpp>
@@ -93,8 +94,10 @@ namespace ego_planner
     ~BsplineOptimizer() {}
 
     /* main API */
-    void setEnvironment(const GridMap::Ptr &map);
-    void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
+    // void setEnvironment(const GridMap::Ptr &map);
+    // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
+
+    void setPosChecker(const PosChecker::Ptr &pos_checker);
     void setParam(ros::NodeHandle &nh);
     void setTrackerPool(const TrackerPool::Ptr &tracker_pool);
     void setMapVisualizer(const MapVisualizer::Ptr &map_visualizer);
@@ -134,7 +137,8 @@ namespace ego_planner
     inline double getSwarmClearance(void) { return swarm_clearance_; }
 
   private:
-    GridMap::Ptr grid_map_;
+    // GridMap::Ptr grid_map_;
+    PosChecker::Ptr pos_checker_;
     TrackerPool::Ptr tracker_pool_;
     MapVisualizer::Ptr map_visualizer_;
     fast_planner::ObjPredictor::Ptr moving_objs_;
@@ -230,6 +234,7 @@ namespace ego_planner
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
+
 
 } // namespace ego_planner
 #endif

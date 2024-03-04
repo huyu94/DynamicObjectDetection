@@ -33,7 +33,7 @@ void TopoPRM::init(const ros::NodeHandle& nh)
 
     // nh.param("topo_prm/risk_thresh", risk_thresh_, 0.5);
     // resolution_ = dsp_map_->getResolution();
-    resolution_ = env_manager_->getPosChecker()->getResolution();
+    resolution_ = pos_checker_->getResolution();
     
     // offset_ = Eigen::Vector3d(0.5, 0.5, 0.5) - dsp_map_->getOrigin() / resolution_;
     // offset_ = Eigen::Vector3d(0.5,0.5,0.5) 
@@ -44,11 +44,15 @@ void TopoPRM::init(const ros::NodeHandle& nh)
     ROS_INFO("Topo prm init done");
 }
 
-
-void TopoPRM::setEnvManager(EnvManager::Ptr env_manager)
+void TopoPRM::setPosChecker(PosChecker::Ptr pos_checker)
 {
-    env_manager_ = env_manager;
+    pos_checker_ = pos_checker;
 }
+
+// void TopoPRM::setEnvManager(EnvManager::Ptr env_manager)
+// {
+//     env_manager_ = env_manager;
+// }
 
 void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
                                 vector<Eigen::Vector3d> start_pts, vector<Eigen::Vector3d> end_pts,
@@ -117,11 +121,11 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
     // std::cout << endl
     //         << "[create graph]: -------------------------------------" << count++ << std::endl;
 
-    if(env_manager_->getPosChecker()->checkCollisionInSlideBox(start))
+    if(pos_checker_->checkCollisionInSlideBox(start))
     {  
         cout << "start in collision" << endl;
     }
-    if(env_manager_->getPosChecker()->checkCollisionInSlideBox(end))
+    if(pos_checker_->checkCollisionInSlideBox(end))
     {
         cout << "end in collision " << endl;
     }
@@ -167,7 +171,7 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
         pt = getSample();
         ++sample_num;
 
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(pt))
+        if(pos_checker_->checkCollisionInSlideBox(pt))
         {
             sample_time += (ros::Time::now() - t1).toSec();
             continue;
@@ -304,7 +308,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(2) = ray_pt(2) + offset_(2);
         // int collision_id;
         
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp)) // 占据
+        if(pos_checker_->checkCollisionInSlideBox(tmp)) // 占据
         {
             return false;
         }
@@ -330,7 +334,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(2) = ray_pt(2) + offset_(2);
         // int collision_id;
 
-        if(env_manager_->getPosChecker()->checkCollisionInSlideBox(tmp)) // 占据
+        if(pos_checker_->checkCollisionInSlideBox(tmp)) // 占据
         {
             return false;
         }

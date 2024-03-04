@@ -8,7 +8,7 @@
     <arg name="init_y_"/>
     <arg name="init_z_"/>
     <arg name="odom_topic"/>
-    <arg name="seed_" value="6"/>
+    <arg name="seed_" value="29"/>
     <!-- map -->
     <node pkg ="dynamic_map_generator" name ="dynamic_env" type="dynamic_map_generator_node" >
         <!-- output -->
@@ -23,7 +23,7 @@
         <param name="map/resolution"    value="0.2"/>        
         <param name="map/frame_id"     value="world" />
         <param name="map/seed" value="$(arg seed_)"/>
-        <param name="map/obs_num"    value="50"/>
+        <param name="map/obs_num"    value="1"/>
         <param name="obstacle/lower_vel" value="0.6"/>
         <param name="obstacle/upper_vel" value="1.0"/>
 
@@ -65,7 +65,7 @@
         <param name="map/resolution"    value="0.1"/>        
     
         <param name="ObstacleShape/seed" value="$(arg seed_)"/>
-        <param name="map/obs_num"    value="1"/>
+        <param name="map/obs_num"    value="30"/>
         <param name="ObstacleShape/lower_rad" value="0.5"/>
         <param name="ObstacleShape/upper_rad" value="1.0"/>
         <param name="ObstacleShape/lower_hei" value="0.5"/>
@@ -82,7 +82,7 @@
         <param name="sensing/rate"      value="10.0"/>  
         
         <param name="wall"              value="false"/>
-        <param name="cylinder"          value="true"/>
+        <param name="cylinder"          value="false"/>
         <param name="min_distance"      value="1.2"/>         
         <param name="seed"              value="$(arg seed_)"/>
     </node>
