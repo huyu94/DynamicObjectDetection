@@ -277,12 +277,12 @@ Eigen::Vector3d TopoPRM::getSample()
 bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& pc, int caster_id)
 {
     Eigen::Vector3d ray_pt;
-    Eigen::Vector3i pt_id;
+    Eigen::Vector3d point;
 
     casters_[caster_id].setInput(p1 / resolution_, p2 /resolution_);
     while(casters_[caster_id].step(ray_pt))
     {
-        pt_id = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
+        point = (ray_pt + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(0) = (ray_pt(0) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(1) = (ray_pt(1) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
         // pt_id(2) = (ray_pt(2) + Eigen::Vector3d(0.5,0.5,0.5)) * resolution_;
@@ -290,7 +290,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(1) = ray_pt(1) + offset_(1);
         // pt_id(2) = ray_pt(2) + offset_(2);
         int collision_id;
-        if(pos_checker_->checkCollisionInSlideBox(pt_id,collision_id)) // 占据
+        if(pos_checker_->checkCollisionInSlideBox(point,collision_id)) // 占据
         {
             return false;
         }

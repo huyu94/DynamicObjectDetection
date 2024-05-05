@@ -97,6 +97,11 @@ private:
 
     double gamma1_threshold_,gamma2_threshold_;
 
+
+
+
+
+
 /* match */
     double distance_gate_;
     double cluster_max_height_;
@@ -119,6 +124,23 @@ private:
     
 
 public:
+/* poschecker */
+    void getLineGrids(const Vector3d &start, const Vector3d &end, vector<Vector3d> &grids);
+
+    bool checkCollision(const Vector3d& pos, ros::Time check_time, int &collision_type, int &collision_id);
+
+    bool checkCollisionInGridMap(const Vector3d& pos);
+
+    bool checkCollisionInTrackerPool(const Vector3d& pos, const ros::Time& pos_time, int &collision_id);
+
+    bool checkCollisionInSlideBox(const Vector3d& pos, int &collision_id);
+
+    void generateSlideBox(double forward_time, vector<SlideBox>& slide_boxes);
+
+    inline int getResolution()
+    {
+        return grid_map_ptr_->getResolution();
+    }
 
 
 
@@ -131,6 +153,8 @@ public:
     GridMap::Ptr getGridMap(){return grid_map_ptr_;};
     TrackerPool::Ptr getTrackerPool(){return tracker_pool_ptr_;};
     MapVisualizer::Ptr getMapVisualizer(){return map_vis_ptr_;};
+
+
 private:
 
     /*

@@ -20,8 +20,7 @@ EnvManager::~EnvManager()
     }
 }   
 
-
-
+/* 初始化 */
 void EnvManager::init(const ros::NodeHandle &nh)
 {
     ROS_INFO("env manager start init !!!!");
@@ -110,19 +109,21 @@ void EnvManager::init(const ros::NodeHandle &nh)
 }
 
 
-
+/* 设置跟踪池 */
 void EnvManager::setTrackerPool()
 {
     tracker_pool_ptr_.reset(new TrackerPool());
     tracker_pool_ptr_->init(node_);
 }
 
+/* 设置栅格地图 */
 void EnvManager::setGridMap()
 {
     grid_map_ptr_.reset(new GridMap());
     grid_map_ptr_->initMap(node_);
 }
 
+/* 聚类 */
 void EnvManager::cluster()
 {
 
@@ -190,8 +191,7 @@ void EnvManager::cluster()
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
 
 }
-
-
+/* 计算聚类属性 */
 void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
 {
 
@@ -246,10 +246,7 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     // cluster_ptr->cluster_indices.indices.shrink_to_fit();
 
 }
-
-
-
-
+/* 簇分割 */
 void EnvManager::segmentation()
 {
     shared_ptr<PointVector> point_vector = cloud_odom_slide_window_.back().first;
@@ -338,8 +335,7 @@ void EnvManager::segmentation()
     }
     map_vis_ptr_->visualizeSegmentationResult(visual_clusters);
 }
-
-
+/* 簇匹配 */
 void EnvManager::match()
 {
 
@@ -460,6 +456,7 @@ void EnvManager::match()
 
 }
 
+/* 检查环境是否需要更新 */
 bool EnvManager::checkNeedUpdate()
 {
     if (last_update_time_.toSec() < 1.0) // 第一次进入
@@ -480,7 +477,7 @@ bool EnvManager::checkNeedUpdate()
     return true;
 }
 
-
+/* 定时更新器 */
 void EnvManager::updateCallback(const ros::TimerEvent&)
 {
 
@@ -525,7 +522,7 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
     update_count ++;
 }
 
-
+/* 记录 */
 void EnvManager::record(int update_count, int point_size, double cluster_time, double segmentation_time, double match_time, double total_time)
 {
     if(record_)
@@ -539,7 +536,7 @@ void EnvManager::record(int update_count, int point_size, double cluster_time, d
     }
 
 }
-
+/* 添加点云到滑动窗口，并且删除窗口中第一帧点云 */
 void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
 {
 
@@ -572,6 +569,7 @@ void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
 }
 
 
+/* 同步获取点云和里程计信息 */
 void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud,
                                    const nav_msgs::OdometryConstPtr& odom)
 {
@@ -612,6 +610,7 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
 
 
 
+/* 可视化定时器 */
 void EnvManager::visCallback(const ros::TimerEvent&)
 {
 
@@ -635,3 +634,89 @@ void EnvManager::visCallback(const ros::TimerEvent&)
 }
 
 
+/* poschecker 的相关功能 */
+
+void EnvManager::getLineGrids(const Vector3d &s_p, const Vector3d &e_p, vector<Vector3d> &grids)
+{
+    RayCaster raycaster;
+    Eigen::Vector3d ray_pt;
+    double resolution = getResolution();
+    Eigen::Vector3d start = s_p / resolution, end = e_p / resolution;
+    bool need_ray = raycaster.setInput(start, end);
+    if (need_ray)
+    {
+    while (raycaster.step(ray_pt))
+    {
+        Eigen::Vector3d tmp = (ray_pt) * resolution;
+        tmp[0] += resolution / 2.0;
+        tmp[1] += resolution / 2.0;
+        tmp[2] += resolution / 2.0;
+        grids.push_back(tmp);
+    }
+    }
+
+    //check end
+    Eigen::Vector3d end_idx;
+    end_idx[0] = std::floor(end.x());
+    end_idx[1] = std::floor(end.y());
+    end_idx[2] = std::floor(end.z());
+
+    ray_pt[0] = (double)end_idx[0];
+    ray_pt[1] = (double)end_idx[1];
+    ray_pt[2] = (double)end_idx[2];
+    Eigen::Vector3d tmp = (ray_pt) * resolution;
+    tmp[0] += resolution / 2.0;
+    tmp[1] += resolution / 2.0;
+    tmp[2] += resolution / 2.0;
+    grids.push_back(tmp);
+}
+
+bool EnvManager::checkCollision(const Vector3d& pos, ros::Time check_time, int& collision_type, int& collision_id)
+{
+// collision type: 0: free, 1: static, 2: dynamic 
+// colision id : normal : -1,  collision : dynamic object id
+    if(checkCollisionInGridMap(pos))
+    {
+        collision_type = 1;
+        collision_id = -1; 
+        return true;
+    }
+
+    if(checkCollisionInTrackerPool(pos,check_time,collision_id))
+    {
+        collision_type = 2;
+        return true;
+    }
+}
+
+bool EnvManager::checkCollisionInGridMap(const Vector3d& pos)
+{
+    return grid_map_ptr_->getInflateOccupancy(pos) != 0;
+}
+
+bool EnvManager::checkCollisionInTrackerPool(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
+{
+    return tracker_pool_ptr_->checkCollision(pos,pos_time,collision_id);
+}
+
+void EnvManager::generateSlideBox(double forward_time,vector<SlideBox>& slide_boxes)
+{
+    slide_boxes.clear();
+    tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(forward_time));
+}
+
+bool EnvManager::checkCollisionInSlideBox(const Vector3d& pos, int& collision_id)
+{
+    vector<SlideBox> slide_boxes;
+    tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(0.5));
+    for(auto& slide_box : slide_boxes)
+    { 
+        if(slide_box.isInBox(pos))
+        {
+            collision_id = slide_box.getId();
+            return true;
+        }
+    }
+    collision_id = -1;
+    return false;
+}

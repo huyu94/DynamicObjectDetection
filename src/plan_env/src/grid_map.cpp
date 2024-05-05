@@ -146,6 +146,12 @@ void GridMap::initMap(ros::NodeHandle &nh)
 }
 
 
+void GridMap::getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size)
+{
+  ori = md_.ringbuffer_lowbound3d_;
+  size = md_.ringbuffer_upbound3d_ - md_.ringbuffer_lowbound3d_;
+}
+
 
 void GridMap::updateOccupancy(vector<Eigen::Vector3d> &points, OdomPtr odom)
 {

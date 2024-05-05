@@ -147,6 +147,7 @@ public:
   inline int getOccupancy(Eigen::Vector3d pos);
   inline int getInflateOccupancy(Eigen::Vector3d pos);
   inline double getResolution();
+  void getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size);
   ros::Time getLocalTime(){return md_.last_occ_update_time_;}
 
   void updateOccupancy(vector<Eigen::Vector3d> &points, OdomPtr odom);
@@ -484,5 +485,7 @@ inline Eigen::Vector3i GridMap::pos2GlobalIdx(const Eigen::Vector3d &pos)
 }
 
 inline double GridMap::getResolution() { return mp_.resolution_; }
+
+
 
 #endif

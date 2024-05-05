@@ -231,6 +231,9 @@ public:
      * @param object_states states of all objects, x,y,z,vx,vy,vz
     */
     void getPool(vector<TrackerOutput> &object);
+
+
+    bool checkCollision(const Vector3d& pos, const ros::Time& pos_time, int& collision_id);
     
 
 

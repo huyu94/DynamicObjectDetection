@@ -192,3 +192,25 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
     }
 
 }
+
+
+bool TrackerPool::checkCollision(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
+{
+    vector<TrackerOutput> target_tracker_outputs;
+    this->forwardPool(target_tracker_outputs,pos_time);
+    for(auto &obj : target_tracker_outputs)
+    {
+        Vector3d obj_pos = obj.state.head(3);
+        Vector3d obj_axis = obj.length/2;
+
+        if(abs(pos.x() - obj_pos.x()) < obj_axis.x() / 2 &&
+           abs(pos.y() - obj_pos.y()) < obj_axis.y() / 2 &&
+           abs(pos.z() - obj_pos.z()) < obj_axis.z() / 2)
+        {
+            collision_id = obj.id;
+            return true;
+        }
+    }
+    collision_id = -1;
+    return false;
+}

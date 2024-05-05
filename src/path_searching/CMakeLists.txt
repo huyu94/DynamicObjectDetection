@@ -37,6 +37,7 @@ include_directories(
 add_library( path_searching 
     src/dyn_a_star.cpp
     src/topo_prm.cpp
+    src/kinodynamic_astar.cpp
     )
 target_link_libraries( path_searching
     ${catkin_LIBRARIES} 
