@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 3.0.2)
+project(state_machine)
+
+
+
+find_package(Eigen3 REQUIRED)
+find_package(PCL 1.7 REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  std_msgs
+  quadrotor_msgs
+)
+
+## INCLUDE_DIRS: uncomment this if your package contains header files
+## LIBRARIES: libraries you create in this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects also need
+catkin_package(
+ INCLUDE_DIRS include
+ LIBRARIES decision
+ CATKIN_DEPENDS roscpp rospy std_msgs
+#  DEPENDS system_lib
+)
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
+include_directories(
+  include
+  SYSTEM
+  ${catkin_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+)
+
+add_executable(state_machine_node 
+  src/state_machine_node.cpp 
+  src/fsm.cpp
+  )
+
+  target_link_libraries(state_machine_node
+    ${catkin_LIBRARIES}
+  )
