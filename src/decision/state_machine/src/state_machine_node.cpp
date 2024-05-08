@@ -3,7 +3,7 @@
 
 
 
-using namespace my_planner;
+using namespace fast_planner;
 
 int main(int argc, char** argv)
 {

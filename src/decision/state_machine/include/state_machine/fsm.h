@@ -10,10 +10,16 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Empty.h>
 
+#include <bspline/non_uniform_bspline.h>
+#include <state_machine/plan_container.hpp>
+#include <state_machine/fsm.h>
+#include <planManager/planManager.h>
+
+
 using string = std::string;
 using Vector3d = Eigen::Vector3d;
 
-namespace my_planner
+namespace fast_planner
 {
 class FSM
 {
@@ -61,7 +67,7 @@ private:
 
     // function classes
     // EnvManager::Ptr env_manager_ptr_;
-    
+    PlanManager::Ptr plan_manager_ptr_;
 
 
     // params
@@ -70,7 +76,12 @@ private:
 
     MACHINE_STATE machine_state_;
     bool have_odom_, have_goal_, trigger_;
+    Eigen::Vector3d odom_pos_, odom_vel_;
+    Eigen::Quaterniond odom_orient_;
 
+
+    Vector3d start_pos_, start_vel_, start_acc_, start_yaw_;
+    Vector3d end_pos_, end_vel_;
     // Eigen::Vector3d last_goal_pos_;
     // double replan_time_;
     // Eigen::Vector3d start_pos_, start_vel_, start_acc_, end_pos_, end_vel_, end_acc_;
@@ -90,6 +101,8 @@ private:
 
     void changeState(MACHINE_STATE new_state, string pos_call);
     void printState();
+
+    bool callKinoDynamicReplan();
 
 
 
