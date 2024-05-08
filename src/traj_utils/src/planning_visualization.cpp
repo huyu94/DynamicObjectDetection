@@ -180,7 +180,7 @@ namespace ego_planner
     displayMarkerList(global_list_pub, init_pts, scale, color, id);
   }
 
-  void PlanningVisualization::displayMultiInitPathList(vector<vector<Eigen::Vector3d>> init_trajs, const double scale)
+  void PlanningVisualization::displayMultiInitPathList(vector<vector<Eigen::Vector3d>> init_trajs, vector<bool> success, const double scale)
   {
 
     if (init_list_pub.getNumSubscribers() == 0)
@@ -201,8 +201,16 @@ namespace ego_planner
 
     for ( int id=0; id<init_trajs.size(); id++ )
     {
+      Eigen::Vector4d color ;
+      if(success[id])
+      {
+        color = colorMap[id];
+      }
+      else
+      {
+        color = Eigen::Vector4d(0.5, 0.5, 0.5, 1);
+      }
       // Eigen::Vector4d color(0, 0, 1, 0.7);
-      Eigen::Vector4d color = colorMap[id];
       displayMarkerList(init_list_pub, init_trajs[id], scale, color, id, false);
       ros::Duration(0.001).sleep();
       last_nums++;

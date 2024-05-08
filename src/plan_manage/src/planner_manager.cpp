@@ -232,7 +232,7 @@ namespace ego_planner
     // 1. poschecker generate box
     std::cout << "start generate box " << std:: endl;
     Htimer.start();
-    env_manager_->getPosChecker()->generateSlideBox((start_pt - local_target_pt).norm() / pp_.max_vel_);
+    env_manager_->getPosChecker()->generateSlideBox((start_pt - local_target_pt).norm() / pp_.max_vel_ / 10);
     Htimer.stop();
     std::cout << "generate box time: " << Htimer.elapsedMilliseconds() << " ms" << std::endl;
     std::cout << "generate box size : " << env_manager_->getPosChecker()->getSlideBox().size() << std::endl;
@@ -255,6 +255,7 @@ namespace ego_planner
     /*** STEP 2: OPTIMIZE ***/
     bool flag_step_1_success = false;
     vector<vector<Eigen::Vector3d>> vis_trajs;
+    vector<bool> success;
     vector<Eigen::Vector3d> guide_pts;
     Eigen::MatrixXd optimal_pts;
     if (pp_.use_distinctive_trajs)
@@ -299,6 +300,20 @@ namespace ego_planner
         // 2.2 rebound 
         bspline_optimizer_->initControlPoints(ctrl_pts_temp);
         flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts_temp,final_cost,ts);
+        point_set.clear();
+        for(int j=0;j<ctrl_pts_temp.cols();j++)
+        {
+          point_set.push_back(ctrl_pts_temp.col(j));
+        }
+        vis_trajs.push_back(point_set);
+        if(flag_step_1_success){
+          success.push_back(true);
+        }
+        else{
+          success.push_back(false);
+        }
+
+        
         if(!flag_step_1_success)
         {
           std::cout << "bound optimize failed " << std::endl;
@@ -309,15 +324,10 @@ namespace ego_planner
           min_cost = final_cost;
           optimal_pts = ctrl_pts_temp;
         }
-        point_set.clear();
-        for(int j=0;j<ctrl_pts_temp.cols();j++)
-        {
-          point_set.push_back(ctrl_pts_temp.col(j));
-        }
-        vis_trajs.push_back(point_set);
+
       }
       std::cout << "vis_trajs.size : " <<vis_trajs.size() << std::endl;
-      visualization_->displayMultiInitPathList(vis_trajs,0.1);
+      visualization_->displayMultiInitPathList(vis_trajs,success,0.1);
     }
     else
     {

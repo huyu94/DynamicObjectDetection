@@ -51,7 +51,7 @@ namespace ego_planner
     void displayGoalPoint(Eigen::Vector3d goal_point, Eigen::Vector4d color, const double scale, int id);
     void displayGlobalPathList(vector<Eigen::Vector3d> global_pts, const double scale, int id);
     void displayInitPathList(vector<Eigen::Vector3d> init_pts, const double scale, int id);
-    void displayMultiInitPathList(vector<vector<Eigen::Vector3d>> init_trajs, const double scale);
+    void displayMultiInitPathList(vector<vector<Eigen::Vector3d>> init_trajs, vector<bool> success, const double scale);
     void displayOptimalList(Eigen::MatrixXd optimal_pts, int id);
     void displayAStarList(std::vector<std::vector<Eigen::Vector3d>> a_star_paths, int id);
     void displayArrowList(ros::Publisher &pub, const vector<Eigen::Vector3d> &list, double scale, Eigen::Vector4d color, int id);

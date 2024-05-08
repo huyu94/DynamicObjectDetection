@@ -874,17 +874,18 @@ namespace ego_planner
   void BsplineOptimizer::calcMovingObjCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
   {
     cost = 0.0;
-    // int end_idx = q.cols() - order_;
-    int end_idx = q.cols() - order_ - (double)(q.cols() - 2 * order_) * 1.0 / 3.0; // Only check the first 2/3 points
+    int end_idx = q.cols() - order_;
+    // int end_idx = q.cols() - order_ - (double)(q.cols() - 2 * order_) * 1.0 / 3.0; // Only check the first 2/3 points
 
     constexpr double CLEARANCE = 2.0;
     ros::Time t_now = ros::Time::now();
     
     vector<Tracker::Ptr> alive_trackers;
     tracker_pool_->getAliveTracker(alive_trackers);
-    for(int i=order_; i < end_idx; i++)
+    for(int i= 1; i < end_idx; i++)
     {
-      double time = ((double)(order_-1)/2 + (i-order_+1)) * bspline_interval_;
+      double time = i * bspline_interval_;
+      // double time = ((double)(order_-1)/2 + (i-order_+1)) * bspline_interval_;
       ros::Duration inc_time = ros::Duration(time);
       for(int id = 0; id< alive_trackers.size();id++)
       {
@@ -1835,12 +1836,12 @@ namespace ego_planner
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 
     // f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_swarm + lambda2_ * f_terminal;
-    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + lambda2_d_ * f_mov_objs;
+    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + lambda2_d_ * f_mov_objs + lambda2_s_ * f_terminal;
     // printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_mov_objs);
     // printf("lambda2d_=%f\n", lambda2_d_);
 
     // Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_swarm + lambda2_ * g_terminal;
-    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + lambda2_d_ * g_mov_objs;
+    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + lambda2_d_ * g_mov_objs + lambda2_s_ * g_terminal;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
   }
 
