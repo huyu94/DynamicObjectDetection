@@ -1,10 +1,10 @@
-#ifndef _TOPO_PRM_H
-#define _TOPO_PRM_H
+#ifndef _TOPO_PRM_H_
+#define _TOPO_PRM_H_
 
 
 #include <plan_env/static/grid_map.h>
 #include <plan_env/static/raycast.h>
-#include <plan_env/pos_checker.h>
+#include <plan_env/env_manager.h>
 #include <random>
 #include <memory>
 #include <list> // Add missing include for 'list'
@@ -51,7 +51,8 @@ class TopoPRM
 {
 private:
     // DspMap::Ptr dsp_map_;
-    PosChecker::Ptr pos_checker_;
+    // PosChecker::Ptr pos_checker_;
+    EnvManager::Ptr env_manager_ptr_;
 
     // sampling generator
     std::random_device rd_; // Add missing 'std::' namespace
@@ -134,7 +135,8 @@ public:
     void init(const ros::NodeHandle& nh);
 
     // void setEnvironment(const DspMap::Ptr dsp_map);
-    void setPosChecker(const PosChecker::Ptr pos_checker);
+    // void setPosChecker(const PosChecker::Ptr pos_checker);
+    void setEnvironment(const EnvManager::Ptr env_manager);
 
     void getBox(Eigen::Vector3d &pt, Eigen::Vector3d &scale, Eigen::Quaterniond &quat);
     void findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end, std::vector<Eigen::Vector3d> start_pts,

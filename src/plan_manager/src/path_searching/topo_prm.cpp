@@ -1,4 +1,4 @@
-#include "path_searching/topo_prm.h"
+#include "plan_manager/path_searching/topo_prm.h"
 #include <thread>
 
 
@@ -32,7 +32,8 @@ void TopoPRM::init(const ros::NodeHandle& nh)
 
     // nh.param("topo_prm/risk_thresh", risk_thresh_, 0.5);
     // resolution_ = dsp_map_->getResolution();
-    resolution_ = pos_checker_->getResolution();
+    resolution_ = env_manager_ptr_->getResolution();
+    // resolution_ = pos_checker_->getResolution();
     
     // offset_ = Eigen::Vector3d(0.5, 0.5, 0.5) - dsp_map_->getOrigin() / resolution_;
     // offset_ = Eigen::Vector3d(0.5,0.5,0.5) 
@@ -44,9 +45,9 @@ void TopoPRM::init(const ros::NodeHandle& nh)
 }
 
 
-void TopoPRM::setPosChecker(PosChecker::Ptr pos_checker)
+void TopoPRM::setEnvironment(const EnvManager::Ptr env_manager)
 {
-    pos_checker_ = pos_checker;
+    env_manager_ptr_ = env_manager;
 }
 
 void TopoPRM::findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end,
@@ -156,7 +157,7 @@ list<GraphNode::Ptr> TopoPRM::createGraph(Eigen::Vector3d start, Eigen::Vector3d
         pt = getSample();
         ++sample_num;
         int collision_id;
-        if(pos_checker_->checkCollisionInSlideBox(pt,collision_id))
+        if(env_manager_ptr_->checkCollisionInSlideBox(pt,collision_id))
         {
             sample_time += (ros::Time::now() - t1).toSec();
             continue;
@@ -290,7 +291,7 @@ bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Ei
         // pt_id(1) = ray_pt(1) + offset_(1);
         // pt_id(2) = ray_pt(2) + offset_(2);
         int collision_id;
-        if(pos_checker_->checkCollisionInSlideBox(point,collision_id)) // 占据
+        if(env_manager_ptr_->checkCollisionInSlideBox(point,collision_id)) // 占据
         {
             return false;
         }

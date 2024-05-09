@@ -21,7 +21,7 @@
 * along with Fast-Planner. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <path_searching/kinodynamic_astar.h>
+#include <plan_manager/path_searching/kinodynamic_astar.h>
 #include <sstream>
 // #include <plan_env/sdf_map.h>
 #include <plan_env/static/grid_map.h>
