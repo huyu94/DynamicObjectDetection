@@ -56,7 +56,7 @@ namespace fast_planner
     ~BsplineOptimizer() {}
 
     /* main API */
-    void setEnvironment(const GridMap::Ptr &map);
+    void setEnvironment(const EnvManager::Ptr& env_manager);
     // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
     void setParam(ros::NodeHandle &nh);
     void setTrackerPool(const TrackerPool::Ptr &tracker_pool);
