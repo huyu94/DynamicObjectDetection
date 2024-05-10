@@ -50,15 +50,28 @@ public:
 
     void visualizeStartAndGoal(const Vector3d& start, const Vector3d& goal, ros::Time local_time);
 
+    void visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>>& topo_trajs, ros::Time local_time);
+
+    void visualizeKinodynamicTraj(const std::vector<Vector3d>& kino_traj, ros::Time local_time);
+    
+    void visualizeOptimalTraj(const std::vector<Vector3d>& optimal_traj, ros::Time local_time);
+
 
 typedef std::shared_ptr<VisualRviz> Ptr;
 
 
 private:
     VisualRviz();
+
     ros::NodeHandle nh_;
 
+
     /* pubisher */
+    ros::Publisher pub_collision_;
+    ros::Publisher pub_start_and_goal_;
+    ros::Publisher pub_multi_topo_trajs_;
+    ros::Publisher pub_kino_traj_;
+    ros::Publisher pub_opti_traj_; 
 }
 
 
