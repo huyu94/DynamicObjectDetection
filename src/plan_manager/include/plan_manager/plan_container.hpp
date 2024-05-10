@@ -214,12 +214,67 @@ namespace fast_planner
         double duration_;
         ros::Time start_time_;
         Eigen::Vector3d start_pos_;
-        NonUniformBspline position_traj_, velocity_traj_, acceleration_traj_;
-        NonUniformBspline yaw_traj_, yaw_rate_traj_, yawdotdot_traj_;
+        UniformBspline position_traj_, velocity_traj_, acceleration_traj_;
+        UniformBspline yaw_traj_, yaw_rate_traj_, yawdotdot_traj_;
     };
 
-    
+    class MidPlanData
+    {
+    public:
+        MidPlanData(){}
+        ~MidPlanData(){}
+
+        vector<Vector3d> global_waypoints_;
+
+        // initial trajectory segment
+        UniformBspline initial_local_segment_;
+        vector<Vector3d> local_start_end_derivatives_;
+
+        // kinodynamic path
+        vector<Vector3d> kino_path_;
+
+        // topological path
+        list<GraphNode::Ptr> topo_graph_;
+        vector<vector<Vector3d>> topo_paths_;
+        vector<vector<Vector3d>> topo_filtered_paths_;
+        vector<vector<Vector3d>> topo_select_paths_;
+
+
+        // multiple topological trajecotories
+        vector<Vector3d> topo_trajs_;
+        vector<UniformBspline> refined_topo_trajs_;
+
+        //
+
+
+        void clearTopoPaths()
+        {
+            topo_trajs_.clear();
+            topo_graph_.clear();
+            topo_paths_.clear();
+            topo_filtered_paths_.clear();
+            topo_select_paths_.clear();
+
+        }
+
+
+        void addTopoPaths(list<GraphNode::Ptr>& graph, vector<vector<Vector3d>>& paths,
+                          vector<vector<Vector3d>>& filtered_paths,
+                          vector<vector<Vector3d>>& selected_paths)
+        {
+            topo_graph_ = graph;
+            topo_paths_ = paths;
+            topo_filtered_paths_ = filtered_paths;
+            topo_select_paths_ = selected_paths;
+        }
+
+    };
+
+
+
+
 };
+
 
 
 
