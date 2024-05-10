@@ -25,9 +25,9 @@ public:
     }
 
     static const Color White() { return Color(1.0, 1.0, 1.0); }
-    static const Color Black() { return Color(0.0, 0.0, 0.0); }
-    static const Color Gray() { return Color(0.5, 0.5, 0.5); }
-    static const Color Red() { return Color(1.0, 0.0, 0.0); }
+    static const Color Black() { return Color(0.0, 0.0, 0.0); } // 
+    static const Color Gray() { return Color(0.5, 0.5, 0.5); } // 优化失败轨迹
+    static const Color Red() { return Color(1.0, 0.0, 0.0); } // 优化成功轨迹
     static const Color Green() { return Color(0.0, 0.7, 0.0); }
     static const Color Blue() { return Color(0.0, 0.0, 1.0); }
     static const Color SteelBlue() { return Color(0.4, 0.7, 1.0); }
@@ -37,6 +37,12 @@ public:
     static const Color Chartreuse() { return Color(0.5, 1.0, 0.0); }
     static const Color Teal() { return Color(0.0, 1.0, 1.0); }
     static const Color Pink() { return Color(1.0, 0.0, 0.5); }
+    static const Color Cyan() { return Color(0.0, 1.0, 1.0); }
+    static const Color Magenta() { return Color(1.0, 0.0, 1.0); }
+    static const Color Gold() { return Color(1.0, 0.84, 0.0); }
+    static const Color Olive() { return Color(0.5, 0.5, 0.0); }
+    static const Color Lime() { return Color(0.0, 1.0, 0.0); }
+    static const Color Indigo() { return Color(0.29, 0.0, 0.51); }
 };
 
 
@@ -50,7 +56,7 @@ public:
 
     void visualizeStartAndGoal(const Vector3d& start, const Vector3d& goal, ros::Time local_time);
 
-    void visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>>& topo_trajs, ros::Time local_time);
+    void visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>>& topo_trajs, std::vector<bool>& success, ros::Time local_time);
 
     void visualizeKinodynamicTraj(const std::vector<Vector3d>& kino_traj, ros::Time local_time);
     
@@ -65,6 +71,13 @@ private:
 
     ros::NodeHandle nh_;
 
+    std::vector<Color> topoColorMap = {Color::Green(), Color::Yellow(), Color::Purple(), Color::Chartreuse(), Color::Teal(),
+                                        Color::Pink(), Color::Cyan(), Color::Magenta(), Color::Gold(), Color::Olive(), 
+                                        Color::Lime(), Color::Indigo()};
+
+
+    void visualizeMarkerList(ros::Publisher& pub, const std::vector<Vector3d>& list, double scale,
+                             Color color, int id, bool show_sphere /* = true */);
 
     /* pubisher */
     ros::Publisher pub_collision_;
@@ -72,7 +85,6 @@ private:
     ros::Publisher pub_multi_topo_trajs_;
     ros::Publisher pub_kino_traj_;
     ros::Publisher pub_opti_traj_; 
-}
-
+};
 
 #endif
