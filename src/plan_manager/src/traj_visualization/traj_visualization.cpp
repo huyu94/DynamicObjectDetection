@@ -32,7 +32,7 @@ void VisualRviz::visualizeCollision(const Vector3d& collision, ros::Time local_t
     collision_point.action = visualization_msgs::Marker::ADD;
     collision_point.lifetime = ros::Duration(0); // always exist
     collision_point.pose.orientation.w = 1.0;
-    collision_point.id = 400;
+    collision_point.id = collision_id_;
     collision_point.type = visualization_msgs::Marker::SPHERE_LIST;
     collision_point.scale.x = 0.2;
     collision_point.scale.y = 0.2;
@@ -66,7 +66,7 @@ void VisualRviz::visualizeStartAndGoal(const Vector3d &start, const Vector3d &go
     pos_point.action = visualization_msgs::Marker::ADD;
     pos_point.lifetime = ros::Duration(0); // always exist
     pos_point.pose.orientation.w = 1.0;
-    pos_point.id = 11;
+    pos_point.id = start_and_goal_id_;
     pos_point.type = visualization_msgs::Marker::POINTS;
     pos_point.scale.x = 0.4;
     pos_point.scale.y = 0.4;
@@ -85,18 +85,26 @@ void VisualRviz::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>
     }
 
     static int last_nums = 0;
-    for(int id=0; id<last_nums; id++)
+    if(last_nums >= topo_trajs.size())
     {
-        Eigen::Vector4d color(0,0,0,0);
+        ROS_WARN_STREAM("last_nums: " << last_nums << " topo_trajs.size(): " << topo_trajs.size());
+        return ;
+    }
+    for(int i = 0; i < last_nums ; i++)
+    {
+        int scale = 0.2;
+        Color color(0,0,0,0);
+        int id = multi_topo_trajs_id[i];
         std::vector<Vector3d> blank;
-        // visualizeMarkerList(blank, id, color, local_time);
+        visualizeMarkerList(pub_multi_topo_trajs_, blank, scale, color, id, false);
         ros::Duration(0.001).sleep();
     }
     last_nums = 0;
 
-    for(int id=0; id<topo_trajs.size(); id++)
+    for(int i=0; i<topo_trajs.size(); i++)
     {
-        if(id >= topoColorMap.size())
+        int id = multi_topo_trajs_id[i];
+        if(i >= topoColorMap.size())
         {
             ROS_ERROR("ColorMap is not enough!");
             break;
@@ -110,7 +118,7 @@ void VisualRviz::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>
         {
             color = Color::Gray();
         }
-        // displayMarkerList();
+        visualizeMarkerList(pub_multi_topo_trajs_, topo_trajs[id], 0.2, color, id, false);
         ros::Duration(0.001).sleep();
         last_nums++;
     }
@@ -151,6 +159,25 @@ void VisualRviz::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vect
     if(show_sphere) pub.publish(sphere);
     pub.publish(line_strip);
 
-    pub
+}
 
+
+
+void VisualRviz::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj, ros::Time local_time)
+{
+    if(pub_kino_traj_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+    visualizeMarkerList(pub_kino_traj_, kino_traj, 0.2, Color::Blue(), 10, false);
+}
+
+
+void visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
+{
+    if(pub_optimal_traj_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+    visualizeMarkerList(pub_optimal_traj_, optimal_traj, 0.2, Color::Red(), 11, false);
 }
