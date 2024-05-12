@@ -52,7 +52,10 @@ class VisualRviz
 {
 
 public:
-    VisualRviz(const ros::NodeHandle& nh);
+    VisualRviz();
+
+    void init(const ros::NodeHandle& nh);
+
     void visualizeCollision(const Vector3d& collision, ros::Time local_time);
 
     void visualizeStartAndGoal(const Vector3d& start, const Vector3d& goal, ros::Time local_time);
@@ -68,13 +71,12 @@ typedef std::shared_ptr<VisualRviz> Ptr;
 
 
 private:
-    VisualRviz();
+
 
     ros::NodeHandle nh_;
 
-    std::vector<Color> topoColorMap = { Color::Purple(), Color::Chartreuse(), Color::Teal(),
-                                        Color::Pink(), Color::Cyan(), Color::Magenta(), Color::Gold(), Color::Olive(), 
-                                        Color::Lime(), Color::Indigo()};
+    std::vector<Color> topoColorMap = { Color::Purple(), Color::Chartreuse(), Color::Teal(),Color::Pink(), Color::Cyan(), 
+                                        Color::Magenta(), Color::Gold(), Color::Olive(), Color::Lime(), Color::Indigo()};
 
 
     void visualizeMarkerList(ros::Publisher& pub, const std::vector<Vector3d>& list, double scale,

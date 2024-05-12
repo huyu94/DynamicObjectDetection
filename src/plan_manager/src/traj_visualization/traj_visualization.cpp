@@ -1,17 +1,24 @@
-#include <plan_manager/traj_visualization/traj_visualization.h>
+#include <visualization_test/traj_visualization.h>
 #include <ros/ros.h>
 #include <queue>
 #include <string>
-#include "traj_visualization.h"
 
 
-VisualRviz::VisualRviz(const ros::NodeHandle& nh) : nh_(nh)
+VisualRviz::VisualRviz()
+{
+
+}
+
+void VisualRviz::init(const ros::NodeHandle& nh)
 {
     // publisher
     pub_collision_ = nh_.advertise<visualization_msgs::Marker>("collision", 1);
-    pub_start_and_goal_ = nh_.advertise<visualization_msgs::MarkerArray>("start_goal", 1);
-
+    pub_start_and_goal_ = nh_.advertise<visualization_msgs::Marker>("start_goal", 1);
+    pub_kino_traj_ = nh_.advertise<visualization_msgs::Marker>("kino_traj",1);
+    pub_multi_topo_trajs_ = nh_.advertise<visualization_msgs::Marker>("multi_topo_trajs",1);
+    pub_opti_traj_ = nh_.advertise<visualization_msgs::Marker>("opti_traj",1);
 }
+
 
 
 void VisualRviz::visualizeCollision(const Vector3d& collision, ros::Time local_time)
@@ -85,7 +92,7 @@ void VisualRviz::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>
     }
 
     static int last_nums = 0;
-    if(last_nums >= topo_trajs.size())
+    if(last_nums > topo_trajs.size())
     {
         ROS_WARN_STREAM("last_nums: " << last_nums << " topo_trajs.size(): " << topo_trajs.size());
         return ;
@@ -173,11 +180,11 @@ void VisualRviz::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj
 }
 
 
-void visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
+void VisualRviz::visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
 {
-    if(pub_optimal_traj_.getNumSubscribers() == 0)
+    if(pub_opti_traj_.getNumSubscribers() == 0)
     {
         return;
     }
-    visualizeMarkerList(pub_optimal_traj_, optimal_traj, 0.2, Color::Red(), 11, false);
+    visualizeMarkerList(pub_opti_traj_, optimal_traj, 0.2, Color::Red(), 11, false);
 }
