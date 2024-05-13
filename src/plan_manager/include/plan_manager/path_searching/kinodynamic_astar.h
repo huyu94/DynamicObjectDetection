@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <utility>
 #include <plan_env/static/grid_map.h>
+#include <plan_env/env_manager.h>
 // #include "plan_env/edt_environment.h"
 
 namespace fast_planner {
@@ -117,7 +118,8 @@ class KinodynamicAstar {
   Eigen::Matrix<double, 6, 6> phi_;  // state transit matrix
   // shared_ptr<SDFMap> sdf_map;
   // EDTEnvironment::Ptr edt_environment_;
-  GridMap::Ptr grid_map_;
+  // GridMap::Ptr grid_map_;
+  EnvManager::Ptr env_manager_;
   bool is_shot_succ_ = false;
   Eigen::MatrixXd coef_shot_;
   double t_shot_;
@@ -171,7 +173,8 @@ class KinodynamicAstar {
              double time_start = -1.0);
 
   // void setEnvironment(const EDTEnvironment::Ptr& env);
-  void setEnvironment(const GridMap::Ptr& env);
+  // void setEnvironment(const GridMap::Ptr& env);
+  void setEnvironment(const EnvManager::Ptr& env);  
 
   std::vector<Eigen::Vector3d> getKinoTraj(double delta_t);
 

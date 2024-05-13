@@ -2,7 +2,7 @@
 #include <ros/subscriber.h>
 #include <Eigen/Eigen>
 
-#include <visualization_test/traj_visualization.h>
+#include <visualization_utils/traj_visualizer.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseStamped.h>
 
@@ -12,7 +12,7 @@ ros::Publisher pub;
 ros::Subscriber sub;
 
 using Vector3d = Eigen::Vector3d;
-VisualRviz::Ptr visualizer;
+TrajVisualizer::Ptr visualizer;
 
 Vector3d start(0,0,0);
 Vector3d goal(5,5,5);
@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     
     ros::init(argc, argv, "test_node"); 
     ros::NodeHandle nh("~");
-    visualizer.reset(new VisualRviz());
+    visualizer.reset(new TrajVisualizer);
     visualizer->init(nh);
 
     kino_paths.push_back(Vector3d(0,0,0));

@@ -3,9 +3,16 @@
 #include <geometry_msgs/PoseStamped.h>
 
 using namespace fast_planner;
+PlanManager::Ptr plan_manager_ptr_;
+
+
 
 void goalCallback(const geometry_msgs::PoseStampedConstPtr& msg)
 {
+
+
+    plan_manager_ptr_->kinodynamicReplan(Vector3d(0,0,0), Vector3d(0,0,0), Vector3d(0,0,0), Vector3d(1,1,1), Vector3d(0,0,0));
+
 
 }
 
@@ -17,9 +24,12 @@ int main(int argc, char** argv)
 
     ROS_INFO_STREAM("plan_manager_test_node start!");
 
-    PlanManager plan_manager;
+    plan_manager_ptr_.reset(new PlanManager);
+    plan_manager_ptr_->initPlanModules(nh);
 
     ros::Subscriber sub = nh.subscribe("pose_topic", 1000, goalCallback);
+    
+
 
     ros::spin();
 

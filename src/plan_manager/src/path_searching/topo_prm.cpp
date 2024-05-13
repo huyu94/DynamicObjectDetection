@@ -343,11 +343,11 @@ vector<vector<Eigen::Vector3d>> TopoPRM::pruneEquivalent(vector<vector<Eigen::Ve
     vector<int> exist_paths_id;
     exist_paths_id.push_back(0);
 
-    for(int i=0; i < paths.size();i++)
+    for(size_t i=0; i < paths.size();i++)
     {
         // compare with exsit paths
         bool new_path = true;
-        for (int j = 0; j < exist_paths_id.size(); ++j) 
+        for (size_t j = 0; j < exist_paths_id.size(); ++j) 
         {
             // compare with one path
             bool same_topo = sameTopoPath(paths[i], paths[exist_paths_id[j]], 0.0); //判断是否存在同拓扑路径
@@ -364,7 +364,7 @@ vector<vector<Eigen::Vector3d>> TopoPRM::pruneEquivalent(vector<vector<Eigen::Ve
     }
 
     // save pruned paths
-    for(int i=0;i<exist_paths_id.size();i++)
+    for(size_t i=0;i<exist_paths_id.size();i++)
     {
         pruned_paths.push_back(paths[exist_paths_id[i]]);
     }
@@ -381,7 +381,7 @@ vector<vector<Eigen::Vector3d>> TopoPRM::selectShortPaths(vector<vector<Eigen::V
     vector<Eigen::Vector3d> short_path;
     double min_len;
 
-    for(int i = 0 ; i < reserve_num_ && paths.size() > 0 ; i++)
+    for(size_t i = 0 ; i < reserve_num_ && paths.size() > 0 ; i++)
     {
         int path_id = shortestPath(paths);
         if(i == 0) // 如果是第一条，就直接加入，因为short paths里面是空的
@@ -407,12 +407,12 @@ vector<vector<Eigen::Vector3d>> TopoPRM::selectShortPaths(vector<vector<Eigen::V
 
     std::cout << "in [Select short path], select path num: " << short_paths.size();
 
-    for(int i=0; i< short_paths.size(); i++)
+    for(size_t i=0; i< short_paths.size(); i++)
     {
         short_paths[i].insert(short_paths[i].begin(), start_pts_.begin(), start_pts_.end());
         short_paths[i].insert(short_paths[i].end(), end_pts_.begin(), end_pts_.end());
     }
-    for (int i = 0; i < short_paths.size(); ++i) 
+    for (size_t i = 0; i < short_paths.size(); ++i) 
     {
         shortcutPath(short_paths[i], i, 5); // 5 表示迭代次数
         short_paths[i] = short_paths_[i];
@@ -470,7 +470,7 @@ double TopoPRM::pathLength(const vector<Eigen::Vector3d>& path) {
     double length = 0.0;
     if (path.size() < 2) return length;
 
-    for (int i = 0; i < path.size() - 1; ++i) 
+    for (size_t i = 0; i < path.size() - 1; ++i) 
     {
         length += (path[i + 1] - path[i]).norm();
     }
@@ -482,7 +482,7 @@ vector<Eigen::Vector3d> TopoPRM::discretizePath(const vector<Eigen::Vector3d>& p
     vector<double> len_list;
     len_list.push_back(0.0);
 
-    for (int i = 0; i < path.size() - 1; ++i) {
+    for (size_t i = 0; i < path.size() - 1; ++i) {
         double inc_l = (path[i + 1] - path[i]).norm();
         len_list.push_back(inc_l + len_list[i]);
     }   

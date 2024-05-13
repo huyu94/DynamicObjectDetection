@@ -10,6 +10,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 
 
 find_package(catkin REQUIRED COMPONENTS
@@ -19,15 +21,14 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   message_filters
   roslib
+  visualization_utils
 )
 
-find_package(Eigen3 REQUIRED)
-find_package(PCL 1.7 REQUIRED)
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES plan_env
- CATKIN_DEPENDS roscpp std_msgs
+ CATKIN_DEPENDS roscpp std_msgs visualization_utils
 #  DEPENDS system_lib
 )
 
@@ -58,7 +59,6 @@ add_library( plan_env
     src/raycast.cpp
     src/tracker_pool.cpp
     src/env_manager.cpp
-    src/map_visualizer.cpp
     src/pos_checker.cpp
 )
 
@@ -67,7 +67,7 @@ target_link_libraries( plan_env
     ${PCL_LIBRARIES}
     ${MunkresLIB}
     ${OpenCV_LIBS}
-)  
+)
 
 add_executable(env_node
     src/env_node.cpp
@@ -77,7 +77,6 @@ add_executable(env_node
     src/raycast.cpp
     src/tracker_pool.cpp
     src/env_manager.cpp
-    src/map_visualizer.cpp
 )
 
 target_link_libraries(env_node

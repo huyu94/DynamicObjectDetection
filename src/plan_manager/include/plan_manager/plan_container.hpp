@@ -47,7 +47,7 @@ namespace fast_planner
             last_time_inc_ = 0.0;   
         }
 
-        void setLocalTraj(NonUniformBspline traj, double local_ts, double local_te, double time_inc) {
+        void setLocalTraj(UniformBspline traj, double local_ts, double local_te, double time_inc) {
             local_traj_.resize(3);
             local_traj_[0] = traj;
             local_traj_[1] = local_traj_[0].getDerivative();

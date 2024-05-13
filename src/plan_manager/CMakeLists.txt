@@ -8,8 +8,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dev")
 
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
 
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
@@ -18,18 +16,19 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   plan_env
+  visualization_utils
 )
 
 catkin_package(
   INCLUDE_DIRS include 
   LIBRARIES plan_manager
- CATKIN_DEPENDS roscpp rospy std_msgs plan_env
+  CATKIN_DEPENDS roscpp rospy std_msgs plan_env visualization_utils
 #  DEPENDS system_lib
 )
 include_directories(/usr/local/include/munkres)
 set(MunkresLIB
-        /usr/local/lib/libmunkres.a
-        )
+    /usr/local/lib/libmunkres.a
+    )
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
@@ -65,8 +64,8 @@ target_link_libraries(
 
 
 
-add_executable(plan_manager_test_node
-  src/plan_manager_test_node.cpp
+add_executable(test_node
+  src/test_node.cpp
   src/plan_manager.cpp
   src/path_searching/astar.cpp
   src/path_searching/kinodynamic_astar.cpp
@@ -76,4 +75,6 @@ add_executable(plan_manager_test_node
 )
 # add_executable(plan_manager_node src/plan_manager_node.cpp)
 
-
+target_link_libraries(test_node
+  ${catkin_LIBRARIES}
+)

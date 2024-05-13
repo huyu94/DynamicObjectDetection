@@ -720,3 +720,10 @@ bool EnvManager::checkCollisionInSlideBox(const Vector3d& pos, int& collision_id
     collision_id = -1;
     return false;
 }
+
+
+
+void EnvManager::getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size)
+{
+    grid_map_ptr_->getRegion(ori,size);
+}

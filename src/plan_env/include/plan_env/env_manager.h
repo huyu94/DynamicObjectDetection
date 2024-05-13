@@ -30,7 +30,7 @@
 #include "plan_env/dynamic/tracker_pool.h"
 #include "plan_env/ikd-Tree/ikd_Tree.h"
 #include "plan_env/static/grid_map.h"
-#include "plan_env/map_visualizer.h"
+#include <visualization_utils/map_visualizer.h>
 
 using PointType = ikdTree_PointType;
 using PointVector = KD_TREE<PointType>::PointVector;
@@ -137,6 +137,10 @@ public:
 
     void generateSlideBox(double forward_time, vector<SlideBox>& slide_boxes);
 
+
+    void getRegion(Vector3d& ori, Vector3d& size);
+
+
     inline int getResolution()
     {
         return grid_map_ptr_->getResolution();
@@ -150,6 +154,7 @@ public:
     void init(const ros::NodeHandle& nh);
     void setGridMap();
     void setTrackerPool();
+
     GridMap::Ptr getGridMap(){return grid_map_ptr_;};
     TrackerPool::Ptr getTrackerPool(){return tracker_pool_ptr_;};
     MapVisualizer::Ptr getMapVisualizer(){return map_vis_ptr_;};

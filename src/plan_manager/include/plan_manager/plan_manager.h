@@ -13,6 +13,7 @@
 #include <plan_manager/path_searching/kinodynamic_astar.h>
 #include <plan_manager/uniform_bspline_opt/bspline_optimizer.h>
 #include <plan_manager/path_searching/topo_prm.h>
+#include <visualization_utils/traj_visualizer.h>
 
 
 using Vector3d = Eigen::Vector3d;
@@ -24,8 +25,8 @@ namespace fast_planner
 class PlanManager
 {
 public:
-    PlanManager();
-    PlanManager();
+    PlanManager(); 
+    ~PlanManager();
 
     void initPlanModules(ros::NodeHandle& nh);
 
@@ -44,14 +45,17 @@ public:
     PlanParameters pp_;
     LocalTrajData local_data_;
     GlobalTrajData global_data_;
+    MidPlanData plan_data_;
+
 
 private:
-    EnvManager::Ptr env_manger_;
+    EnvManager::Ptr env_manger_ptr_;
 
     // unique_ptr<Astar> geo_path_finder_;
-    unique_ptr<KinodynamicAstar> kino_path_finder_;
-    unique_ptr<TopoPRM> topo_prm_;
-    vector<BsplineOptimizer::Ptr> bspline_optimizers_;
+    unique_ptr<KinodynamicAstar> kino_path_finder_ptr_;
+    unique_ptr<TopoPRM> topo_prm_ptr_;
+    vector<BsplineOptimizer::Ptr> bspline_optimizer_ptrs_;
+    TrajVisualizer::Ptr traj_visual_ptr_;
 
     void updateTrajInfo();
     void reparamBspline(UniformBspline& bspline, vector<Vector3d>& start_end_derivative, double ratio, MatrixXd& ctrl_pts, double& dt, double& time_inc);

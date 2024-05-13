@@ -14,9 +14,9 @@ namespace fast_planner
     void PlanManager::initPlanModules(ros::NodeHandle& nh)
     {
         
-        nh.param("manager/max_vel", pp_.max_vel_, -1.0);
-        nh.param("manager/max_acc", pp_.max_vel_, -1.0);
-        nh.param("manager/max_jerk", pp_.max_jerk_, -1.0);
+        nh.param("manager/max_vel", pp_.max_vel_, 3.0);
+        nh.param("manager/max_acc", pp_.max_vel_, 3.0);
+        nh.param("manager/max_jerk", pp_.max_jerk_, 4.0);
 
         nh.param("manager/dynamic_environment", pp_.dynamic_, -1);
         nh.param("manager/clearance_threshold", pp_.clearance_, -1.0); 
@@ -27,38 +27,55 @@ namespace fast_planner
         bool use_geometric_path, use_active_perception;
 
         local_data_.traj_id_ = 0;
-        env_manger_.reset(new EnvManager);
-        env_manger_->init(nh);
+        
+        /* EnvManager */
+        env_manger_ptr_.reset(new EnvManager);
+        env_manger_ptr_->init(nh);
+        ROS_INFO_STREAM("EnvManager init successfully !!!");
 
+        /* VisualRviz */
+        traj_visual_ptr_.reset(new TrajVisualizer);
+        traj_visual_ptr_->init(nh);
+        ROS_INFO_STREAM("VisualRviz init successfully !!!");
+
+        /* Kinodynamic Astar */
         if(use_kinodynamic_path)
         {
-            kino_path_finder_.reset(new KinodynamicAstar);
-            kino_path_finder_->setParam(nh);
-            kino_path_finder_->setEnvironment();
-            kino_path_finder_->init();
-        }
-
-        if(use_optimzation)
-        {
-            bspline_optimizers_.resize(10);
-            for(int i=0; i<10; i++)
-            {
-                bspline_optimizers_[i].reset(new BsplineOptimizer);
-                bspline_optimizers_[i]->setParam(nh);
-                bspline_optimizers_[i]->setEnvironment();
-            }
-        }
-
-        if(use_topo_path)
-        {
-            topo_prm_.reset(new TopoPRM);
-            topo_prm_->setEnvironment();
-            topo_prm_->init();
+            ROS_INFO_STREAM("use kinodynamic path");
+            kino_path_finder_ptr_.reset(new KinodynamicAstar);
+            kino_path_finder_ptr_->setParam(nh);
+            kino_path_finder_ptr_->setEnvironment(env_manger_ptr_);
+            kino_path_finder_ptr_->init();
+            ROS_INFO_STREAM("kinodynamic search init successfully !!!");
         }
         
-        /* env */
-        env_manger_.reset(new EnvManager);
-        env_manger_->init(nh);
+
+
+        /* Optimization threads */
+        if(use_optimzation)
+        {
+            ROS_INFO_STREAM("use optimization");
+
+            bspline_optimizer_ptrs_.resize(10);
+            for(int i=0; i<10; i++)
+            {
+                bspline_optimizer_ptrs_[i].reset(new BsplineOptimizer);
+                bspline_optimizer_ptrs_[i]->setParam(nh);
+                bspline_optimizer_ptrs_[i]->setEnvironment(env_manger_ptr_);
+            }
+            ROS_INFO_STREAM("optimization init successfully !!!");
+        }
+
+        /* Topological Path Searching */
+        if(use_topo_path)
+        {
+            ROS_INFO_STREAM("use topological path");
+            topo_prm_ptr_.reset(new TopoPRM);
+            topo_prm_ptr_->init(nh);
+            topo_prm_ptr_->setEnvironment(env_manger_ptr_);
+            ROS_INFO_STREAM("topological path init successfully !!!");
+        }
+
     }
 
     bool PlanManager::checkTrajCollision()
@@ -77,7 +94,7 @@ namespace fast_planner
         while(radius < 6.0 && t_now + fut_t < local_data_.duration_)
         {
             fut_pt = local_data_.position_traj_.evaluateDeBoor(tm + t_now + fut_t);
-            bool collision = env_manger_->checkCollisionInGridMap(fut_pt);
+            bool collision = env_manger_ptr_->checkCollisionInGridMap(fut_pt);
             if(collision)
             {
                 return false;
@@ -121,15 +138,15 @@ namespace fast_planner
 
         // kinodynamic path searching
         t1 = ros::Time::now();
-        kino_path_finder_->reset();
+        kino_path_finder_ptr_->reset();
 
-        int status = kino_path_finder_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true);
+        int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true);
 
         if(status == KinodynamicAstar::NO_PATH)
         {
             ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
-            kino_path_finder_->reset();
-            status = kino_path_finder_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false);
+            kino_path_finder_ptr_->reset();
+            status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false);
 
             if(status == KinodynamicAstar::NO_PATH)
             {
@@ -145,17 +162,20 @@ namespace fast_planner
             ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
         }
 
-        plan_data_.kino_path_ = kino_path_finder_->getKinoTraj(0.01);
+        plan_data_.kino_path_ = kino_path_finder_ptr_->getKinoTraj(0.01);
+        traj_visual_ptr_->visualizeKinodynamicTraj(plan_data_.kino_path_, ros::Time::now());
 
         t_search = (ros::Time::now() - t1).toSec();
 
-        double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
-        vector<Vector3d> point_set, start_end_derivatives;
-        kino_path_finder_->getSamples(ts,point_set,start_end_derivatives);
+        // double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
+        // vector<Vector3d> point_set, start_end_derivatives;
+        // kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
 
-        MatrixXd ctrl_pts;
-        UniformBspline::parameterizeToBspline(ts,point_set,start_end_derivatives,ctrl_pts);
-        UniformBspline init(ctrl_pts,3,ts);
+
+
+        // MatrixXd ctrl_pts;
+        // UniformBspline::parameterizeToBspline(ts,point_set,start_end_derivatives,ctrl_pts);
+        // UniformBspline init(ctrl_pts,3,ts);
 
         /* TODO  */
 

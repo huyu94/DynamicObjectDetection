@@ -1,15 +1,15 @@
-#include <visualization_test/traj_visualization.h>
+#include <visualization_utils/traj_visualizer.h>
 #include <ros/ros.h>
 #include <queue>
 #include <string>
 
 
-VisualRviz::VisualRviz()
+TrajVisualizer::TrajVisualizer()
 {
 
 }
 
-void VisualRviz::init(const ros::NodeHandle& nh)
+void TrajVisualizer::init(const ros::NodeHandle& nh)
 {
     // publisher
     pub_collision_ = nh_.advertise<visualization_msgs::Marker>("collision", 1);
@@ -21,7 +21,7 @@ void VisualRviz::init(const ros::NodeHandle& nh)
 
 
 
-void VisualRviz::visualizeCollision(const Vector3d& collision, ros::Time local_time)
+void TrajVisualizer::visualizeCollision(const Vector3d& collision, ros::Time local_time)
 {
     if(pub_collision_.getNumSubscribers() == 0)
     {
@@ -49,7 +49,7 @@ void VisualRviz::visualizeCollision(const Vector3d& collision, ros::Time local_t
     pub_collision_.publish(collision_point);    
 }
 
-void VisualRviz::visualizeStartAndGoal(const Vector3d &start, const Vector3d &goal, ros::Time local_time)
+void TrajVisualizer::visualizeStartAndGoal(const Vector3d &start, const Vector3d &goal, ros::Time local_time)
 {
     if(pub_start_and_goal_.getNumSubscribers() == 0)
     {
@@ -84,7 +84,7 @@ void VisualRviz::visualizeStartAndGoal(const Vector3d &start, const Vector3d &go
 
 }
 
-void VisualRviz::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>> &topo_trajs, std::vector<bool>& success, ros::Time local_time)
+void TrajVisualizer::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>> &topo_trajs, std::vector<bool>& success, ros::Time local_time)
 {
     if(pub_multi_topo_trajs_.getNumSubscribers() == 0)
     {
@@ -133,7 +133,7 @@ void VisualRviz::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>
 }
 
 // real ids used: {id, id+1000}
-void VisualRviz::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vector3d> &list, double scale, Color color, int id, bool show_sphere)
+void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vector3d> &list, double scale, Color color, int id, bool show_sphere)
 {
     visualization_msgs::Marker sphere, line_strip;
     sphere.header.frame_id = line_strip.header.frame_id = "map";
@@ -170,7 +170,7 @@ void VisualRviz::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vect
 
 
 
-void VisualRviz::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj, ros::Time local_time)
+void TrajVisualizer::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj, ros::Time local_time)
 {
     if(pub_kino_traj_.getNumSubscribers() == 0)
     {
@@ -180,7 +180,7 @@ void VisualRviz::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj
 }
 
 
-void VisualRviz::visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
+void TrajVisualizer::visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
 {
     if(pub_opti_traj_.getNumSubscribers() == 0)
     {

@@ -218,7 +218,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
           double dt = tau * double(k) / double(check_num_);
           stateTransit(cur_state, xt, um, dt);
           pos = xt.head(3);
-          if(grid_map_->getInflateOccupancy(pos) == 1)
+          if(env_manager_->checkCollisionInGridMap(pos))
           {
             is_occ = true;
             break;
@@ -462,7 +462,7 @@ bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd s
     // {
     //   return false;
     // }
-    if(grid_map_->getInflateOccupancy(coord) == 1)
+    if(env_manager_->checkCollisionInGridMap(coord))
     {
       return false;
     }
@@ -555,7 +555,7 @@ void KinodynamicAstar::init()
   /* ---------- map params ---------- */
   this->inv_resolution_ = 1.0 / resolution_;
   inv_time_resolution_ = 1.0 / time_resolution_;
-  grid_map_->getRegion(origin_,map_size_3d_);
+  env_manager_->getRegion(origin_,map_size_3d_);
   // edt_environment_->sdf_map_->getRegion(origin_, map_size_3d_);
 
   cout << "origin_: " << origin_.transpose() << endl;
@@ -577,9 +577,15 @@ void KinodynamicAstar::init()
 // {
 //   this->edt_environment_ = env;
 // }
-void KinodynamicAstar::setEnvironment(const GridMap::Ptr& env)
+// void KinodynamicAstar::setEnvironment(const GridMap::Ptr& env)
+// {
+//   this->grid_map_ = env;
+// }
+
+
+void KinodynamicAstar::setEnvironment(const EnvManager::Ptr& env)
 {
-  this->grid_map_ = env;
+  this->env_manager_ = env;
 }
 
 void KinodynamicAstar::reset()
@@ -609,7 +615,7 @@ std::vector<Eigen::Vector3d> KinodynamicAstar::getKinoTraj(double delta_t)
 
   /* ---------- get traj of searching ---------- */
   PathNodePtr node = path_nodes_.back();
-  Matrix<double, 6, 1> x0, xt;
+  Eigen::Matrix<double, 6, 1> x0, xt;
 
   while (node->parent != NULL)
   {

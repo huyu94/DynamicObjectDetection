@@ -6,7 +6,8 @@
 #include <plan_manager/uniform_bspline/uniform_bspline.h>
 #include <plan_env/static/grid_map.h>
 #include <plan_env/dynamic/tracker_pool.h> 
-#include <plan_env/map_visualizer.h>
+// #include <plan_env/map_visualizer.h>
+#include <visualization_utils/map_visualizer.h>
 #include <ros/ros.h>
 #include <plan_manager/plan_container.hpp>
 
