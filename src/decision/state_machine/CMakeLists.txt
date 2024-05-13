@@ -10,7 +10,13 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   quadrotor_msgs
+  plan_manager
 )
+
+include_directories(/usr/local/include/munkres)
+set(MunkresLIB
+        /usr/local/lib/libmunkres.a
+        )
 
 ## INCLUDE_DIRS: uncomment this if your package contains header files
 ## LIBRARIES: libraries you create in this project that dependent projects also need
@@ -19,7 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES decision
- CATKIN_DEPENDS roscpp rospy std_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs plan_manager
 #  DEPENDS system_lib
 )
 ## Specify additional locations of header files

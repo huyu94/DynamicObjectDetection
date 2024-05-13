@@ -58,6 +58,7 @@ add_library(plan_manager
 target_link_libraries(
   plan_manager
   ${catkin_LIBRARIES}
+  ${MunkresLIB}
   # ${PCL_LIBRARIES}
 )
 
@@ -75,9 +76,10 @@ add_executable(test_node
 
 target_link_libraries(test_node
   ${catkin_LIBRARIES}
+  ${MunkresLIB}
 )
 
 add_executable(traj_server src/traj_server.cpp)
-target_link_libraries(traj_server ${catkin_LIBRARIES})
+target_link_libraries(traj_server ${catkin_LIBRARIES} ${MunkresLIB})
 # add_dependencies(traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
 

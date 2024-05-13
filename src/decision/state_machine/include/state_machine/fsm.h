@@ -1,5 +1,5 @@
 #ifndef _FSM_H_
-#define _FSM_H
+#define _FSM_H_
 
 #include <string>
 #include <Eigen/Eigen>
@@ -10,10 +10,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Empty.h>
 
-#include <bspline/non_uniform_bspline.h>
-#include <state_machine/plan_container.hpp>
-#include <state_machine/fsm.h>
-#include <planManager/planManager.h>
+// #include <trajectories/non_uniform_bspline.h>
+// #include <state_machine/plan_container.hpp>
+#include <plan_manager/plan_manager.h>
 
 
 using string = std::string;

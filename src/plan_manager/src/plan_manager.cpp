@@ -24,6 +24,11 @@ namespace fast_planner
         nh.param("manager/control_points_distance", pp_.ctrl_pt_dist_, -1.0);
 
         bool use_kinodynamic_path, use_topo_path, use_optimzation;
+        nh.param("manager/use_kinodynamic_path", use_kinodynamic_path,true);
+        nh.param("manager/use_optimization", use_optimzation,false);
+        nh.param("manager/use_topological_path", use_topo_path,false);
+
+
         bool use_geometric_path, use_active_perception;
 
         local_data_.traj_id_ = 0;
@@ -137,9 +142,9 @@ namespace fast_planner
         // kinodynamic path searching
         t1 = ros::Time::now();
         kino_path_finder_ptr_->reset();
-
+        ROS_INFO_STREAM("START SEARCH");
         int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true);
-
+        ROS_INFO_STREAM("FINISH START SEARCH");
         if(status == KinodynamicAstar::NO_PATH)
         {
             ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );

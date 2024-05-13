@@ -24,10 +24,14 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_utils
 )
 
+include_directories(/usr/local/include/munkres)
+set(MunkresLIB
+        /usr/local/lib/libmunkres.a
+        )
 
 catkin_package(
- INCLUDE_DIRS include
- LIBRARIES plan_env
+ INCLUDE_DIRS include 
+ LIBRARIES plan_env 
  CATKIN_DEPENDS roscpp std_msgs visualization_utils
 #  DEPENDS system_lib
 )
@@ -41,10 +45,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
 )
 
-include_directories(/usr/local/include/munkres)
-set(MunkresLIB
-        /usr/local/lib/libmunkres.a
-        )
+
 # link_directories(${PCL_LIBRARY_DIRS})
 
 # file(GLOB_RECURSE plan_env_SRC

@@ -7,7 +7,6 @@
     <arg name="init_x_"/>
     <arg name="init_y_"/>
     <arg name="init_z_"/>
-    <arg name="odom_topic"/>
     <arg name="seed_" value="390"/>
     <!-- map -->
     <node pkg ="dynamic_map_generator" name ="dynamic_env" type="dynamic_map_generator_node" >
