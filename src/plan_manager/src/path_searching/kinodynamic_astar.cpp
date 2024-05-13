@@ -39,6 +39,53 @@ KinodynamicAstar::~KinodynamicAstar()
   }
 }
 
+
+void KinodynamicAstar::init(ros::NodeHandle& nh, EnvManager::Ptr& env_ptr)
+{
+
+  /* ---------- map params ---------- */
+
+  nh.param("kino_search/max_tau", max_tau_, 0.6);
+  nh.param("kino_search/init_max_tau", init_max_tau_, 0.8);
+  nh.param("kino_search/max_vel", max_vel_, 3.0);
+  nh.param("kino_search/max_acc", max_acc_, 3.0);
+  nh.param("kino_search/w_time", w_time_, 10.0);
+  nh.param("kino_search/horizon", horizon_, 7.0);
+  nh.param("kino_search/resolution_astar", resolution_, 0.1);
+  nh.param("kino_search/time_resolution", time_resolution_, 0.8);
+  nh.param("kino_search/lambda_heu", lambda_heu_, 5.0);
+  nh.param("kino_search/allocate_num", allocate_num_, 100000);
+  nh.param("kino_search/check_num", check_num_, 5);
+  nh.param("kino_search/optimistic", optimistic_, true);
+  tie_breaker_ = 1.0 + 1.0 / 10000;
+
+  double vel_margin;
+  nh.param("search/vel_margin", vel_margin, 0.0);
+  max_vel_ += vel_margin;
+  
+  /* environment */
+  this->setEnvironment(env_ptr);
+  this->inv_resolution_ = 1.0 / resolution_;
+  inv_time_resolution_ = 1.0 / time_resolution_;
+  env_manager_->getRegion(origin_,map_size_3d_);
+
+  cout << "origin_: " << origin_.transpose() << endl;
+  cout << "map size: " << map_size_3d_.transpose() << endl;
+
+  /* ---------- pre-allocated node ---------- */
+  path_node_pool_.resize(allocate_num_);
+  for (int i = 0; i < allocate_num_; i++)
+  {
+    path_node_pool_[i] = new PathNode;
+  }
+
+  phi_ = Eigen::MatrixXd::Identity(6, 6);
+  use_node_num_ = 0;
+  iter_num_ = 0;
+}
+
+
+
 int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, Eigen::Vector3d start_a,
                              Eigen::Vector3d end_pt, Eigen::Vector3d end_v, bool init, bool dynamic, double time_start)
 {
@@ -327,26 +374,6 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
   return NO_PATH;
 }
 
-void KinodynamicAstar::setParam(ros::NodeHandle& nh)
-{
-  nh.param("search/max_tau", max_tau_, -1.0);
-  nh.param("search/init_max_tau", init_max_tau_, -1.0);
-  nh.param("search/max_vel", max_vel_, -1.0);
-  nh.param("search/max_acc", max_acc_, -1.0);
-  nh.param("search/w_time", w_time_, -1.0);
-  nh.param("search/horizon", horizon_, -1.0);
-  nh.param("search/resolution_astar", resolution_, -1.0);
-  nh.param("search/time_resolution", time_resolution_, -1.0);
-  nh.param("search/lambda_heu", lambda_heu_, -1.0);
-  nh.param("search/allocate_num", allocate_num_, -1);
-  nh.param("search/check_num", check_num_, -1);
-  nh.param("search/optimistic", optimistic_, true);
-  tie_breaker_ = 1.0 + 1.0 / 10000;
-
-  double vel_margin;
-  nh.param("search/vel_margin", vel_margin, 0.0);
-  max_vel_ += vel_margin;
-}
 
 void KinodynamicAstar::retrievePath(PathNodePtr end_node)
 {
@@ -550,28 +577,6 @@ vector<double> KinodynamicAstar::quartic(double a, double b, double c, double d,
   return dts;
 }
 
-void KinodynamicAstar::init()
-{
-  /* ---------- map params ---------- */
-  this->inv_resolution_ = 1.0 / resolution_;
-  inv_time_resolution_ = 1.0 / time_resolution_;
-  env_manager_->getRegion(origin_,map_size_3d_);
-  // edt_environment_->sdf_map_->getRegion(origin_, map_size_3d_);
-
-  cout << "origin_: " << origin_.transpose() << endl;
-  cout << "map size: " << map_size_3d_.transpose() << endl;
-
-  /* ---------- pre-allocated node ---------- */
-  path_node_pool_.resize(allocate_num_);
-  for (int i = 0; i < allocate_num_; i++)
-  {
-    path_node_pool_[i] = new PathNode;
-  }
-
-  phi_ = Eigen::MatrixXd::Identity(6, 6);
-  use_node_num_ = 0;
-  iter_num_ = 0;
-}
 
 // void KinodynamicAstar::setEnvironment(const EDTEnvironment::Ptr& env)
 // {

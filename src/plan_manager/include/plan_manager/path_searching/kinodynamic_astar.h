@@ -157,6 +157,8 @@ class KinodynamicAstar {
                     Eigen::Matrix<double, 6, 1>& state1, Eigen::Vector3d um,
                     double tau);
 
+  void setEnvironment(const EnvManager::Ptr& env);  
+
  public:
   KinodynamicAstar(){};
   ~KinodynamicAstar();
@@ -164,8 +166,8 @@ class KinodynamicAstar {
   enum { REACH_HORIZON = 1, REACH_END = 2, NO_PATH = 3, NEAR_END = 4 };
 
   /* main API */
-  void setParam(ros::NodeHandle& nh);
-  void init();
+  // void setParam(ros::NodeHandle& nh);
+  void init(ros::NodeHandle& nh, EnvManager::Ptr& env); 
   void reset();
   int search(Eigen::Vector3d start_pt, Eigen::Vector3d start_vel,
              Eigen::Vector3d start_acc, Eigen::Vector3d end_pt,
@@ -174,7 +176,7 @@ class KinodynamicAstar {
 
   // void setEnvironment(const EDTEnvironment::Ptr& env);
   // void setEnvironment(const GridMap::Ptr& env);
-  void setEnvironment(const EnvManager::Ptr& env);  
+
 
   std::vector<Eigen::Vector3d> getKinoTraj(double delta_t);
 

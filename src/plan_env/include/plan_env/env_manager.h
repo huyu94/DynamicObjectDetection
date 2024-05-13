@@ -139,8 +139,6 @@ public:
 
 
     void getRegion(Vector3d& ori, Vector3d& size);
-
-
     inline int getResolution()
     {
         return grid_map_ptr_->getResolution();

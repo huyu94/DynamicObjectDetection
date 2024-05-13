@@ -43,9 +43,7 @@ namespace fast_planner
         {
             ROS_INFO_STREAM("use kinodynamic path");
             kino_path_finder_ptr_.reset(new KinodynamicAstar);
-            kino_path_finder_ptr_->setParam(nh);
-            kino_path_finder_ptr_->setEnvironment(env_manger_ptr_);
-            kino_path_finder_ptr_->init();
+            kino_path_finder_ptr_->init(nh,env_manger_ptr_);
             ROS_INFO_STREAM("kinodynamic search init successfully !!!");
         }
         
@@ -75,7 +73,7 @@ namespace fast_planner
             topo_prm_ptr_->setEnvironment(env_manger_ptr_);
             ROS_INFO_STREAM("topological path init successfully !!!");
         }
-
+        ROS_INFO_STREAM("plan manager init successfully !!!");
     }
 
     bool PlanManager::checkTrajCollision()

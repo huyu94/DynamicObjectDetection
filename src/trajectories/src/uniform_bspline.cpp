@@ -1,5 +1,5 @@
-#include <plan_manager/uniform_bspline/uniform_bspline.h>
 #include <ros/ros.h>
+#include <trajectories/uniform_bspline.h>
 
 namespace fast_planner
 {

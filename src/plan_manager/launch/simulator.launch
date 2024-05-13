@@ -16,6 +16,8 @@
         <remap from="~odometry" to="drone_$(arg drone_id)/$(arg odom_topic)"/>
     </node>
 
+
+    <!-- controller -->
     <![CDATA[ 
     <node pkg="so3_quadrotor_simulator" type="quadrotor_simulator_so3"
         name="quadrotor_simulator_so3" output="screen">
@@ -49,6 +51,8 @@
         <param name="gains/ang/z" value="0.1" />
     </node>
     ]]>
+
+
     <!-- 接受odom 建立无人机模型 -->
     <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization"
         type="odom_visualization" output="screen">
@@ -63,7 +67,7 @@
         <param name="drone_id" value="$(arg drone_id)" />
     </node>
 
-
+    <![CDATA[ 
     <!-- sensor simulator -->
     <group if="$(arg use_gpu)">
         <group if="$(eval sensor_type == 'depth')">
@@ -110,6 +114,6 @@
             </node>
         </group>
     </group>
-
+    ]]>
 
 </launch>

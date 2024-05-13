@@ -28,7 +28,7 @@
     <arg name="point4_z" />
 
     <!-- <node pkg="plan_env" name="drone_$(arg drone_id)_node" type="env_node" output="screen"> -->
-    <node pkg="plan_manage" name="drone_$(arg drone_id)_node" type="ego_planner_node" output="screen">
+    <node pkg="plan_manager" name="drone_$(arg drone_id)_test_node" type="test_node" output="screen">
         <remap from="~odom_world" to="/drone_$(arg drone_id)/$(arg odometry_topic)"/>
         <remap from="~planning/bspline" to = "/drone_$(arg drone_id)/planning/bspline"/>
         <!-- <remap from="~planning/data_display" to = "/drone_$(arg drone_id)/planning/data_display"/> -->

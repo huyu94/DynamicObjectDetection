@@ -13,16 +13,19 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  rospy
   std_msgs
   plan_env
   visualization_utils
+  quadrotor_msgs
+  trajectories
 )
+
+
 
 catkin_package(
   INCLUDE_DIRS include 
   LIBRARIES plan_manager
-  CATKIN_DEPENDS roscpp rospy std_msgs plan_env visualization_utils
+  CATKIN_DEPENDS roscpp std_msgs plan_env visualization_utils quadrotor_msgs trajectories
 #  DEPENDS system_lib
 )
 include_directories(/usr/local/include/munkres)
@@ -49,7 +52,6 @@ add_library(plan_manager
   src/path_searching/astar.cpp
   src/path_searching/kinodynamic_astar.cpp
   src/path_searching/topo_prm.cpp
-  src/uniform_bspline/uniform_bspline.cpp
   src/uniform_bspline_opt/bspline_optimizer.cpp
   )
 
@@ -60,9 +62,6 @@ target_link_libraries(
 )
 
 
-# add_library()
-
-
 
 add_executable(test_node
   src/test_node.cpp
@@ -70,7 +69,6 @@ add_executable(test_node
   src/path_searching/astar.cpp
   src/path_searching/kinodynamic_astar.cpp
   src/path_searching/topo_prm.cpp
-  src/uniform_bspline/uniform_bspline.cpp
   src/uniform_bspline_opt/bspline_optimizer.cpp
 )
 # add_executable(plan_manager_node src/plan_manager_node.cpp)
@@ -78,3 +76,8 @@ add_executable(test_node
 target_link_libraries(test_node
   ${catkin_LIBRARIES}
 )
+
+add_executable(traj_server src/traj_server.cpp)
+target_link_libraries(traj_server ${catkin_LIBRARIES})
+# add_dependencies(traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
