@@ -719,7 +719,7 @@ vector<vector<Eigen::Vector3d>> TopoPRM::searchPaths()
 
     // select paths with less nodes
     vector<vector<Eigen::Vector3d>> filter_raw_paths;
-    for(size_t i= min_node_num; i<=max_node_num;i++)
+    for(int i= min_node_num; i<=max_node_num;i++)
     {
         bool reach_max = false;
         for(size_t j=0;j < path_list[i].size();j++)

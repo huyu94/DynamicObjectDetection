@@ -3,7 +3,7 @@
 
 #include <Eigen/Eigen>
 #include <plan_manager/path_searching/astar.h>
-#include <plan_manager/uniform_bspline/uniform_bspline.h>
+#include <trajectories/uniform_bspline.h>
 #include <plan_env/static/grid_map.h>
 #include <plan_env/dynamic/tracker_pool.h> 
 // #include <plan_env/map_visualizer.h>
@@ -55,14 +55,17 @@ namespace fast_planner
   public:
     BsplineOptimizer() {}
     ~BsplineOptimizer() {}
+    void init(); 
 
-    /* main API */
+  private:
     void setEnvironment(const EnvManager::Ptr& env_manager);
     // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
     void setParam(ros::NodeHandle &nh);
     void setTrackerPool(const TrackerPool::Ptr &tracker_pool);
     void setMapVisualizer(const MapVisualizer::Ptr &map_visualizer);
 
+    /* main API */
+  public:
     Eigen::MatrixXd BsplineOptimizeTraj(const Eigen::MatrixXd &points, const double &ts,
                                         const int &cost_function, int max_num_id, int max_time_id);
 

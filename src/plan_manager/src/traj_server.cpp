@@ -5,7 +5,7 @@
 #include "std_msgs/Empty.h"
 #include "visualization_msgs/Marker.h"
 #include <ros/ros.h>
-#include <plan_manager/bspline.h>
+#include <trajectories/Bspline.h>
 
 ros::Publisher pos_cmd_pub;
 

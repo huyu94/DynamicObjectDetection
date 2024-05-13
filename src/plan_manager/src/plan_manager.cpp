@@ -1,5 +1,5 @@
 #include <plan_manager/plan_manager.h>
-#include <plan_manager/uniform_bspline/uniform_bspline.h>
+#include <trajectories/uniform_bspline.h>
 #include <plan_manager/plan_container.hpp>
 #include <thread>
 
@@ -57,9 +57,9 @@ namespace fast_planner
             bspline_optimizer_ptrs_.resize(10);
             for(int i=0; i<10; i++)
             {
-                bspline_optimizer_ptrs_[i].reset(new BsplineOptimizer);
-                bspline_optimizer_ptrs_[i]->setParam(nh);
-                bspline_optimizer_ptrs_[i]->setEnvironment(env_manger_ptr_);
+                // bspline_optimizer_ptrs_[i].reset(new BsplineOptimizer);
+                // bspline_optimizer_ptrs_[i]->setParam(nh);
+                // bspline_optimizer_ptrs_[i]->setEnvironment(env_manger_ptr_);
             }
             ROS_INFO_STREAM("optimization init successfully !!!");
         }

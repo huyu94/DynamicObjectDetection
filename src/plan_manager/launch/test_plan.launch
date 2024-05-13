@@ -29,14 +29,10 @@
 
 
 
-    <node pkg="plan_manager" type="test_node" name="test_plan" output="screen">
-      
 
-    </node>
 
-  <![CDATA[ 
   <!-- planner -->
-  <include file="$(find plan_manage)/launch/planner.xml">
+  <include file="$(find plan_manager)/launch/test_algorithm.xml">
     <arg name="drone_id"    value="$(arg drone_id)"/>
     <arg name="odometry_topic" value="$(arg odom_topic_)"/>
     <arg name="cloud_topic" value="$(arg cloud_topic_)"/>
@@ -78,7 +74,7 @@
     <arg name="point4_z" value="1.0" />
 
   </include>
-  ]]>
+
 
   <!-- <node name="data_analyzer" pkg="data_analyzer" type="data_analyzer" output="screen">
     <remap from="~vel" to="drone_$(arg drone_id)_odom_visualization/velocity"/>

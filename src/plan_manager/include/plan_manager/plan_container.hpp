@@ -5,10 +5,9 @@
 #include <vector>
 #include <ros/ros.h>
 
-#include <plan_manager/uniform_bspline/uniform_bspline.h>
-// #include <poly_traj/polynomial_traj.h>
+#include <trajectories/uniform_bspline.h>
+#include <trajectories/polynomial_traj.h>
 #include <plan_manager/path_searching/topo_prm.h>
-#include <plan_manager/polynomial_traj/polynomial_traj.h>
 
 namespace fast_planner
 {

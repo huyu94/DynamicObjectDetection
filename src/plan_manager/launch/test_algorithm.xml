@@ -111,6 +111,22 @@
         <param name="manager/use_distinctive_trajs" value="$(arg use_distinctive_trajs)" type="bool"/>
         <param name="manager/drone_id" value="$(arg drone_id)"/>
 
+
+        <!-- kinodynamic path searching -->
+        <param name="kino_search/max_tau" value="0.6" type="double"/>
+        <param name="kino_search/init_max_tau" value="0.8" type="double"/>
+        <param name="kino_search/max_vel" value="$(arg max_vel)" type="double"/>
+        <param name="kino_search/max_acc" value="$(arg max_acc)" type="double"/>
+        <param name="kino_search/w_time" value="10.0" type="double"/>
+        <param name="kino_search/horizon" value="7.0" type="double"/>
+        <param name="kino_search/lambda_heu" value="5.0" type="double"/>
+        <param name="kino_search/resolution_astar" value="0.1" type="double"/>
+        <param name="kino_search/time_resolution" value="0.8" type="double"/>
+        <param name="kino_search/margin" value="0.2" type="double"/>
+        <param name="kino_search/allocate_num" value="100000" type="int"/>
+        <param name="kino_search/check_num" value="5" type="int"/>
+
+
         <!-- trajectory optimization -->
         <param name="optimization/lambda_smooth" value="1.0" type="double"/>
         <param name="optimization/lambda_collision" value="0.5" type="double"/>
