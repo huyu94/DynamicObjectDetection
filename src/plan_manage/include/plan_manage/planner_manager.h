@@ -13,6 +13,7 @@
 #include <traj_utils/plan_container.hpp>
 #include <ros/ros.h>
 #include <traj_utils/planning_visualization.h>
+#include <path_searching/topo_prm.h>
 
 namespace ego_planner
 {
@@ -38,7 +39,7 @@ namespace ego_planner
     bool planGlobalTrajWaypoints(const Eigen::Vector3d &start_pos, const Eigen::Vector3d &start_vel, const Eigen::Vector3d &start_acc,
                                  const std::vector<Eigen::Vector3d> &waypoints, const Eigen::Vector3d &end_vel, const Eigen::Vector3d &end_acc);
 
-    void initPlanModules(ros::NodeHandle &nh, PlanningVisualization::Ptr vis = NULL);
+    void initPlanModules(ros::NodeHandle &nh,EnvManager::Ptr env_manager,PlanningVisualization::Ptr vis = NULL);
 
     void deliverTrajToOptimizer(void) { bspline_optimizer_->setSwarmTrajs(&swarm_trajs_buf_); };
 
@@ -54,7 +55,9 @@ namespace ego_planner
     GlobalTrajData global_data_;
     // GridMap::Ptr grid_map_;
     EnvManager::Ptr env_manager_;
-    PosChecker::Ptr pos_checker_;
+    // PosChecker::Ptr pos_checker_;
+
+    unique_ptr<TopoPRM> topo_prm_;
     
 
     fast_planner::ObjPredictor::Ptr obj_predictor_;    

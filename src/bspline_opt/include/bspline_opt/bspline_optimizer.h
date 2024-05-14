@@ -9,6 +9,7 @@
 #include <plan_env/dynamic/tracker_pool.h> 
 #include <obj_predictor/obj_predictor.h>
 #include <plan_env/map_visualizer.h>
+#include <plan_env/pos_checker.h>
 #include <ros/ros.h>
 #include "bspline_opt/lbfgs.hpp"
 #include <traj_utils/plan_container.hpp>
@@ -93,8 +94,10 @@ namespace ego_planner
     ~BsplineOptimizer() {}
 
     /* main API */
-    void setEnvironment(const GridMap::Ptr &map);
-    void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
+    // void setEnvironment(const GridMap::Ptr &map);
+    // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
+
+    void setPosChecker(const PosChecker::Ptr &pos_checker);
     void setParam(ros::NodeHandle &nh);
     void setTrackerPool(const TrackerPool::Ptr &tracker_pool);
     void setMapVisualizer(const MapVisualizer::Ptr &map_visualizer);
@@ -125,14 +128,17 @@ namespace ego_planner
     std::vector<ControlPoints> distinctiveTrajs(vector<std::pair<int, int>> segments);
     std::vector<std::pair<int, int>> initControlPoints(Eigen::MatrixXd &init_points, bool flag_first_init = true);
     bool BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double ts); // must be called after initControlPoints()
+    bool BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, double ts);
     bool BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, const ControlPoints &control_points, double ts);
     bool BsplineOptimizeTrajRefine(const Eigen::MatrixXd &init_points, const double ts, Eigen::MatrixXd &optimal_points);
+    bool BsplineOptimizeTrajGuide(const Eigen::MatrixXd &init_points, Eigen::MatrixXd &optimal_points, double ts);
 
     inline int getOrder(void) { return order_; }
     inline double getSwarmClearance(void) { return swarm_clearance_; }
 
   private:
-    GridMap::Ptr grid_map_;
+    // GridMap::Ptr grid_map_;
+    PosChecker::Ptr pos_checker_;
     TrackerPool::Ptr tracker_pool_;
     MapVisualizer::Ptr map_visualizer_;
     fast_planner::ObjPredictor::Ptr moving_objs_;
@@ -161,11 +167,20 @@ namespace ego_planner
     double start_time_;                 // global time for moving obstacles
 
     /* optimization parameters */
-    int order_;                    // bspline degree
-    double lambda1_;               // jerk smoothness weight
-    double lambda2_, new_lambda2_; // distance weight
-    double lambda3_;               // feasibility weight
-    double lambda4_;               // curve fitting
+    int order_;                           // bspline degree
+    double lambda1_s_;                    // phase1 : feasbility
+    double lambda1_g_;                    // phase1 : guide;
+    double lambda2_s_;                    // phase2 : smoothness
+    double lambda2_f_;                    // phase2 : feasibilty
+    double lambda2_c_,new_lambda2_c_;     // phase2 : static object cost;
+    double lambda2_d_,new_lambda2_d_;     // phase2 : moving object cost;
+    double lambda3_s_;                    // phase3 : smoothness
+    double lambda3_f_;                    // phase3 : feasiblity
+    double lambda3_cf_;                   // phase3 : curve fitting
+    // double lambda1_;               // jerk smoothness weight
+    // double lambda2_, new_lambda2_; // distance weight
+    // double lambda3_;               // feasibility weight
+    // double lambda4_;               // curve fitting
 
     int a;
     //
@@ -198,16 +213,20 @@ namespace ego_planner
     void calcMovingObjCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient);
     void calcSwarmCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient);
     void calcFitnessCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient);
+    void calcGuideCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient);
     bool check_collision_and_rebound(void);
 
     static int earlyExit(void *func_data, const double *x, const double *g, const double fx, const double xnorm, const double gnorm, const double step, int n, int k, int ls);
     static double costFunctionRebound(void *func_data, const double *x, double *grad, const int n);
     static double costFunctionRefine(void *func_data, const double *x, double *grad, const int n);
+    static double costFunctionGuide(void *func_data, const double *x, double *grad, const int n);
 
     bool rebound_optimize(double &final_cost);
     bool refine_optimize();
+    bool guide_optimize();
     void combineCostRebound(const double *x, double *grad, double &f_combine, const int n);
     void combineCostRefine(const double *x, double *grad, double &f_combine, const int n);
+    void combineCostGuide(const double *x, double *grad, double &f_combine, const int n);
 
     /* for benckmark evaluation only */
   public:
@@ -215,6 +234,7 @@ namespace ego_planner
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
+
 
 } // namespace ego_planner
 #endif

@@ -8,7 +8,7 @@
     <arg name="init_y_"/>
     <arg name="init_z_"/>
     <arg name="odom_topic"/>
-    <arg name="seed_" value="390"/>
+    <arg name="seed_" value="50"/>
     <!-- map -->
     <node pkg ="dynamic_map_generator" name ="dynamic_env" type="dynamic_map_generator_node" >
         <!-- output -->
@@ -27,16 +27,16 @@
         <param name="obstacle/lower_vel" value="0.6"/>
         <param name="obstacle/upper_vel" value="1.0"/>
 
-        <param name="aabb/lower_x" value="0.5"/>
-        <param name="aabb/upper_x" value="1.0"/>
-        <param name="aabb/lower_y" value="0.5"/>
-        <param name="aabb/upper_y" value="1.0"/>        
-        <param name="aabb/lower_z" value="0.5"/>
+        <param name="aabb/lower_x" value="0.3"/>
+        <param name="aabb/upper_x" value="0.8"/>
+        <param name="aabb/lower_y" value="0.3"/>
+        <param name="aabb/upper_y" value="0.8"/>        
+        <param name="aabb/lower_z" value="1.2"/>
         <param name="aabb/upper_z" value="1.8"/>        
 
         <param name="cylinder/lower_rad" value="0.4"/>
         <param name="cylinder/upper_rad" value="0.5"/>
-        <param name="cylinder/lower_hei" value="0.5"/>
+        <param name="cylinder/lower_hei" value="1.2"/>
         <param name="cylinder/upper_hei" value="1.8"/>        
     
         <param name="circlegate/radius_l" value="0.7"/>        
@@ -46,6 +46,9 @@
         <param name="circlegate/theta" value="1.2"/>   
         
         <!-- <param name="odom_topic" value="/odometry"/> -->
+
+        <param name="odom_topic" value="/drone_0/odometry"/>
+
         <param name="enable_ground" value="false"/>
         
         <!-- <remap from="~dynamic_map_generator/_local_map" to="drone_$(arg drone_id)_local_map"/> -->
@@ -78,7 +81,7 @@
         <param name="sensing/radius"    value="5.0"/>        
         <param name="sensing/rate"      value="10.0"/>  
         
-        <param name="wall"              value="true"/>
+        <param name="wall"              value="false"/>
         <param name="cylinder"          value="true"/>
         <param name="min_distance"      value="1.2"/>         
         <param name="seed"              value="$(arg seed_)"/>

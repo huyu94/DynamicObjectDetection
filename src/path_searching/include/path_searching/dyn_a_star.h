@@ -6,6 +6,7 @@
 #include <ros/console.h>
 #include <Eigen/Eigen>
 #include <plan_env/static/grid_map.h>
+#include <plan_env/pos_checker.h>
 #include <queue>
 
 constexpr double inf = 1 >> 20;
@@ -44,7 +45,8 @@ public:
 class AStar
 {
 private:
-	GridMap::Ptr grid_map_;
+	// GridMap::Ptr grid_map_;
+	PosChecker::Ptr pos_checker_;
 
 	inline void coord2gridIndexFast(const double x, const double y, const double z, int &id_x, int &id_y, int &id_z);
 
@@ -60,7 +62,7 @@ private:
 
 	//bool (*checkOccupancyPtr)( const Eigen::Vector3d &pos );
 
-	inline bool checkOccupancy(const Eigen::Vector3d &pos) { return (bool)grid_map_->getInflateOccupancy(pos); }
+	inline bool checkOccupancy(const Eigen::Vector3d &pos) { return (bool)pos_checker_->checkCollisionInGridMap(pos); }
 
 	std::vector<GridNodePtr> retrievePath(GridNodePtr current);
 
@@ -82,7 +84,7 @@ public:
 	AStar(){};
 	~AStar();
 
-	void initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size);
+	void initPosChecker(PosChecker::Ptr pos_checker, const Eigen::Vector3i pool_size);
 
 	bool AstarSearch(const double step_size, Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 

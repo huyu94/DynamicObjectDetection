@@ -34,8 +34,12 @@ namespace ego_planner
 
     /* initialize main modules */
     visualization_.reset(new PlanningVisualization(nh));
+
+    env_manager_.reset(new EnvManager);
+    env_manager_->init(nh);
+
     planner_manager_.reset(new EGOPlannerManager);
-    planner_manager_->initPlanModules(nh, visualization_);
+    planner_manager_->initPlanModules(nh, env_manager_, visualization_);
     planner_manager_->deliverTrajToOptimizer(); // store trajectories
     planner_manager_->setDroneIdtoOpt();
 
@@ -680,7 +684,8 @@ namespace ego_planner
   {
 
     LocalTrajData *info = &planner_manager_->local_data_;
-    auto map = planner_manager_->env_manager_->getGridMap();
+    // auto map = planner_manager_->env_manager_->getGridMap();
+    auto pos_checker = env_manager_->getPosChecker();
     // auto pos_checker = planner_manager_->getPosChecker();
     if (exec_state_ == WAIT_TARGET || info->start_time_.toSec() < 1e-5)
       return;
@@ -706,41 +711,26 @@ namespace ego_planner
         break;
 
       bool occ = false;
-      // int collision_type;
-      // occ |= pos_checker->checkState(info->position_traj_.evaluateDeBoorT(t),collision_type);
-      occ |= map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t));
+      int collision_type,collision_id;
+      ros::Time check_time = ros::Time::now() + ros::Duration(t - t_cur);
+      occ |= pos_checker->checkCollision(info->position_traj_.evaluateDeBoorT(t),check_time,collision_type,collision_id);
+      // occ |= map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t));
 
-      vector<Tracker::Ptr> alive_trackers;
-      planner_manager_->env_manager_->getTrackerPool()->getAliveTracker(alive_trackers);
-      ros::Time t_pre = info->start_time_ + ros::Duration(t);
-      for(size_t id =0; id < alive_trackers.size();id++)
-      {
-        Eigen::VectorXd state = alive_trackers.at(id)->forward(t_pre);
-        Eigen::Vector3d obj_pos = state.head(3);
-        double dist = (p_cur - obj_pos).norm();
-        if(dist < 0.5)
-        {
-          occ = true;
-          break;
-        }
-      }
-      // for (size_t id = 0; id < planner_manager_->swarm_trajs_buf_.size(); id++)
+      // vector<Tracker::Ptr> alive_trackers;
+      // planner_manager_->env_manager_->getTrackerPool()->getAliveTracker(alive_trackers);
+      // ros::Time t_pre = info->start_time_ + ros::Duration(t);
+      // for(size_t id =0; id < alive_trackers.size();id++)
       // {
-      //   if ((planner_manager_->swarm_trajs_buf_.at(id).drone_id != (int)id) || (planner_manager_->swarm_trajs_buf_.at(id).drone_id == planner_manager_->pp_.drone_id))
-      //   {
-      //     continue;
-      //   }
-
-      //   double t_X = t_cur_global - planner_manager_->swarm_trajs_buf_.at(id).start_time_.toSec();
-      //   Eigen::Vector3d swarm_pridicted = planner_manager_->swarm_trajs_buf_.at(id).position_traj_.evaluateDeBoorT(t_X);
-      //   double dist = (p_cur - swarm_pridicted).norm();
-
-      //   if (dist < CLEARANCE)
+      //   Eigen::VectorXd state = alive_trackers.at(id)->forward(t_pre);
+      //   Eigen::Vector3d obj_pos = state.head(3);
+      //   double dist = (p_cur - obj_pos).norm();
+      //   if(dist < 0.5)
       //   {
       //     occ = true;
       //     break;
       //   }
       // }
+
 
       if (occ)
       {

@@ -7,13 +7,26 @@ namespace ego_planner
 
   void BsplineOptimizer::setParam(ros::NodeHandle &nh)
   {
-    nh.param("optimization/lambda_smooth", lambda1_, -1.0);
-    nh.param("optimization/lambda_collision", lambda2_, -1.0);
-    nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
-    nh.param("optimization/lambda_fitness", lambda4_, -1.0);
+    nh.param("optimization/lambda1_s",lambda1_s_,-1.0);
+    nh.param("optimization/lambda1_g",lambda1_g_,-1.0);
+    nh.param("optimization/lambda2_s",lambda2_s_,-1.0);
+    nh.param("optimization/lambda2_f",lambda2_f_,-1.0);
+    nh.param("optimization/lambda2_c",lambda2_c_,-1.0);
+    nh.param("optimization/lambda2_d",lambda2_d_,-1.0);
+    nh.param("optimization/lambda3_s",lambda3_s_,-1.0);
+    nh.param("optimization/lambda3_f",lambda3_f_,-1.0);
+    nh.param("optimization/lambda3_cf",lambda3_cf_,-1.0);
+    
+    
+
+    // nh.param("optimization/lambda_smooth", lambda1_, -1.0);
+    // nh.param("optimization/lambda_collision", lambda2_, -1.0);
+    // nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
+    // nh.param("optimization/lambda_fitness", lambda4_, -1.0);
 
     nh.param("optimization/dist0", dist0_, -1.0);
     nh.param("optimization/swarm_clearance", swarm_clearance_, -1.0);
+    printf("swarm_clearance : %f", swarm_clearance_);
     nh.param("optimization/max_vel", max_vel_, -1.0);
     nh.param("optimization/max_acc", max_acc_, -1.0);
 
@@ -30,16 +43,21 @@ namespace ego_planner
     this->map_visualizer_ = map_visualizer;
   }
 
-  void BsplineOptimizer::setEnvironment(const GridMap::Ptr &map)
+  void BsplineOptimizer::setPosChecker(const PosChecker::Ptr &pos_checker)
   {
-    this->grid_map_ = map;
+    this->pos_checker_ = pos_checker;
   }
 
-  void BsplineOptimizer::setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj)
-  {
-    this->grid_map_ = map;
-    this->moving_objs_ = mov_obj;
-  }
+  // void BsplineOptimizer::setEnvironment(const GridMap::Ptr &map)
+  // {
+  //   this->grid_map_ = map;
+  // }
+
+  // void BsplineOptimizer::setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj)
+  // {
+  //   this->grid_map_ = map;
+  //   this->moving_objs_ = mov_obj;
+  // }
 
   void BsplineOptimizer::setControlPoints(const Eigen::MatrixXd &points)
   {
@@ -51,6 +69,13 @@ namespace ego_planner
   void BsplineOptimizer::setSwarmTrajs(SwarmTrajData *swarm_trajs_ptr) { swarm_trajs_ = swarm_trajs_ptr; }
 
   void BsplineOptimizer::setDroneId(const int drone_id) { drone_id_ = drone_id; }
+
+  void BsplineOptimizer::setGuidePath(const vector<Eigen::Vector3d> &guide_pt)
+  {
+    guide_pts_ = guide_pt;
+  }
+
+
 
   std::vector<ControlPoints> BsplineOptimizer::distinctiveTrajs(vector<std::pair<int, int>> segments)
   {
@@ -66,7 +91,7 @@ namespace ego_planner
     int seg_upbound = std::min((int)segments.size(), static_cast<int>(floor(log(MAX_TRAJS) / log(VARIS))));
     std::vector<ControlPoints> control_pts_buf;
     control_pts_buf.reserve(MAX_TRAJS);
-    const double RESOLUTION = grid_map_->getResolution();
+    const double RESOLUTION = pos_checker_->getResolution();
     const double CTRL_PT_DIST = (cps_.points.col(0) - cps_.points.col(cps_.size - 1)).norm() / (cps_.size - 1);
 
     // Step 1. Find the opposite vectors and base points for every segment.
@@ -109,7 +134,7 @@ namespace ego_planner
           {
             Eigen::Vector3d pt(a * RichInfoSegs[i].first.points.col(j) + (1 - a) * RichInfoSegs[i].first.points.col(j + 1));
             //cout << " " << grid_map_->getInflateOccupancy(pt) << " pt=" << pt.transpose() << endl;
-            if (grid_map_->getInflateOccupancy(pt))
+            if (pos_checker_->checkCollisionInGridMap(pt))
             {
               occ_start_id = j;
               occ_start_pt = pt;
@@ -128,8 +153,8 @@ namespace ego_planner
           {
             Eigen::Vector3d pt(a * RichInfoSegs[i].first.points.col(j) + (1 - a) * RichInfoSegs[i].first.points.col(j - 1));
             //cout << " " << grid_map_->getInflateOccupancy(pt) << " pt=" << pt.transpose() << endl;
-            ;
-            if (grid_map_->getInflateOccupancy(pt))
+            // ;
+            if(pos_checker_->checkCollisionInGridMap(pt))
             {
               occ_end_id = j;
               occ_end_pt = pt;
@@ -209,7 +234,7 @@ namespace ego_planner
             base_pt_reverse = RichInfoSegs[i].first.points.col(j) + base_vec_reverse * (RichInfoSegs[i].first.base_point[j][0] - RichInfoSegs[i].first.points.col(j)).norm();
           }
 
-          if (grid_map_->getInflateOccupancy(base_pt_reverse)) // Search outward.
+          if (pos_checker_->checkCollisionInGridMap(base_pt_reverse)) // Search outward.
           {
             double l_upbound = 5 * CTRL_PT_DIST; // "5" is the threshold.
             double l = RESOLUTION;
@@ -217,7 +242,7 @@ namespace ego_planner
             {
               Eigen::Vector3d base_pt_temp = base_pt_reverse + l * base_vec_reverse;
               //cout << base_pt_temp.transpose() << endl;
-              if (!grid_map_->getInflateOccupancy(base_pt_temp))
+              if (!pos_checker_->checkCollisionInGridMap(base_pt_temp))
               {
                 RichInfoSegs[i].second.base_point[j][0] = base_pt_temp;
                 RichInfoSegs[i].second.direction[j][0] = base_vec_reverse;
@@ -284,7 +309,7 @@ namespace ego_planner
         Eigen::Vector3d base_vec_reverse = -RichInfoSegs[i].first.direction[0][0];
         Eigen::Vector3d base_pt_reverse = RichInfoSegs[i].first.points.col(0) + base_vec_reverse * (RichInfoSegs[i].first.base_point[0][0] - RichInfoSegs[i].first.points.col(0)).norm();
 
-        if (grid_map_->getInflateOccupancy(base_pt_reverse)) // Search outward.
+        if (pos_checker_->checkCollisionInGridMap(base_pt_reverse)) // Search outward.
         {
           double l_upbound = 5 * CTRL_PT_DIST; // "5" is the threshold.
           double l = RESOLUTION;
@@ -292,7 +317,7 @@ namespace ego_planner
           {
             Eigen::Vector3d base_pt_temp = base_pt_reverse + l * base_vec_reverse;
             //cout << base_pt_temp.transpose() << endl;
-            if (!grid_map_->getInflateOccupancy(base_pt_temp))
+            if (!pos_checker_->checkCollisionInGridMap(base_pt_temp))
             {
               RichInfoSegs[i].second.base_point[0][0] = base_pt_temp;
               RichInfoSegs[i].second.direction[0][0] = base_vec_reverse;
@@ -453,7 +478,7 @@ namespace ego_planner
 
     /*** Segment the initial trajectory according to obstacles ***/
     constexpr int ENOUGH_INTERVAL = 2;
-    double step_size = grid_map_->getResolution() / ((init_points.col(0) - init_points.rightCols(1)).norm() / (init_points.cols() - 1)) / 1.5;
+    double step_size = pos_checker_->getResolution() / ((init_points.col(0) - init_points.rightCols(1)).norm() / (init_points.cols() - 1)) / 1.5;
     int in_id = -1, out_id = -1;
     vector<std::pair<int, int>> segment_ids;
     int same_occ_state_times = ENOUGH_INTERVAL + 1;
@@ -465,7 +490,7 @@ namespace ego_planner
       //cout << " *" << i-1 << "*" ;
       for (double a = 1.0; a > 0.0; a -= step_size)
       {
-        occ = grid_map_->getInflateOccupancy(a * init_points.col(i - 1) + (1 - a) * init_points.col(i));
+        occ = pos_checker_->checkCollisionInGridMap(a * init_points.col(i - 1) + (1 - a) * init_points.col(i));
         //cout << " " << occ;
         // cout << setprecision(5);
         // cout << (a * init_points.col(i-1) + (1-a) * init_points.col(i)).transpose() << " occ1=" << occ << endl;
@@ -661,14 +686,14 @@ namespace ego_planner
           if (length > 1e-5)
           {
             cps_.flag_temp[j] = true;
-            for (double a = length; a >= 0.0; a -= grid_map_->getResolution())
+            for (double a = length; a >= 0.0; a -= pos_checker_->getResolution())
             {
-              occ = grid_map_->getInflateOccupancy((a / length) * intersection_point + (1 - a / length) * init_points.col(j));
+              occ = pos_checker_->checkCollisionInGridMap((a / length) * intersection_point + (1 - a / length) * init_points.col(j));
 
-              if (occ || a < grid_map_->getResolution())
+              if (occ || a < pos_checker_->getResolution())
               {
                 if (occ)
-                  a += grid_map_->getResolution();
+                  a += pos_checker_->getResolution();
                 cps_.base_point[j].push_back((a / length) * intersection_point + (1 - a / length) * init_points.col(j));
                 cps_.direction[j].push_back((intersection_point - init_points.col(j)).normalized());
                 // cout << "A " << j << endl;
@@ -783,6 +808,16 @@ namespace ego_planner
     return cost;
   }
 
+  double BsplineOptimizer::costFunctionGuide(void *func_data, const double *x, double *grad, const int n)
+  {
+    BsplineOptimizer *opt = reinterpret_cast<BsplineOptimizer *>(func_data);
+
+    double cost;
+    opt->combineCostGuide(x,grad,cost,n);
+    opt->iter_num_ += 1;
+    return cost;
+  }
+
   void BsplineOptimizer::calcSwarmCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
   {
     cost = 0.0;
@@ -839,17 +874,18 @@ namespace ego_planner
   void BsplineOptimizer::calcMovingObjCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
   {
     cost = 0.0;
-    // int end_idx = q.cols() - order_;
-    int end_idx = q.cols() - order_ - (double)(q.cols() - 2 * order_) * 1.0 / 3.0; // Only check the first 2/3 points
+    int end_idx = q.cols() - order_;
+    // int end_idx = q.cols() - order_ - (double)(q.cols() - 2 * order_) * 1.0 / 3.0; // Only check the first 2/3 points
 
     constexpr double CLEARANCE = 2.0;
     ros::Time t_now = ros::Time::now();
     
     vector<Tracker::Ptr> alive_trackers;
     tracker_pool_->getAliveTracker(alive_trackers);
-    for(int i=order_; i < end_idx; i++)
+    for(int i= 1; i < end_idx; i++)
     {
-      double time = ((double)(order_-1)/2 + (i-order_+1)) * bspline_interval_;
+      double time = i * bspline_interval_;
+      // double time = ((double)(order_-1)/2 + (i-order_+1)) * bspline_interval_;
       ros::Duration inc_time = ros::Duration(time);
       for(int id = 0; id< alive_trackers.size();id++)
       {
@@ -868,7 +904,6 @@ namespace ego_planner
         {
           cost += pow(dist_err,2);
           gradient.col(i) += -2.0 * dist_err * dist_grad;
-
         }
       }
 
@@ -978,6 +1013,18 @@ namespace ego_planner
       gradient.col(i - 1) += df_dx / 6;
       gradient.col(i) += 4 * df_dx / 6;
       gradient.col(i + 1) += df_dx / 6;
+    }
+  }
+
+  void BsplineOptimizer::calcGuideCost(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
+  {
+    cost = 0.0;
+    int end_idx = q.cols() - order_;
+    for(int i=order_; i < end_idx; i++)
+    {
+      Eigen::Vector3d gpt = guide_pts_[i-order_];
+      cost += (q.col(i) - gpt).squaredNorm();
+      gradient.col(i) += 2 * (q.col(i) - gpt);
     }
   }
 
@@ -1257,7 +1304,7 @@ namespace ego_planner
     for (int i = order_ - 1; i <= i_end; ++i)
     {
 
-      bool occ = grid_map_->getInflateOccupancy(cps_.points.col(i));
+      bool occ = pos_checker_->checkCollisionInGridMap(cps_.points.col(i));
 
       /*** check if the new collision will be valid ***/
       if (occ)
@@ -1265,7 +1312,7 @@ namespace ego_planner
         for (size_t k = 0; k < cps_.direction[i].size(); ++k)
         {
           cout.precision(2);
-          if ((cps_.points.col(i) - cps_.base_point[i][k]).dot(cps_.direction[i][k]) < 1 * grid_map_->getResolution()) // current point is outside all the collision_points.
+          if ((cps_.points.col(i) - cps_.base_point[i][k]).dot(cps_.direction[i][k]) < 1 * pos_checker_->getResolution()) // current point is outside all the collision_points.
           {
             occ = false; // Not really takes effect, just for better hunman understanding.
             break;
@@ -1280,7 +1327,7 @@ namespace ego_planner
         int j;
         for (j = i - 1; j >= 0; --j)
         {
-          occ = grid_map_->getInflateOccupancy(cps_.points.col(j));
+          occ = pos_checker_->checkCollisionInGridMap(cps_.points.col(j));
           if (!occ)
           {
             in_id = j;
@@ -1295,7 +1342,7 @@ namespace ego_planner
 
         for (j = i + 1; j < cps_.size; ++j)
         {
-          occ = grid_map_->getInflateOccupancy(cps_.points.col(j));
+          occ = pos_checker_->checkCollisionInGridMap(cps_.points.col(j));
 
           if (!occ)
           {
@@ -1392,14 +1439,14 @@ namespace ego_planner
             if (length > 1e-5)
             {
               cps_.flag_temp[j] = true;
-              for (double a = length; a >= 0.0; a -= grid_map_->getResolution())
+              for (double a = length; a >= 0.0; a -= pos_checker_->getResolution())
               {
-                bool occ = grid_map_->getInflateOccupancy((a / length) * intersection_point + (1 - a / length) * cps_.points.col(j));
+                bool occ = pos_checker_->checkCollisionInGridMap((a / length) * intersection_point + (1 - a / length) * cps_.points.col(j));
 
-                if (occ || a < grid_map_->getResolution())
+                if (occ || a < pos_checker_->getResolution())
                 {
                   if (occ)
-                    a += grid_map_->getResolution();
+                    a += pos_checker_->getResolution();
                   cps_.base_point[j].push_back((a / length) * intersection_point + (1 - a / length) * cps_.points.col(j));
                   cps_.direction[j].push_back((intersection_point - cps_.points.col(j)).normalized());
                   break;
@@ -1452,17 +1499,11 @@ namespace ego_planner
 
     return flag_success;
   }
-
-  bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, const ControlPoints &control_points, double ts)
+  bool BsplineOptimizer::BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double &final_cost, double ts)
   {
     setBsplineInterval(ts);
-
-    cps_ = control_points;
-
     bool flag_success = rebound_optimize(final_cost);
-
     optimal_points = cps_.points;
-
     return flag_success;
   }
 
@@ -1479,6 +1520,16 @@ namespace ego_planner
     return flag_success;
   }
 
+  bool BsplineOptimizer::BsplineOptimizeTrajGuide(const Eigen::MatrixXd &init_points, Eigen::MatrixXd &optimal_points, double ts)
+  {
+    setControlPoints(init_points);
+    setBsplineInterval(ts);
+    bool flag_success = guide_optimize();
+
+    optimal_points = cps_.points;
+    return flag_success;
+  }
+
   bool BsplineOptimizer::rebound_optimize(double &final_cost)
   {
     iter_num_ = 0;
@@ -1491,7 +1542,7 @@ namespace ego_planner
     int restart_nums = 0, rebound_times = 0;
     ;
     bool flag_force_return, flag_occ, success;
-    new_lambda2_ = lambda2_;
+    new_lambda2_c_ = lambda2_c_;
     constexpr int MAX_RESART_NUMS_SET = 3;
     do
     {
@@ -1534,7 +1585,7 @@ namespace ego_planner
           success = false;
           restart_nums++;
           initControlPoints(cps_.points, false);
-          new_lambda2_ *= 2;
+          new_lambda2_c_ *= 2;
 
           printf("\033[32miter(+1)=%d,time(ms)=%5.3f, swarm too close, keep optimizing\n\033[0m", iter_num_, time_ms);
 
@@ -1547,12 +1598,12 @@ namespace ego_planner
         traj.getTimeSpan(tm, tmp);
         ros::Time t_now = ros::Time::now();
 
-        double t_step = (tmp - tm) / ((traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm)).norm() / grid_map_->getResolution());
+        double t_step = (tmp - tm) / ((traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm)).norm() / pos_checker_->getResolution());
         for (double t = tm; t < tmp * 2 / 3; t += t_step) // Only check the closest 2/3 partition of the whole trajectory.
         {
           // 1. grid check
           Eigen::Vector3d traj_pt = traj.evaluateDeBoorT(t);
-          flag_occ = grid_map_->getInflateOccupancy(traj_pt);
+          flag_occ = pos_checker_->checkCollisionInGridMap(traj_pt);
 
           if (flag_occ)
           {
@@ -1630,7 +1681,7 @@ namespace ego_planner
         {
           restart_nums++;
           initControlPoints(cps_.points, false);
-          new_lambda2_ *= 2;
+          new_lambda2_c_ *= 2;
 
           printf("\033[32miter(+1)=%d,time(ms)=%5.3f, collided, keep optimizing\n\033[0m", iter_num_, time_ms);
         }
@@ -1666,7 +1717,7 @@ namespace ego_planner
 
     memcpy(q, cps_.points.data() + 3 * start_id, variable_num_ * sizeof(q[0]));
 
-    double origin_lambda4 = lambda4_;
+    double origin_lambda4 = lambda3_cf_;
     bool flag_safe = true;
     int iter_count = 0;
     do
@@ -1693,10 +1744,10 @@ namespace ego_planner
       UniformBspline traj = UniformBspline(cps_.points, 3, bspline_interval_);
       double tm, tmp;
       traj.getTimeSpan(tm, tmp);
-      double t_step = (tmp - tm) / ((traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm)).norm() / grid_map_->getResolution()); // Step size is defined as the maximum size that can passes throgth every gird.
+      double t_step = (tmp - tm) / ((traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm)).norm() / pos_checker_->getResolution()); // Step size is defined as the maximum size that can passes throgth every gird.
       for (double t = tm; t < tmp * 2 / 3; t += t_step)
       {
-        if (grid_map_->getInflateOccupancy(traj.evaluateDeBoorT(t)))
+        if (pos_checker_->checkCollisionInGridMap(traj.evaluateDeBoorT(t)))
         {
           // cout << "Refined traj hit_obs, t=" << t << " P=" << traj.evaluateDeBoorT(t).transpose() << endl;
 
@@ -1712,16 +1763,50 @@ namespace ego_planner
       }
 
       if (!flag_safe)
-        lambda4_ *= 2;
+        lambda3_cf_ *= 2;
 
       iter_count++;
     } while (!flag_safe && iter_count <= 0);
 
-    lambda4_ = origin_lambda4;
+    lambda3_cf_ = origin_lambda4;
 
     //cout << "iter_num_=" << iter_num_ << endl;
 
     return flag_safe;
+  }
+
+  bool BsplineOptimizer::guide_optimize()
+  {    
+    iter_num_ = 0;
+    int start_id = order_;
+    int end_id = this->cps_.points.cols() - order_;
+    variable_num_ = 3 * (end_id - start_id);
+
+    double q[variable_num_];
+    double final_cost;
+
+    memcpy(q, cps_.points.data() + 3 * start_id, variable_num_ * sizeof(q[0]));
+
+    lbfgs::lbfgs_parameter_t lbfgs_params;
+    lbfgs::lbfgs_load_default_parameters(&lbfgs_params);
+    lbfgs_params.mem_size = 16;
+    lbfgs_params.max_iterations = 200;
+    lbfgs_params.g_epsilon = 0.001;
+
+    int result = lbfgs::lbfgs_optimize(variable_num_, q, &final_cost, BsplineOptimizer::costFunctionGuide, NULL, NULL, this, &lbfgs_params);
+    if (result == lbfgs::LBFGS_CONVERGENCE ||
+        result == lbfgs::LBFGSERR_MAXIMUMITERATION ||
+        result == lbfgs::LBFGS_ALREADY_MINIMIZED ||
+        result == lbfgs::LBFGS_STOP)
+    {
+      return true;
+    }
+    else
+    {
+      ROS_ERROR("Solver error in refining!, return = %d, %s", result, lbfgs::lbfgs_strerror(result));
+      return false;
+    }
+
   }
 
   void BsplineOptimizer::combineCostRebound(const double *x, double *grad, double &f_combine, const int n)
@@ -1751,11 +1836,12 @@ namespace ego_planner
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 
     // f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_swarm + lambda2_ * f_terminal;
-    f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_mov_objs;
-    //printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_combine);
+    f_combine = lambda2_s_ * f_smoothness + new_lambda2_c_ * f_distance + lambda2_f_ * f_feasibility + lambda2_d_ * f_mov_objs + lambda2_s_ * f_terminal;
+    // printf("origin %f %f %f %f\n", f_smoothness, f_distance, f_feasibility, f_mov_objs);
+    // printf("lambda2d_=%f\n", lambda2_d_);
 
     // Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_swarm + lambda2_ * g_terminal;
-    Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_mov_objs;
+    Eigen::MatrixXd grad_3D = lambda2_s_ * g_smoothness + new_lambda2_c_ * g_distance + lambda2_f_ * g_feasibility + lambda2_d_ * g_mov_objs + lambda2_s_ * g_terminal;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
   }
 
@@ -1778,11 +1864,29 @@ namespace ego_planner
     calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
 
     /* ---------- convert to solver format...---------- */
-    f_combine = lambda1_ * f_smoothness + lambda4_ * f_fitness + lambda3_ * f_feasibility;
+    f_combine = lambda3_s_ * f_smoothness + lambda3_cf_ * f_fitness + lambda3_f_ * f_feasibility;
     // printf("origin %f %f %f %f\n", f_smoothness, f_fitness, f_feasibility, f_combine);
 
-    Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + lambda4_ * g_fitness + lambda3_ * g_feasibility;
+    Eigen::MatrixXd grad_3D = lambda3_s_ * g_smoothness + lambda3_cf_ * g_fitness + lambda3_f_ * g_feasibility;
     memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
+  }
+
+  void BsplineOptimizer::combineCostGuide(const double *x, double *grad, double &f_combine, const int n)
+  {
+    memcpy(cps_.points.data() + 3 * order_, x, n * sizeof(x[0]));
+    /* ---------- evaluate cost and gradient ---------- */
+    double f_smoothness, f_guide;
+
+    Eigen::MatrixXd g_smoothness = Eigen::MatrixXd::Zero(3, cps_.points.cols());
+    Eigen::MatrixXd g_guide = Eigen::MatrixXd::Zero(3, cps_.points.cols());
+
+    calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
+    calcGuideCost(cps_.points, f_guide,g_guide);
+
+    f_combine = lambda1_s_ * f_smoothness + lambda1_g_ * f_guide;
+    Eigen::MatrixXd grad_3D = lambda1_s_ * g_smoothness + lambda1_g_ * g_guide;
+    memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
+
   }
 
 } // namespace ego_planner

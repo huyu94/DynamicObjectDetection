@@ -4,7 +4,8 @@
 
 #include <plan_env/static/grid_map.h>
 #include <plan_env/static/raycast.h>
-#include <plan_env/pos_checker.h>
+// #include <plan_env/pos_checker.h>
+#include <plan_env/env_manager.h>
 #include <random>
 #include <memory>
 #include <list> // Add missing include for 'list'
@@ -52,6 +53,7 @@ class TopoPRM
 private:
     // DspMap::Ptr dsp_map_;
     PosChecker::Ptr pos_checker_;
+    // EnvManager::Ptr env_manager_;
 
     // sampling generator
     std::random_device rd_; // Add missing 'std::' namespace
@@ -100,12 +102,14 @@ private:
 
     /* ---------- helper ---------- */
     inline Eigen::Vector3d getSample();
-    std::vector<GraphNode::Ptr> findVisibGuard(Eigen::Vector3d pt);  // find pairs of visibile guard
+    bool lineVisib(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2, Eigen::Vector3d &pc, int &object_id, Vector3d &object_pos, int caster_id = 0);
+    bool lineVisib(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2, Eigen::Vector3d &pc, int caster_id = 0);
+    std::vector<GraphNode::Ptr> findVisibGuard(Eigen::Vector3d pt); // find pairs of visibile guard
     bool needConnection(GraphNode::Ptr g1, GraphNode::Ptr g2,
                         Eigen::Vector3d pt);  // test redundancy with existing
                                                 // connection between two guard
-    bool lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, 
-                    Eigen::Vector3d& pc, int caster_id = 0);
+    // bool lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, 
+    //                 Eigen::Vector3d& pc, int caster_id = 0);
     bool triangleVisib(Eigen::Vector3d pt, Eigen::Vector3d p1, Eigen::Vector3d p2);
     void pruneGraph();
 
@@ -135,6 +139,7 @@ public:
 
     // void setEnvironment(const DspMap::Ptr dsp_map);
     void setPosChecker(const PosChecker::Ptr pos_checker);
+    // void setEnvManager(const EnvManager::Ptr env_manager);
 
     void getBox(Eigen::Vector3d &pt, Eigen::Vector3d &scale, Eigen::Quaterniond &quat);
     void findTopoPaths(Eigen::Vector3d start, Eigen::Vector3d end, std::vector<Eigen::Vector3d> start_pts,

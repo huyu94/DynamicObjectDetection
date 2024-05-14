@@ -41,7 +41,7 @@ int TrackerPool::addNewTracker(const VectorXd &state, const Vector3d &length, ro
         free_ids_.pop();
         pool_[new_id] = std::make_shared<Tracker>(state,length,new_id, current_time);
     }
-    std::cout << " success add new tracker, id :" << new_id << std::endl;
+    // std::cout << " success add new tracker, id :" << new_id << std::endl;
     return new_id;
 }
 
@@ -75,7 +75,7 @@ void TrackerPool::checkTracker(int id, ros::Time current_time)
 
     if(mis_match_time > missing_tracking_threshold_)
     {
-        std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
+        // std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
         removeTracker(id);
     }
 

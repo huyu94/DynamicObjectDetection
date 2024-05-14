@@ -13,6 +13,7 @@
 
 #include <bspline_opt/bspline_optimizer.h>
 #include <plan_env/static/grid_map.h>
+#include <plan_env/env_manager.h>
 #include <traj_utils/Bspline.h>
 #include <traj_utils/MultiBsplines.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -51,6 +52,7 @@ namespace ego_planner
 
     /* planning utils */
     EGOPlannerManager::Ptr planner_manager_;
+    EnvManager::Ptr env_manager_;
     PlanningVisualization::Ptr visualization_;
     traj_utils::DataDisp data_disp_;
     traj_utils::MultiBsplines multi_bspline_msgs_buf_;

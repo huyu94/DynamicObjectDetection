@@ -2,6 +2,7 @@
 #include <plan_manage/planner_manager.h>
 #include <thread>
 #include "visualization_msgs/Marker.h" // zx-todo
+#include <plan_env/high_precision_timer.hpp>
 
 namespace ego_planner
 {
@@ -12,7 +13,7 @@ namespace ego_planner
 
   EGOPlannerManager::~EGOPlannerManager() {}
 
-  void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualization::Ptr vis)
+  void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh,EnvManager::Ptr env_manager, PlanningVisualization::Ptr vis)
   {
     /* read algorithm parameters */
 
@@ -29,23 +30,24 @@ namespace ego_planner
     // grid_map_.reset(new GridMap);
     // grid_map_->initMap(nh);
 
-    env_manager_.reset(new EnvManager);
-    env_manager_->init(nh);
-
-    pos_checker_.reset(new PosChecker);
-    pos_checker_->init(nh);
-    pos_checker_->setGridMap(env_manager_->getGridMap());
-    pos_checker_->setTrackerPool(env_manager_->getTrackerPool());
+    env_manager_ = env_manager;
 
     // obj_predictor_.reset(new fast_planner::ObjPredictor(nh));
     // obj_predictor_->init();
     // obj_pub_ = nh.advertise<visualization_msgs::Marker>("/dynamic/obj_prdi", 10); // zx-todo
+    topo_prm_.reset(new TopoPRM);
+    topo_prm_->setPosChecker(env_manager->getPosChecker());
+    // topo_prm_->setPosChecker(env_manager->getPosChecker());
+    topo_prm_->init(nh);
+    // topo_prm_->setEnvironment(grid);
+    // topo_prm_->init(nh);
+
 
     bspline_optimizer_.reset(new BsplineOptimizer);
     bspline_optimizer_->setParam(nh);
-    bspline_optimizer_->setEnvironment(env_manager_->getGridMap(), obj_predictor_);
+    bspline_optimizer_->setPosChecker(env_manager_->getPosChecker());
     bspline_optimizer_->a_star_.reset(new AStar);
-    bspline_optimizer_->a_star_->initGridMap(env_manager_->getGridMap(), Eigen::Vector3i(100, 100, 100));
+    bspline_optimizer_->a_star_->initPosChecker(env_manager_->getPosChecker(), Eigen::Vector3i(400, 400, 400));
     bspline_optimizer_->setTrackerPool(env_manager_->getTrackerPool());
     bspline_optimizer_->setMapVisualizer(env_manager_->getMapVisualizer());
     visualization_ = vis;
@@ -223,12 +225,29 @@ namespace ego_planner
         }
       }
     } while (flag_regenerate);
-
+    HighPrecisionTimer Htimer;
     Eigen::MatrixXd ctrl_pts, ctrl_pts_temp;
     UniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
 
-    vector<std::pair<int, int>> segments;
-    segments = bspline_optimizer_->initControlPoints(ctrl_pts, true);
+    // 1. poschecker generate box
+    std::cout << "start generate box " << std:: endl;
+    Htimer.start();
+    env_manager_->getPosChecker()->generateSlideBox((start_pt - local_target_pt).norm() / pp_.max_vel_ / 10);
+    Htimer.stop();
+    std::cout << "generate box time: " << Htimer.elapsedMilliseconds() << " ms" << std::endl;
+    std::cout << "generate box size : " << env_manager_->getPosChecker()->getSlideBox().size() << std::endl;
+    // ROS_DEBUG("generate box size : %d ", pos_checker_->getSlideBox().size());
+
+    // visulaize sample box
+    Eigen::Vector3d tr,sc;
+    Eigen::Quaterniond rot;
+    topo_prm_->getBox(tr,sc,rot);
+    visualization_->displayTopoSampleBox(tr,sc,rot,0);
+    // 2. topo prm generate 
+    
+
+    // vector<std::pair<int, int>> segments;
+    // segments = bspline_optimizer_->initControlPoints(ctrl_pts, true);
 
     t_init = ros::Time::now() - t_start;
     t_start = ros::Time::now();
@@ -236,66 +255,105 @@ namespace ego_planner
     /*** STEP 2: OPTIMIZE ***/
     bool flag_step_1_success = false;
     vector<vector<Eigen::Vector3d>> vis_trajs;
-
+    vector<bool> success;
+    vector<Eigen::Vector3d> guide_pts;
+    Eigen::MatrixXd optimal_pts;
     if (pp_.use_distinctive_trajs)
     {
-      // cout << "enter" << endl;
-      std::vector<ControlPoints> trajs = bspline_optimizer_->distinctiveTrajs(segments);
-      cout << "\033[1;33m"
-           << "multi-trajs=" << trajs.size() << "\033[1;0m" << endl;
 
+      Htimer.start();
+      list<GraphNode::Ptr>            graph;
+      vector<vector<Eigen::Vector3d>> raw_paths, filtered_paths, select_paths;
+      vector<Eigen::Vector3d> start_pts, end_pts;
+      std::cout << "generate topo path " << std:: endl;
+      topo_prm_->findTopoPaths(start_pt, local_target_pt, start_pts, end_pts, graph,
+                              raw_paths, filtered_paths, select_paths);
+      Htimer.stop();
+      std::cout << "generate topo path: " << Htimer.elapsedMilliseconds() << " ms" << std::endl;
+      visualization_->displayTopoPathsList(select_paths);
+      bool guide_success = false;
       double final_cost, min_cost = 999999.0;
-      for (int i = trajs.size() - 1; i >= 0; i--)
+      for(int i=0;i<select_paths.size();i++)
       {
-        if (bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts_temp, final_cost, trajs[i], ts))
+        ctrl_pts_temp = ctrl_pts;
+        guide_pts = topo_prm_->pathToGuidePts(select_paths[i],ctrl_pts_temp.cols() - 2);
+        guide_pts.pop_back();
+        guide_pts.pop_back();
+        guide_pts.erase(guide_pts.begin(), guide_pts.begin()+2);
+        std::cout << "hrere" << std::endl;
+        if (guide_pts.size() != int(ctrl_pts_temp.cols()) - 6)
         {
-
-          cout << "traj " << trajs.size() - i << " success." << endl;
-
-          flag_step_1_success = true;
-          if (final_cost < min_cost)
-          {
-            min_cost = final_cost;
-            ctrl_pts = ctrl_pts_temp;
-          }
-
-          // visualization
-          point_set.clear();
-          for (int j = 0; j < ctrl_pts_temp.cols(); j++)
-          {
-            point_set.push_back(ctrl_pts_temp.col(j));
-          }
-          vis_trajs.push_back(point_set);
+            ROS_WARN("what guide");
+            ROS_WARN("guide_pts size : %d", guide_pts.size());
+            ROS_WARN("ctrl_pts size : %d", ctrl_pts_temp.cols());            
         }
-        else
+
+        // 2.1 guide 
+        bspline_optimizer_->setGuidePath(guide_pts);
+        guide_success = bspline_optimizer_->BsplineOptimizeTrajGuide(ctrl_pts_temp, ctrl_pts_temp, ts);
+        if(!guide_success)
         {
-          cout << "traj " << trajs.size() - i << " failed." << endl;
+          std::cout << "guide optimize failed " << std::endl;
+          continue;
         }
+
+        // 2.2 rebound 
+        bspline_optimizer_->initControlPoints(ctrl_pts_temp);
+        flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts_temp,final_cost,ts);
+        point_set.clear();
+        for(int j=0;j<ctrl_pts_temp.cols();j++)
+        {
+          point_set.push_back(ctrl_pts_temp.col(j));
+        }
+        vis_trajs.push_back(point_set);
+        if(flag_step_1_success){
+          success.push_back(true);
+        }
+        else{
+          success.push_back(false);
+        }
+
+        
+        if(!flag_step_1_success)
+        {
+          std::cout << "bound optimize failed " << std::endl;
+          continue;
+        }
+        if(final_cost < min_cost)
+        {
+          min_cost = final_cost;
+          optimal_pts = ctrl_pts_temp;
+        }
+
       }
-
-      t_opt = ros::Time::now() - t_start;
-
-      visualization_->displayMultiInitPathList(vis_trajs, 0.2); // This visuallization will take up several milliseconds.
+      std::cout << "vis_trajs.size : " <<vis_trajs.size() << std::endl;
+      visualization_->displayMultiInitPathList(vis_trajs,success,0.1);
     }
     else
     {
-      flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, ts);
-      t_opt = ros::Time::now() - t_start;
+      bspline_optimizer_->initControlPoints(ctrl_pts,true);
+      double final_cost;
+      flag_step_1_success = bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts, final_cost,ts);
+      if(flag_step_1_success)
+      {
+        optimal_pts = ctrl_pts;
+      }
       //static int vis_id = 0;
       visualization_->displayInitPathList(point_set, 0.2, 0);
     }
+    t_opt = ros::Time::now() - t_start;
 
     cout << "plan_success=" << flag_step_1_success << endl;
     if (!flag_step_1_success)
     {
-      visualization_->displayOptimalList(ctrl_pts, 0);
+      visualization_->displayOptimalList(optimal_pts, 0);
       continous_failures_count_++;
       return false;
     }
 
     t_start = ros::Time::now();
 
-    UniformBspline pos = UniformBspline(ctrl_pts, 3, ts);
+    UniformBspline pos = UniformBspline(optimal_pts, 3, ts);
     pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_, pp_.feasibility_tolerance_);
 
     /*** STEP 3: REFINE(RE-ALLOCATE TIME) IF NECESSARY ***/
@@ -581,3 +639,44 @@ namespace ego_planner
   }
 
 } // namespace ego_planner
+
+
+/*
+      // cout << "enter" << endl;
+      std::vector<ControlPoints> trajs = bspline_optimizer_->distinctiveTrajs(segments);
+      cout << "\033[1;33m"
+           << "multi-trajs=" << trajs.size() << "\033[1;0m" << endl;
+
+      double final_cost, min_cost = 999999.0;
+      for (int i = trajs.size() - 1; i >= 0; i--)
+      {
+        if (bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts_temp, final_cost, trajs[i], ts))
+        {
+
+          cout << "traj " << trajs.size() - i << " success." << endl;
+
+          flag_step_1_success = true;
+          if (final_cost < min_cost)
+          {
+            min_cost = final_cost;
+            ctrl_pts = ctrl_pts_temp;
+          }
+
+          // visualization
+          point_set.clear();
+          for (int j = 0; j < ctrl_pts_temp.cols(); j++)
+          {
+            point_set.push_back(ctrl_pts_temp.col(j));
+          }
+          vis_trajs.push_back(point_set);
+        }
+        else
+        {
+          cout << "traj " << trajs.size() - i << " failed." << endl;
+        }
+      }
+
+      t_opt = ros::Time::now() - t_start;
+
+      visualization_->displayMultiInitPathList(vis_trajs, 0.2); // This visuallization will take up several milliseconds.
+      */
