@@ -11,7 +11,7 @@ void goalCallback(const geometry_msgs::PoseStampedConstPtr& msg)
 {
     Vector3d goal(msg->pose.position.x,msg->pose.position.y,msg->pose.position.z);
 
-    plan_manager_ptr_->kinodynamicReplan(Vector3d(0,0,0), Vector3d(0,0,0), Vector3d(0,0,0), goal, Vector3d(0,0,0));
+    plan_manager_ptr_->kinodynamicReplan(Vector3d(0,0,0), Vector3d(0,0,0), Vector3d(0,1,1), goal, Vector3d(0,0,0));
 
 
 }

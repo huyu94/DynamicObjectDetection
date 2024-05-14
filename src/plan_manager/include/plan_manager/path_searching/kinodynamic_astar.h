@@ -35,6 +35,7 @@ class PathNode {
   double duration;
   double time;  // dyn
   int time_idx;
+  // unique_ptr<PathNode> parent;
   PathNode* parent;
   char node_state;
 
@@ -145,9 +146,9 @@ class KinodynamicAstar {
   void retrievePath(PathNodePtr end_node);
 
   /* shot trajectory */
-  vector<double> cubic(double a, double b, double c, double d);
-  vector<double> quartic(double a, double b, double c, double d, double e);
-  bool computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd state2,
+  vector<double> cubic(double a, double b, double c, double d); // 求解三次方程
+  vector<double> quartic(double a, double b, double c, double d, double e); // 求解四次方程，依赖cubic
+  bool computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd state2, // 计算
                        double time_to_goal);
   double estimateHeuristic(Eigen::VectorXd x1, Eigen::VectorXd x2,
                            double& optimal_time);
@@ -155,9 +156,9 @@ class KinodynamicAstar {
   /* state propagation */
   void stateTransit(Eigen::Matrix<double, 6, 1>& state0,
                     Eigen::Matrix<double, 6, 1>& state1, Eigen::Vector3d um,
-                    double tau);
+                    double tau); //状态转移，根据um,tau,state0计算state1
 
-  void setEnvironment(const EnvManager::Ptr& env);  
+  void setEnvironment(const EnvManager::Ptr& env);  // 设置环境
 
  public:
   KinodynamicAstar(){};
@@ -172,18 +173,18 @@ class KinodynamicAstar {
   int search(Eigen::Vector3d start_pt, Eigen::Vector3d start_vel,
              Eigen::Vector3d start_acc, Eigen::Vector3d end_pt,
              Eigen::Vector3d end_vel, bool init, bool dynamic = false,
-             double time_start = -1.0);
+             double time_start = -1.0); // 搜索A*轨迹，
 
   // void setEnvironment(const EDTEnvironment::Ptr& env);
   // void setEnvironment(const GridMap::Ptr& env);
 
 
-  std::vector<Eigen::Vector3d> getKinoTraj(double delta_t);
+  std::vector<Eigen::Vector3d> getKinoTraj(double delta_t); // 获取搜索到的Kinodynamic trajectory
 
   void getSamples(double& ts, vector<Eigen::Vector3d>& point_set,
-                  vector<Eigen::Vector3d>& start_end_derivatives);
+                  vector<Eigen::Vector3d>& start_end_derivatives); // 根据时间ts将轨迹sample成控制点
 
-  std::vector<PathNodePtr> getVisitedNodes();
+  std::vector<PathNodePtr> getVisitedNodes(); // 获取访问过的节点
 
   typedef shared_ptr<KinodynamicAstar> Ptr;
 

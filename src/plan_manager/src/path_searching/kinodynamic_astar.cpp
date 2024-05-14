@@ -68,6 +68,7 @@ void KinodynamicAstar::init(ros::NodeHandle& nh, EnvManager::Ptr& env_ptr)
   this->inv_resolution_ = 1.0 / resolution_;
   inv_time_resolution_ = 1.0 / time_resolution_;
   env_manager_->getRegion(origin_,map_size_3d_);
+  map_size_3d_ = 10 * Vector3d(1,1,1);
 
   cout << "origin_: " << origin_.transpose() << endl;
   cout << "map size: " << map_size_3d_.transpose() << endl;
@@ -96,16 +97,16 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
   cur_node->parent = NULL;
   cur_node->state.head(3) = start_pt;
   cur_node->state.tail(3) = start_v;
-  cur_node->index = posToIndex(start_pt);
+  cur_node->index = posToIndex(start_pt); // 位置转下标
   cur_node->g_score = 0.0;
-
+  
   Eigen::VectorXd end_state(6);
   Eigen::Vector3i end_index;
   double time_to_goal;
 
   end_state.head(3) = end_pt;
   end_state.tail(3) = end_v;
-  end_index = posToIndex(end_pt);
+  end_index = posToIndex(end_pt); // 位置转下标 
   cur_node->f_score = lambda_heu_ * estimateHeuristic(cur_node->state, end_state, time_to_goal);
   cur_node->node_state = IN_OPEN_SET;
   open_set_.push(cur_node);
@@ -113,8 +114,8 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
 
   if (dynamic)
   {
-    time_origin_ = time_start;
-    cur_node->time = time_start;
+    time_origin_ = time_start; 
+    cur_node->time = time_start; 
     cur_node->time_idx = timeToIndex(time_start);
     expanded_nodes_.insert(cur_node->index, cur_node->time_idx, cur_node);
     // cout << "time start: " << time_start << endl;
@@ -124,9 +125,10 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
 
   PathNodePtr neighbor = NULL;
   PathNodePtr terminate_node = NULL;
-  bool init_search = init;
+  bool init_search = init; // 是否是第一次搜索
   const int tolerance = ceil(1 / resolution_);
 
+  ROS_INFO_STREAM("[kino searching] : before while");
   while (!open_set_.empty())
   {
     cur_node = open_set_.top();
@@ -141,7 +143,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
     {
       terminate_node = cur_node;
       retrievePath(terminate_node);
-      if (near_end)
+      if (near_end) // 到达终点，单独shot一段
       {
         // Check whether shot traj exist
         estimateHeuristic(cur_node->state, end_state, time_to_goal);
@@ -194,25 +196,32 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
     double pro_t;
     vector<Eigen::Vector3d> inputs;
     vector<double> durations;
-    if (init_search)
+    if (init_search) // 初始只根据最大加速度进行搜索
     {
       inputs.push_back(start_acc_);
+      // init_max_tau 最大时间tau, time_res_init 分辨率， [0.1tau , 0.2tau , 0.3 tau ... tau ]
       for (double tau = time_res_init * init_max_tau_; tau <= init_max_tau_ + 1e-3;
            tau += time_res_init * init_max_tau_)
         durations.push_back(tau);
       init_search = false;
     }
-    else
+    else // 非初始，以不同的加速度进行搜索
     {
       for (double ax = -max_acc_; ax <= max_acc_ + 1e-3; ax += max_acc_ * res)
+      {
         for (double ay = -max_acc_; ay <= max_acc_ + 1e-3; ay += max_acc_ * res)
+        {
           for (double az = -max_acc_; az <= max_acc_ + 1e-3; az += max_acc_ * res)
           {
             um << ax, ay, az;
             inputs.push_back(um);
           }
+        }
+      }
       for (double tau = time_res * max_tau_; tau <= max_tau_; tau += time_res * max_tau_)
+      {
         durations.push_back(tau);
+      }
     }
 
     // cout << "cur state:" << cur_state.head(3).transpose() << endl;
@@ -221,19 +230,24 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
       {
         um = inputs[i];
         double tau = durations[j];
-        stateTransit(cur_state, pro_state, um, tau);
-        pro_t = cur_node->time + tau;
 
+        // get pro_state
+        stateTransit(cur_state, pro_state, um, tau); // 状态转移
+        pro_t = cur_node->time + tau;
         Eigen::Vector3d pro_pos = pro_state.head(3);
 
         // Check if in close set
         Eigen::Vector3i pro_id = posToIndex(pro_pos);
-        int pro_t_id = timeToIndex(pro_t);
-        PathNodePtr pro_node = dynamic ? expanded_nodes_.find(pro_id, pro_t_id) : expanded_nodes_.find(pro_id);
-        if (pro_node != NULL && pro_node->node_state == IN_CLOSE_SET)
+        int pro_t_id = timeToIndex(pro_t); 
+        // 根据pro_node_index找pro_node
+        PathNodePtr pro_node = dynamic ? expanded_nodes_.find(pro_id, pro_t_id) : expanded_nodes_.find(pro_id); 
+        // pro_node -> close_set | open_set | NULL
+        if (pro_node != NULL && pro_node->node_state == IN_CLOSE_SET) // in close set
         {
-          if (init_search)
+          if (init_search) // 
+          {
             std::cout << "close" << std::endl;
+          }
           continue;
         }
 
@@ -247,6 +261,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         }
 
         // Check not in the same voxel
+        // corner case : start_vel(0,0,0) && start_acc(0,0,0)的时候，pro_node 和 cur_node 始终在同一个voxel里。导致始终continue出循环
         Eigen::Vector3i diff = pro_id - cur_node->index;
         int diff_time = pro_t_id - cur_node->time_idx;
         if (diff.norm() == 0 && ((!dynamic) || diff_time == 0))
@@ -270,11 +285,6 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
             is_occ = true;
             break;
           }
-          // if (edt_environment_->sdf_map_->getInflateOccupancy(pos) == 1 )
-          // {
-          //   is_occ = true;
-          //   break;
-          // }
         }
         if (is_occ)
         {
@@ -288,12 +298,13 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         tmp_f_score = tmp_g_score + lambda_heu_ * estimateHeuristic(pro_state, end_state, time_to_goal);
 
         // Compare nodes expanded from the same parent
+        // 检查当前节点到与其相邻的节点之间是否有更短的路径
         bool prune = false;
         for (int j = 0; j < tmp_expand_nodes.size(); ++j)
         {
           PathNodePtr expand_node = tmp_expand_nodes[j];
           if ((pro_id - expand_node->index).norm() == 0 && ((!dynamic) || pro_t_id == expand_node->time_idx))
-          {
+          { // 找到了
             prune = true;
             if (tmp_f_score < expand_node->f_score)
             {
@@ -310,9 +321,9 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         }
 
         // This node end up in a voxel different from others
-        if (!prune)
+        if (!prune) // 如果没剪枝，就添加到open_set中
         {
-          if (pro_node == NULL)
+          if (pro_node == NULL) // NULL 
           {
             pro_node = path_node_pool_[use_node_num_];
             pro_node->index = pro_id;
@@ -331,10 +342,15 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
             open_set_.push(pro_node);
 
             if (dynamic)
+            {
               expanded_nodes_.insert(pro_id, pro_node->time, pro_node);
+            }
             else
+            {
               expanded_nodes_.insert(pro_id, pro_node);
+            }
 
+            // 添加到tmp_expand_nodes中，在其他扩展时继续检查。
             tmp_expand_nodes.push_back(pro_node);
 
             use_node_num_ += 1;
@@ -344,7 +360,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
               return NO_PATH;
             }
           }
-          else if (pro_node->node_state == IN_OPEN_SET)
+          else if (pro_node->node_state == IN_OPEN_SET) // open set
           {
             if (tmp_g_score < pro_node->g_score)
             {
@@ -356,7 +372,9 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
               pro_node->duration = tau;
               pro_node->parent = cur_node;
               if (dynamic)
+              {
                 pro_node->time = cur_node->time + tau;
+              }
             }
           }
           else
@@ -659,6 +677,7 @@ std::vector<Eigen::Vector3d> KinodynamicAstar::getKinoTraj(double delta_t)
   return state_list;
 }
 
+// 采样控制点
 void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set,
                                   vector<Eigen::Vector3d>& start_end_derivatives)
 {
@@ -667,6 +686,7 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
   if (is_shot_succ_)
     T_sum += t_shot_;
   PathNodePtr node = path_nodes_.back();
+  // 计算kinodynamic A*搜索出来的总轨迹的时间
   while (node->parent != NULL)
   {
     T_sum += node->duration;
@@ -677,17 +697,17 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
   // Calculate boundary vel and acc
   Eigen::Vector3d end_vel, end_acc;
   double t;
-  if (is_shot_succ_)
+  if (is_shot_succ_) // 最后一段shot成功后的轨迹，
   {
     t = t_shot_;
     end_vel = end_vel_;
     for (int dim = 0; dim < 3; ++dim)
     {
       Vector4d coe = coef_shot_.row(dim);
-      end_acc(dim) = 2 * coe(2) + 6 * coe(3) * t_shot_;
+      end_acc(dim) = 2 * coe(2) + 6 * coe(3) * t_shot_; // acc = 2 * coe(2) + 3 * 2 * 1 * coe(3)
     }
   }
-  else
+  else // 最后一段shot失败，取最后一段动力学采样的轨迹
   {
     t = path_nodes_.back()->duration;
     end_vel = node->state.tail(3);
@@ -696,13 +716,14 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
 
   // Get point samples
   int seg_num = floor(T_sum / ts);
-  seg_num = max(8, seg_num);
-  ts = T_sum / double(seg_num);
-  bool sample_shot_traj = is_shot_succ_;
-  node = path_nodes_.back();
+  seg_num = max(8, seg_num); // 最少8个点，最多seg_num个点
+  ts = T_sum / double(seg_num); // 采样时间间隔
+  bool sample_shot_traj = is_shot_succ_; // shot是否成功
+  node = path_nodes_.back(); // 轨迹的最后一段的末节点
 
   for (double ti = T_sum; ti > -1e-5; ti -= ts)
   {
+    // t 刷新，一小段轨迹走完后t刷新为上一段的轨迹
     if (sample_shot_traj)
     {
       // samples on shot traj
@@ -718,8 +739,8 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
         coord(dim) = poly1d.dot(time);
       }
 
-      point_set.push_back(coord);
-      t -= ts;
+      point_set.push_back(coord); // 添加到point_set中
+      t -= ts; // t -= ts && ti -= ts, 同时减去ts，直到t < -1e-5
 
       /* end of segment */
       if (t < -1e-5)
@@ -738,11 +759,11 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
 
       stateTransit(x0, xt, ut, t);
 
-      point_set.push_back(xt.head(3));
+      point_set.push_back(xt.head(3));  
       t -= ts;
 
       // cout << "t: " << t << ", t acc: " << T_accumulate << endl;
-      if (t < -1e-5 && node->parent->parent != NULL)
+      if (t < -1e-5 && node->parent->parent != NULL) // 
       {
         node = node->parent;
         t += node->duration;
@@ -753,15 +774,16 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
 
   // calculate start acc
   Eigen::Vector3d start_acc;
-  if (path_nodes_.back()->parent == NULL)
+  if (path_nodes_.back()->parent == NULL) // 只有一个节点
   {
     // no searched traj, calculate by shot traj
-    start_acc = 2 * coef_shot_.col(2);
+    start_acc = 2 * coef_shot_.col(2); // acc = 2 * coe(2)
   }
   else
   {
     // input of searched traj
-    start_acc = node->input;
+    // node 经过循环已经遍历完了。
+    start_acc = node->input; //
   }
 
   start_end_derivatives.push_back(start_vel_);
@@ -770,6 +792,7 @@ void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set
   start_end_derivatives.push_back(end_acc);
 }
 
+// 获取访问过的节点
 std::vector<PathNodePtr> KinodynamicAstar::getVisitedNodes()
 {
   vector<PathNodePtr> visited;
@@ -777,6 +800,7 @@ std::vector<PathNodePtr> KinodynamicAstar::getVisitedNodes()
   return visited;
 }
 
+// 计算位置下标 idx 
 Eigen::Vector3i KinodynamicAstar::posToIndex(Eigen::Vector3d pt)
 {
   Vector3i idx = ((pt - origin_) * inv_resolution_).array().floor().cast<int>();
@@ -788,9 +812,12 @@ Eigen::Vector3i KinodynamicAstar::posToIndex(Eigen::Vector3d pt)
   return idx;
 }
 
+// 计算时间下标，time_origin -> -1, 要改
 int KinodynamicAstar::timeToIndex(double time)
 {
+  // ROS_INFO_STREAM("in [timeToIndex] ");
   int idx = floor((time - time_origin_) * inv_time_resolution_);
+  return idx;
 }
 
 void KinodynamicAstar::stateTransit(Eigen::Matrix<double, 6, 1>& state0, Eigen::Matrix<double, 6, 1>& state1,
