@@ -74,6 +74,7 @@ void MapVisualizer::visualizeClusterResult(std::vector<VisualCluster> &visual_cl
         marker_array.markers.push_back(marker);
     }
     cluster_result_pub_.publish(marker_array);
+    ROS_INFO_STREAM("finish publisher");
 }
 void MapVisualizer::visualizeSegmentationResult(std::vector<VisualCluster> &visual_clusters)
 {

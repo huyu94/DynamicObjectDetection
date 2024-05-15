@@ -187,7 +187,8 @@ void EnvManager::cluster()
         vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
         
     }
-    // std::cout << "step 2 finished " << std::endl;
+    ROS_INFO_STREAM("vis_cluster size: " << vis_clusters.size());
+    std::cout << "step 2 finished " << std::endl;
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
 
 }
@@ -487,7 +488,7 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
         // ROS_WARN("cloud window is not ready || no new cloud and odom !!");
         return ;
     }
-    // ROS_INFO("in [updateCallback]");
+    ROS_INFO("in [updateCallback]");
     
     static int update_count = 1;
     static double cluster_time, segmentation_time, match_time,total_time;
@@ -516,7 +517,8 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
 
     total_time = updateMean(total_time,(t2-t0).toSec(),update_count);
 
-    record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
+    ROS_INFO_STREAM("finish update");
+    // record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
     // update_time_record_ << update_count << "\t" << pcl_cloud_ptr_->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
     cloud_odom_window_ready_ = false;
     update_count ++;
