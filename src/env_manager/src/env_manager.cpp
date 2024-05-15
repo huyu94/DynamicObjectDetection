@@ -1,6 +1,6 @@
-#include "plan_env/env_manager.h"
-#include "plan_env/dbscan/dbscan_kdtree.h"
-#include "plan_env/tools.h"
+#include "env_manager/env_manager.h"
+#include "env_manager/dbscan/dbscan_kdtree.h"
+#include "env_manager/tools.h"
 
 // double updateMean(double x_mean, double x_new,int n)
 // {

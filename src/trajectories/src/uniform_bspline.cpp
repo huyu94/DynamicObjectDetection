@@ -47,6 +47,7 @@ namespace fast_planner
 
   bool UniformBspline::getTimeSpan(double &um, double &um_p)
   {
+    // diff 
     if (p_ > u_.rows() || m_ - p_ > u_.rows())
       return false;
 
@@ -68,7 +69,9 @@ namespace fast_planner
     while (true)
     {
       if (u_(k + 1) >= ub)
+      {
         break;
+      }
       ++k;
     }
 
@@ -93,6 +96,7 @@ namespace fast_planner
     return d[p_];
   }
 
+  // diff 
   // Eigen::VectorXd UniformBspline::evaluateDeBoorT(const double& t) {
   //   return evaluateDeBoor(t + u_(p_));
   // }
@@ -125,6 +129,7 @@ namespace fast_planner
 
   double UniformBspline::getInterval() { return interval_; }
 
+// diff
   void UniformBspline::setPhysicalLimits(const double &vel, const double &acc, const double &tolerance)
   {
     limit_vel_ = vel;
@@ -142,7 +147,7 @@ namespace fast_planner
 
     /* check vel feasibility and insert points */
     double max_vel = -1.0;
-    double enlarged_vel_lim = limit_vel_ * (1.0 + feasibility_tolerance_) + 1e-4;
+    double enlarged_vel_lim = limit_vel_ * (1.0 + feasibility_tolerance_) + 1e-4; // diff
     for (int i = 0; i < P.cols() - 1; ++i)
     {
       Eigen::VectorXd vel = p_ * (P.col(i + 1) - P.col(i)) / (u_(i + p_ + 1) - u_(i + 1));
@@ -150,9 +155,10 @@ namespace fast_planner
       if (fabs(vel(0)) > enlarged_vel_lim || fabs(vel(1)) > enlarged_vel_lim ||
           fabs(vel(2)) > enlarged_vel_lim)
       {
-
         if (show)
+        {
           cout << "[Check]: Infeasible vel " << i << " :" << vel.transpose() << endl;
+        }
         fea = false;
 
         for (int j = 0; j < dimension; ++j)
@@ -201,9 +207,13 @@ namespace fast_planner
     double delta_t = (ratio - 1.0) * (u_(num2) - u_(num1));
     double t_inc = delta_t / double(num2 - num1);
     for (int i = num1 + 1; i <= num2; ++i)
+    {
       u_(i) += double(i - num1) * t_inc;
+    }
     for (int i = num2 + 1; i < u_.rows(); ++i)
+    {
       u_(i) += delta_t;
+    }
   }
 
   // void UniformBspline::recomputeInit() {}

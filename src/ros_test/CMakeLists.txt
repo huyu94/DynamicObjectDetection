@@ -7,6 +7,7 @@ project(ros_test)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -41,7 +42,9 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
+
 
 add_executable(ros_test_node src/test_node.cpp)
 target_link_libraries(ros_test_node ${catkin_LIBRARIES})

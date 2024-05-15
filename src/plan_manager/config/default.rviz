@@ -99,7 +99,8 @@ Visualization Manager:
       Marker Topic: /dynamic_env/global_cylinders_state
       Name: dynamic-env
       Namespaces:
-        {}
+        "": true
+        velocity: true
       Queue Size: 100
       Value: true
     - Class: rviz/Group
@@ -255,7 +256,7 @@ Visualization Manager:
               Marker Topic: /drone_0_odom_visualization/robot
               Name: robot
               Namespaces:
-                {}
+                mesh: true
               Queue Size: 100
               Value: true
             - Class: rviz/Image
@@ -326,11 +327,19 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /bspline_traj
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:

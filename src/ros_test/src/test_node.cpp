@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 #include <ros/subscriber.h>
-
+#include <Eigen/Eigen>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseStamped.h>
 
@@ -8,6 +8,9 @@ static int id = 0;
 
 ros::Publisher pub;
 ros::Subscriber sub;
+
+using Vector3d = Eigen::Vector3d;
+using MatrixXd = Eigen::MatrixXd;
 
 void simcallback(const geometry_msgs::PoseStampedConstPtr& msg)
 {
@@ -50,6 +53,24 @@ int main(int argc, char** argv)
     sub = nh.subscribe("/move_base_simple/goal", 1, simcallback);
     pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 10);
     
+    MatrixXd list(3,10);
+    list << 1,2,3,
+            4,5,6,
+            7,8,9,
+            10,11,12,
+            13,14,15,
+            16,17,18,
+            19,20,21,
+            22,23,24,
+            25,26,27,
+            28,29,30;
+    for(int i=0;i<list.cols();i++)
+    {
+        for(int j=0;j < 3 ; j++)
+        {
+            ROS_INFO("list[%d]: %f", i, list.col(i)[j]);
+        }
+    }
     
     ros::spin();
 

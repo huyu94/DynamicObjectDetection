@@ -632,6 +632,7 @@ void KinodynamicAstar::reset()
   has_path_ = false;
 }
 
+// 获取动力学轨迹
 std::vector<Eigen::Vector3d> KinodynamicAstar::getKinoTraj(double delta_t)
 {
   vector<Vector3d> state_list;

@@ -139,32 +139,32 @@ namespace fast_planner
         Vector3d init_vel = start_vel;
         Vector3d init_acc = start_acc;
 
-        // kinodynamic path searching
+        /* 1. kinodynamic path searhcing */
         t1 = ros::Time::now();
         kino_path_finder_ptr_->reset();
         ROS_INFO_STREAM("START SEARCH");
         int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true);
         ROS_INFO_STREAM("FINISH START SEARCH");
         ROS_INFO_STREAM("search status : " << status);
-        // if(status == KinodynamicAstar::NO_PATH)
-        // {
-        //     ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
-        //     kino_path_finder_ptr_->reset();
-        //     status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false);
+        if(status == KinodynamicAstar::NO_PATH)
+        {
+            ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
+            kino_path_finder_ptr_->reset();
+            status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false);
 
-        //     if(status == KinodynamicAstar::NO_PATH)
-        //     {
-        //         ROS_WARN_STREAM("[kino replan]: kinodynamic second search fail!" );
-        //         return false;
-        //     }
-        //     else
-        //     {
-        //         ROS_WARN_STREAM("[kino replan]: kinodynamic second search success!" );
-        //     }
-        // }
-        // else{
-        //     ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
-        // }
+            if(status == KinodynamicAstar::NO_PATH)
+            {
+                ROS_WARN_STREAM("[kino replan]: kinodynamic second search fail!" );
+                return false;
+            }
+            else
+            {
+                ROS_WARN_STREAM("[kino replan]: kinodynamic second search success!" );
+            }
+        }
+        else{
+            ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
+        }
     
         ROS_INFO_STREAM("FINISH SEARCH");
         plan_data_.kino_path_ = kino_path_finder_ptr_->getKinoTraj(0.01);
@@ -173,20 +173,29 @@ namespace fast_planner
         {
             return false;
         }
-        traj_visual_ptr_->visualizeKinodynamicTraj(plan_data_.kino_path_, ros::Time::now());
 
-        t_search = (ros::Time::now() - t1).toSec();
+        t_search =  (ros::Time::now() - t1).toSec();
+        // traj_visual_ptr_->visualizeKinodynamicTraj(plan_data_.kino_path_, ros::Time::now());
+
+        /* 2. parameterize the path to bspline */
+        double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
+        vector<Vector3d> point_set, start_end_derivatives;
+        kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
+
+        MatrixXd ctrl_pts;
+        UniformBspline::parameterizeToBspline(ts,point_set,start_end_derivatives,ctrl_pts);
+        UniformBspline init(ctrl_pts,3,ts);
+        // traj_visual_ptr_->visualizeBsplineTraj(point_set,ctrl_pts,ros::Time::now());
+
+        /* 3. optimization */
+        t1 = ros::Time::now();
+
+        // int cost_function = BsplineOptimizer
+
+        // t_search = (ros::Time::now() - t1).toSec();
 
         return true;
-        // double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
-        // vector<Vector3d> point_set, start_end_derivatives;
-        // kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
 
-
-
-        // MatrixXd ctrl_pts;
-        // UniformBspline::parameterizeToBspline(ts,point_set,start_end_derivatives,ctrl_pts);
-        // UniformBspline init(ctrl_pts,3,ts);
 
         /* TODO  */
 

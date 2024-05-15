@@ -12,8 +12,8 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <plan_env/static/grid_map.h>
-#include <plan_env/env_manager.h>
+#include <env_manager/static/grid_map.h>
+#include <env_manager/env_manager.h>
 // #include "plan_env/edt_environment.h"
 
 namespace fast_planner {

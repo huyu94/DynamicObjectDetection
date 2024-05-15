@@ -55,20 +55,14 @@ namespace fast_planner
   public:
     BsplineOptimizer() {}
     ~BsplineOptimizer() {}
-    void init(); 
+    void init(const ros::NodeHandle &nh, const EnvManager::Ptr& env_manager); 
 
   private:
     void setEnvironment(const EnvManager::Ptr& env_manager);
-    // void setEnvironment(const GridMap::Ptr &map, const fast_planner::ObjPredictor::Ptr mov_obj);
-    void setParam(ros::NodeHandle &nh);
-    void setTrackerPool(const TrackerPool::Ptr &tracker_pool);
-    void setMapVisualizer(const MapVisualizer::Ptr &map_visualizer);
+    void setParam(const ros::NodeHandle &nh);
 
     /* main API */
   public:
-    Eigen::MatrixXd BsplineOptimizeTraj(const Eigen::MatrixXd &points, const double &ts,
-                                        const int &cost_function, int max_num_id, int max_time_id);
-
     /* helper function */
 
     // required inputs

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(plan_env)
+project(env_manager)
 
 set(CMAKE_BUILD_TYPE "Release")
 ADD_COMPILE_OPTIONS(-std=c++14 )
@@ -52,9 +52,9 @@ include_directories(
 #     "src/*.cpp"
 # )
 
-add_library( plan_env 
+add_library(${PROJECT_NAME} 
     ${plan_env_SRC}
-    include/plan_env/ikd-Tree/ikd_Tree.cpp
+    include/${PROJECT_NAME}/ikd-Tree/ikd_Tree.cpp
     src/grid_map.cpp
     src/kalman_filter.cpp
     src/raycast.cpp
@@ -63,29 +63,28 @@ add_library( plan_env
     src/pos_checker.cpp
 )
 
-target_link_libraries( plan_env
+target_link_libraries(${PROJECT_NAME}
     ${catkin_LIBRARIES} 
     ${PCL_LIBRARIES}
     ${MunkresLIB}
     ${OpenCV_LIBS}
 )
 
-add_executable(env_node
-    src/env_node.cpp
-    include/plan_env/ikd-Tree/ikd_Tree.cpp
-    src/grid_map.cpp
-    src/kalman_filter.cpp
-    src/raycast.cpp
-    src/tracker_pool.cpp
-    src/env_manager.cpp
+add_executable(test_node
+    src/test_node.cpp
 )
 
-target_link_libraries(env_node
+target_link_libraries(test_node
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
     ${MunkresLIB}
     ${OpenCV_LIBS}
+    ${PROJECT_NAME}
 )
+
+
+
+
 
 add_executable(test_stCapsule
     src/test_stCapsule.cpp

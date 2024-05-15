@@ -1,0 +1,41 @@
+
+<launch>
+    <!-- number of moving objects -->
+    <arg name="map_size_x_"/>
+    <arg name="map_size_y_"/>
+    <arg name="map_size_z_"/>
+    <arg name="init_x_"/>
+    <arg name="init_y_"/>
+    <arg name="init_z_"/>
+    <arg name="odom_topic_"/>
+    <arg name="seed_" value="390"/>
+    <!-- map -->
+    <node pkg ="dynamic_map_generator" name ="dynamic_env" type="dynamic_map_generator_node" >
+        <!-- output -->
+        <param name="map/x_init"        value="$(arg init_x_)"/>
+        <param name="map/y_init"        value="$(arg init_y_)"/>
+        <param name="map/z_init"        value="$(arg init_z_)"/>
+        <param name="map/x_size"        value="$(arg map_size_x_)" />
+        <param name="map/y_size"        value="$(arg map_size_y_)" />
+        <param name="map/z_size"        value="$(arg map_size_z_)" />
+        <param name="map/seed" value="$(arg seed_)"/>
+        <rosparam command="load" file="$(find dynamic_map_generator)/cfg/params.yaml"/>
+        
+        
+        <!-- <remap from="~dynamic_map_generator/_local_map" to="drone_$(arg drone_id)_local_map"/> -->
+    </node>
+
+
+    <node pkg ="static_map_generator" name ="static_env" type ="random_forest" output = "screen">    
+        <!-- <remap from="~odometry"   to="$(arg odometry_topic)"/>     -->
+        <param name="init_state_x"      value="$(arg init_x_)"/>
+        <param name="init_state_y"      value="$(arg init_y_)"/>
+        <param name="map/x_size"        value="$(arg map_size_x_)" />
+        <param name="map/y_size"        value="$(arg map_size_y_)" />
+        <param name="map/z_size"        value="$(arg map_size_z_)" />
+        <param name="seed"              value="$(arg seed_)"/>
+        <rosparam command="load" file="$(find static_map_generator)/cfg/params.yaml"/>
+    
+    </node>
+
+</launch>

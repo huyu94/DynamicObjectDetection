@@ -169,6 +169,9 @@ private:
     INVALID_IDX = -10000
   };
 
+
+
+  /* index */
   inline Eigen::Vector3d globalIdx2Pos(const Eigen::Vector3i &id);  // 1.69ns
   inline Eigen::Vector3i pos2GlobalIdx(const Eigen::Vector3d &pos); // 0.13ns
   inline int globalIdx2BufIdx(const Eigen::Vector3i &id);           // 2.2ns
@@ -180,22 +183,13 @@ private:
   inline bool isInInfBuf(const Eigen::Vector3d &pos);
   inline bool isInInfBuf(const Eigen::Vector3i &idx);
 
+  /* publish */
   void publishMap();
   void publishMapInflate();
 
-  // get depth image and camera pose
-  // void depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
-                        //  const geometry_msgs::PoseStampedConstPtr &pose);
-  // void extrinsicCallback(const nav_msgs::OdometryConstPtr &odom);
-  // void depthOdomCallback(const sensor_msgs::ImageConstPtr &img, const nav_msgs::OdometryConstPtr &odom);
-  // void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &img);
-  // void odomCallback(const nav_msgs::OdometryConstPtr &odom);
-
 
   // update occupancy by raycasting
-  // void updateOccupancyCallback(const ros::TimerEvent & /*event*/);
   void visCallback(const ros::TimerEvent & /*event*/);
-  // void fadingCallback(const ros::TimerEvent & /*event*/);
 
   void clearBuffer(char casein, int bound);
 
@@ -211,33 +205,17 @@ private:
   inline int setCacheOccupancy(Eigen::Vector3d pos, int occ);
   Eigen::Vector3d closetPointInMap(const Eigen::Vector3d &pt, const Eigen::Vector3d &camera_pt);
   void testIndexingCost();
-  // bool checkDepthOdomNeedupdate();
   void initMapBoundary();
 
-  // typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // nav_msgs::Odometry> SyncPolicyImageOdom; typedef
-  // message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-  // geometry_msgs::PoseStamped> SyncPolicyImagePose;
-  // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry>
-  //     SyncPolicyImageOdom;
-  // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
-  //     SyncPolicyImagePose;
-  // typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImagePose>> SynchronizerImagePose;
-  // typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImageOdom>> SynchronizerImageOdom;
+
 
   ros::NodeHandle node_;
-  // shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depth_sub_;
-  // shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> pose_sub_;
-  // shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odom_sub_;
-  // SynchronizerImagePose sync_image_pose_;
-  // SynchronizerImageOdom sync_image_odom_;
 
-  // ros::Subscriber indep_cloud_sub_, indep_odom_sub_, extrinsic_sub_;
+
   ros::Subscriber indep_cloud_sub_, indep_odom_sub_;
   ros::Publisher map_pub_, map_inf_pub_;
   ros::Timer occ_timer_, vis_timer_, fading_timer_;
 
-  //
   uniform_real_distribution<double> rand_noise_;
   normal_distribution<double> rand_noise2_;
   default_random_engine eng_;

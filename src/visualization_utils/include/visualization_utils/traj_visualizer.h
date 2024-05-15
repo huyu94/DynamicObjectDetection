@@ -11,7 +11,7 @@
 #include <visualization_utils/color.hpp>
 
 using Vector3d = Eigen::Vector3d;
-
+using MatrixXd = Eigen::MatrixXd;
 
 
 class TrajVisualizer
@@ -32,6 +32,10 @@ public:
     
     void visualizeOptimalTraj(const std::vector<Vector3d>& optimal_traj, ros::Time local_time);
 
+    void visualizeBsplineTraj(const std::vector<Vector3d>& bspline, const MatrixXd& ctrl_pts, ros::Time local_time);
+
+    void visualizeAstarPath(const std::vector<std::vector<Vector3d>>& astar_pathes, ros::Time local_time);
+
 
 typedef std::shared_ptr<TrajVisualizer> Ptr;
 
@@ -47,6 +51,9 @@ private:
 
     void visualizeMarkerList(ros::Publisher& pub, const std::vector<Vector3d>& list, double scale,
                              Color color, int id, bool show_sphere /* = true */);
+    void visualizeMarkerList(ros::Publisher& pub, const std::vector<Vector3d>& list, const MatrixXd& ctrl_pts, double scale,
+                             Color color, int id, bool show_sphere /* = true */);
+
 
     /* pubisher */
     ros::Publisher pub_multi_topo_trajs_; // id [0,9] 
@@ -55,10 +62,14 @@ private:
     const int kino_traj_id_ = 10;
     ros::Publisher pub_opti_traj_; // id 11;
     const int opti_traj_id_ = 11;
-    ros::Publisher pub_collision_;
+    ros::Publisher pub_collision_; // id 12
     const int collision_id_ = 12;
-    ros::Publisher pub_start_and_goal_;
+    ros::Publisher pub_start_and_goal_; // id 13
     const int start_and_goal_id_ = 13;
+    ros::Publisher pub_bspline_traj_; // id 14
+    const int bspline_traj_id_ = 14;
+    ros::Publisher pub_astar_pathes_; // id
+    std::vector<int> astar_pathes_id = {15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30};
 
 };
 
