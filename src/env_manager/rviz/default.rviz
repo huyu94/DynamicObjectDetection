@@ -190,7 +190,7 @@ Visualization Manager:
               Color: 255; 255; 255
               Color Transformer: AxisColor
               Decay Time: 0
-              Enabled: false
+              Enabled: true
               Invert Rainbow: false
               Max Color: 255; 255; 255
               Min Color: 0; 0; 0
@@ -205,7 +205,7 @@ Visualization Manager:
               Unreliable: false
               Use Fixed Frame: true
               Use rainbow: true
-              Value: false
+              Value: true
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
@@ -218,7 +218,7 @@ Visualization Manager:
               Color: 255; 255; 255
               Color Transformer: AxisColor
               Decay Time: 0
-              Enabled: false
+              Enabled: true
               Invert Rainbow: false
               Max Color: 255; 255; 255
               Min Color: 0; 0; 0
@@ -233,7 +233,7 @@ Visualization Manager:
               Unreliable: false
               Use Fixed Frame: true
               Use rainbow: true
-              Value: false
+              Value: true
             - Class: rviz/MarkerArray
               Enabled: false
               Marker Topic: /test_node/moving_object_box
@@ -259,13 +259,13 @@ Visualization Manager:
               Queue Size: 100
               Value: false
             - Class: rviz/MarkerArray
-              Enabled: false
+              Enabled: true
               Marker Topic: /test_node/segmentation_result
               Name: segementation_result
               Namespaces:
-                {}
+                bbox: true
               Queue Size: 100
-              Value: false
+              Value: true
             - Class: rviz/MarkerArray
               Enabled: false
               Marker Topic: /test_node/slide_box
@@ -334,7 +334,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 29.666061401367188
+      Distance: 24.63458824157715
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -342,17 +342,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.2854464054107666
-        Y: -5.384213924407959
-        Z: -5.4602370262146
+        X: 0.6754683256149292
+        Y: -1.013761281967163
+        Z: -3.2425782680511475
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1647963523864746
+      Pitch: 1.484796404838562
       Target Frame: <Fixed Frame>
-      Yaw: 0.15037693083286285
+      Yaw: 1.6085500717163086
     Saved: ~
 Window Geometry:
   Displays:

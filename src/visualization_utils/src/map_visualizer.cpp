@@ -96,8 +96,6 @@ void MapVisualizer::visualizeSegmentationResult(std::vector<VisualCluster> &visu
         bboxs.markers.push_back(generateBBox(box_min,box_max,i));
         // 创建箭头
         // bboxs_and_arrows.markers.push_back(generateArrows(p,v,i));
-        
-
     }
 
     segmentation_result_pub_.publish(bboxs);
