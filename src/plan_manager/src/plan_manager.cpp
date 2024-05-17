@@ -172,28 +172,31 @@ namespace fast_planner
         {
             return false;
         }
+        double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
+        vector<Vector3d> point_set, start_end_derivatives;
+        kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
 
         t_search =  (ros::Time::now() - t_start);
         traj_visual_ptr_->visualizeKinodynamicTraj(plan_data_.kino_path_, false,false);
 
         /* 2. parameterize the path to bspline */
         // ROS_INFO_STREAM("ctrl_pt_dist : " << pp_.ctrl_pt_dist_ << "max_vel : " << pp_.max_vel_);
-        double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
-        vector<Vector3d> point_set, start_end_derivatives;
-        kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
 
+
+
+
+        t_start = ros::Time::now();
         MatrixXd ctrl_pts;
         UniformBspline::parameterizeToBspline(ts,point_set,start_end_derivatives,ctrl_pts);
         UniformBspline init(ctrl_pts,3,ts);
-        traj_visual_ptr_->visualizeBsplineTraj(point_set,ctrl_pts,true);
+        // traj_visual_ptr_->visualizeBsplineTraj(point_set,ctrl_pts,true);
 
         /* 3.1 bound optimization */
-        t_start = ros::Time::now();
         // ROS_INFO_STREAM("start a* search");
         vector<vector<Vector3d>> astar_pathes;
         astar_pathes = bspline_optimizer_ptrs_[0]->initControlPoints(ctrl_pts,true);
         // ROS_INFO_STREAM("end a* search");
-        ROS_INFO_STREAM("astar_pathes size : " << astar_pathes.size());
+        // ROS_INFO_STREAM("astar_pathes size : " << astar_pathes.size());
         // traj_visual_ptr_->visualizeAstarPath(astar_pathes,false);
 
         bool flag_step_1_success = bspline_optimizer_ptrs_[0]->BsplineOptimizeTrajRebound(ctrl_pts, ts);
@@ -207,6 +210,7 @@ namespace fast_planner
         vector<Vector3d> vis_point_set;
         // UniformBspline::parameterizeToBspline(ts,vis_point_set,start_end_derivatives,ctrl_pts);
         UniformBspline rebound_traj(ctrl_pts,3,ts);
+        t_opt = (ros::Time::now() - t_start);
 
         // double rebound_t_sum = rebound_traj.getTimeSum();
         // for(double i = 0; i < rebound_t_sum; i+= 0.1)
@@ -214,7 +218,6 @@ namespace fast_planner
         //     vis_point_set.push_back(rebound_traj.evaluateDeBoorT(i));
         
         // }
-        t_opt = (ros::Time::now() - t_start);
         // traj_visual_ptr_->visualizeOptimalTraj(vis_point_set,false,true);
         /* 3.2 refine */
         t_start = ros::Time::now();
@@ -259,6 +262,7 @@ namespace fast_planner
         // int cost_function = BsplineOptimizer
 
         // t_search = (ros::Time::now() - t1).toSec();
+        
 
         return true;
 
