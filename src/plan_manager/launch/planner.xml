@@ -61,45 +61,16 @@
         <param name="fsm/waypoint4_y" value="$(arg point4_y)" type="double"/>
         <param name="fsm/waypoint4_z" value="$(arg point4_z)" type="double"/>
 
+
+        <!-- env manager -->
         <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic)"/>
         <remap from="~odom"  to="/drone_$(arg drone_id)/odometry"/>
-        <param name="env_manager/dbscan_eps"                    value="0.5"/>
-        <param name="env_manager/dbscan_min_ptn"                value="10"/>
-        <param name="env_manager/dbscan_min_cluster_size"       value="40"/>
-        <param name="env_manager/dbscan_max_cluster_size"       value="500"/>
-        <param name="env_manager/gamma1_threshold"              value="0.0001"/>
-        <param name="env_manager/gamma2_threshold"              value="30.0"/>
-        <param name="env_manager/record"                        value="false"/>  
-        <param name="env_manager/slide_window_size"             value="5"/>
-        <param name="env_manager/distance_gate"                 value="0.8"/>
-        <param name="env_manager/cluster_max_height"            value="1.5"/>
-        <param name="tracker_pool/missing_tracking_threshold"    value="0.5"/>
+        <rosparam file="$(find env_manager)/cfg/env_manager_params.yaml" />
+        <!-- <rosparam file="$(find env_manager)/cfg/grid_map_params.yaml" />  -->
 
-        <param name="grid_map/resolution" value="0.2" />
-        <param name="grid_map/local_update_range_x" value="5.5" />
-        <param name="grid_map/local_update_range_y" value="5.5" />
-        <param name="grid_map/local_update_range_z" value="2.0" /> <!-- different meaning between grid_map.cpp and grid_map_bigmap.cpp -->
-        <param name="grid_map/obstacles_inflation" value="0.1" />
-        <param name="grid_map/local_map_margin" value="10"/>
-        <param name="grid_map/enable_virtual_wall" value="true"/>
-        <param name="grid_map/virtual_ceil" value="2.0"/>
-        <param name="grid_map/virtual_ground" value="-0.0"/>
-        <param name="grid_map/ground_height" value="-0.01"/>
-
-        <!-- local fusion -->
-        <param name="grid_map/p_hit" value="0.65"/>
-        <param name="grid_map/p_miss" value="0.35"/>
-        <param name="grid_map/p_min" value="0.12"/>
-        <param name="grid_map/p_max" value="0.90"/>
-        <param name="grid_map/p_occ" value="0.80"/>
-        <param name="grid_map/fading_time" value="1000.0"/>
-        <param name="grid_map/min_ray_length" value="0.1"/>
-        <param name="grid_map/max_ray_length" value="4.5"/>
-        <param name="grid_map/visualization_truncate_height" value="1.9"/>
-        <param name="grid_map/show_occ_time" value="false"/>
-        <param name="grid_map/pose_type" value="1"/>
-        <param name="grid_map/frame_id" value="world"/>
         
+
+        <!-- plan_manager -->
 
         <!-- planner manager -->
         <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
@@ -130,7 +101,7 @@
     </node>
 
     <!-- trajectory server -->
-    <node pkg="plan_manage" name="traj_server" type="traj_server" output="screen">
+    <node pkg="plan_manager" name="traj_server" type="traj_server" output="screen">
         <remap from="~position_cmd" to="drone_$(arg drone_id)/planning/pos_cmd" />
         <remap from="~planning/bspline" to="drone_$(arg drone_id)/planning/bspline" />
 

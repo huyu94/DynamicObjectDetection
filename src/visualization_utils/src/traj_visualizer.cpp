@@ -23,11 +23,16 @@ void TrajVisualizer::init(const ros::NodeHandle& nh)
 
 
 
-void TrajVisualizer::visualizeCollision(const Vector3d& collision, ros::Time local_time)
+void TrajVisualizer::visualizeCollision(const Vector3d& collision, bool keep)
 {
     if(pub_collision_.getNumSubscribers() == 0)
     {
         return ;
+    }
+    static int collision_id = 0;
+    if(keep)
+    {
+        collision_id++;
     }
     visualization_msgs::Marker collision_point;
     geometry_msgs::Point p;
@@ -36,12 +41,12 @@ void TrajVisualizer::visualizeCollision(const Vector3d& collision, ros::Time loc
     p.z = collision(2);
     collision_point.points.push_back(p);
     collision_point.header.frame_id = "world";
-    collision_point.header.stamp = local_time;
+    collision_point.header.stamp = ros::Time::now();
     collision_point.ns = "collision";
     collision_point.action = visualization_msgs::Marker::ADD;
     collision_point.lifetime = ros::Duration(0); // always exist
     collision_point.pose.orientation.w = 1.0;
-    collision_point.id = collision_id_;
+    collision_point.id = collision_id;
     collision_point.type = visualization_msgs::Marker::SPHERE_LIST;
     collision_point.scale.x = 0.2;
     collision_point.scale.y = 0.2;
@@ -51,13 +56,19 @@ void TrajVisualizer::visualizeCollision(const Vector3d& collision, ros::Time loc
     pub_collision_.publish(collision_point);    
 }
 
-void TrajVisualizer::visualizeStartAndGoal(const Vector3d &start, const Vector3d &goal, ros::Time local_time)
+void TrajVisualizer::visualizeStartAndGoal(const Vector3d &start, const Vector3d &goal, bool keep)
 {
     if(pub_start_and_goal_.getNumSubscribers() == 0)
     {
         return;
     }
     visualization_msgs::Marker pos_point;
+
+    static int point_id = 0;
+    if(keep)
+    {
+        point_id ++;
+    }
 
     geometry_msgs::Point p;
     p.x = start[0];
@@ -70,12 +81,12 @@ void TrajVisualizer::visualizeStartAndGoal(const Vector3d &start, const Vector3d
     pos_point.points.push_back(p);
 
     pos_point.header.frame_id = "world";
-    pos_point.header.stamp = local_time;
+    pos_point.header.stamp = ros::Time::now();
     pos_point.ns = "s-g";
     pos_point.action = visualization_msgs::Marker::ADD;
     pos_point.lifetime = ros::Duration(0); // always exist
     pos_point.pose.orientation.w = 1.0;
-    pos_point.id = start_and_goal_id_;
+    pos_point.id = point_id;
     pos_point.type = visualization_msgs::Marker::POINTS;
     pos_point.scale.x = 0.4;
     pos_point.scale.y = 0.4;
@@ -86,13 +97,14 @@ void TrajVisualizer::visualizeStartAndGoal(const Vector3d &start, const Vector3d
 
 }
 
-void TrajVisualizer::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>> &topo_trajs, std::vector<bool>& success, ros::Time local_time)
+void TrajVisualizer::visualizeMultiTopoTrajs(const std::vector<std::vector<Vector3d>> &topo_trajs, std::vector<bool>& success, bool keep, bool show_sphere)
 {
     if(pub_multi_topo_trajs_.getNumSubscribers() == 0)
     {
         return;
     }
 
+    std::string ns = "topo_trajs";
     static int last_nums = 0;
     if(last_nums > topo_trajs.size())
     {
@@ -103,39 +115,159 @@ void TrajVisualizer::visualizeMultiTopoTrajs(const std::vector<std::vector<Vecto
     {
         int scale = 0.2;
         Color color(0,0,0,0);
-        int id = multi_topo_trajs_id[i];
         std::vector<Vector3d> blank;
-        visualizeMarkerList(pub_multi_topo_trajs_, blank, scale, color, id, false);
+        visualizeTrajectoryAndSamplePoints(pub_multi_topo_trajs_,blank,0.2,color,ns,i);
         ros::Duration(0.001).sleep();
     }
     last_nums = 0;
 
     for(int i=0; i<topo_trajs.size(); i++)
     {
-        int id = multi_topo_trajs_id[i];
         if(i >= topoColorMap.size())
         {
             ROS_ERROR("ColorMap is not enough!");
             break;
         }
         Color color;
-        if(success[id])
+        if(success[i])
         {
-            color = topoColorMap[id];
+            color = topoColorMap[i];
         }
         else
         {
             color = Color::Gray();
         }
-        visualizeMarkerList(pub_multi_topo_trajs_, topo_trajs[i], 0.2, color, id, false);
+        visualizeTrajectoryAndSamplePoints(pub_multi_topo_trajs_,topo_trajs[i],0.2,color,ns,i);
         ros::Duration(0.001).sleep();
         last_nums++;
     }
 
 }
 
-// real ids used: {id, id+1000}
-void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vector3d> &list, double scale, Color color, int id, bool show_sphere)
+
+void TrajVisualizer::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj, bool keep, bool show_sphere)
+{
+    if(pub_kino_traj_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+    string ns = "kino_trajs";
+    Color green = Color::Green();
+    static int kino_id = 0;
+    if(keep)
+    {
+        kino_id++;
+    }
+
+    if(show_sphere)
+    {
+        visualizeTrajectoryAndSamplePoints(pub_kino_traj_,kino_traj,0.2,green,ns,kino_id);
+    }else
+    {
+        visualizeTrajectory(pub_kino_traj_,kino_traj,0.2,green,ns,kino_id);
+    }
+}
+
+
+void TrajVisualizer::visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, bool keep, bool show_sphere)
+{
+    if(pub_opti_traj_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+
+    string ns = "opti_trajs";
+    Color red = Color::Red();
+    static int opti_id = 0;
+    if(keep)
+    {
+        opti_id ++;
+    }    
+
+    if(show_sphere)
+    {
+        visualizeTrajectoryAndSamplePoints(pub_opti_traj_,optimal_traj,0.2,red,ns,opti_id);
+    }else
+    {
+        visualizeTrajectory(pub_opti_traj_,optimal_traj,0.2,red,ns,opti_id);
+    }
+}
+
+
+void TrajVisualizer::visualizeBsplineTraj(const std::vector<Vector3d> &bspline, const MatrixXd& ctrl_pts, bool keep)
+{
+    if(pub_bspline_traj_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+
+    Color blue = Color::Blue();
+    string ns = "bspline";
+    static int bspline_id = 0;
+    if(keep)
+    {
+        bspline_id++;
+    }
+    visualizeTrajectoryAndControlPoints(pub_bspline_traj_,bspline,ctrl_pts,0.1,blue,ns,bspline_id);
+}
+
+void TrajVisualizer::visualizeAstarPath(const std::vector<std::vector<Vector3d>> &astar_pathes, bool keep)
+{
+    if(pub_astar_pathes_.getNumSubscribers() == 0)
+    {
+        return;
+    }
+
+    static string ns = "astar_pathes";
+    static int last_nums = 0;
+    
+    for(int i = 0; i < last_nums; i++)
+    {
+        Color color(0,0,0,0);
+        std::vector<Vector3d> blank;
+        visualizeTrajectoryAndSamplePoints(pub_astar_pathes_,blank,0.2,color,"astar_pathes",i);
+    }
+    last_nums = 0;
+
+    for(size_t i = 0; i < astar_pathes.size(); i++)
+    {
+        Color color = Color::SteelBlue();
+        visualizeTrajectoryAndSamplePoints(pub_astar_pathes_,astar_pathes[i],0.2,color,ns,i);
+        last_nums ++;
+        ros::Duration(0.001).sleep();
+    }
+
+}
+
+
+void TrajVisualizer::visualizeTrajectory(ros::Publisher &pub, const vector<Vector3d> &traj, double scale, Color color, const string ns, int id)
+{
+    visualization_msgs::Marker line_strip;
+    line_strip.header.frame_id = "world";
+    line_strip.header.stamp = ros::Time::now();
+    line_strip.type = visualization_msgs::Marker::LINE_STRIP;
+    line_strip.action = visualization_msgs::Marker::ADD;
+    line_strip.id = id + 1000;
+    line_strip.ns = ns;
+
+    line_strip.pose.orientation.w = 1.0;
+    line_strip.color.r = color.r;
+    line_strip.color.g = color.g;
+    line_strip.color.b = color.b;
+    line_strip.color.a = color.a > 1e-5 ? color.a : 1.0;
+    line_strip.scale.x = scale/2;
+    geometry_msgs::Point pt;
+    for(int i=0; i < int(traj.size()); i++)
+    {
+        pt.x = traj[i](0);
+        pt.y = traj[i](1);
+        pt.z = traj[i](2);
+        line_strip.points.push_back(pt);
+    }
+    pub.publish(line_strip);
+}
+
+void TrajVisualizer::visualizeTrajectoryAndSamplePoints(ros::Publisher &pub, const vector<Vector3d> &traj, double scale, Color color, const string ns, int id)
 {
     visualization_msgs::Marker sphere, line_strip;
     sphere.header.frame_id = line_strip.header.frame_id = "world";
@@ -145,6 +277,7 @@ void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<
     sphere.action = line_strip.action = visualization_msgs::Marker::ADD;
     sphere.id = id;
     line_strip.id = id + 1000;
+    sphere.ns = line_strip.ns = ns;
 
     sphere.pose.orientation.w = line_strip.pose.orientation.w = 1.0;
     sphere.color.r = line_strip.color.r = color.r;
@@ -156,22 +289,22 @@ void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<
     sphere.scale.z = scale;
     line_strip.scale.x = scale/2;
     geometry_msgs::Point pt;
-    for(int i=0; i < int(list.size()); i++)
+    for(int i=0; i < int(traj.size()); i++)
     {
-        pt.x = list[i](0);
-        pt.y = list[i](1);
-        pt.z = list[i](2);
-        if(show_sphere) sphere.points.push_back(pt);
+        pt.x = traj[i](0);
+        pt.y = traj[i](1);
+        pt.z = traj[i](2);
+        sphere.points.push_back(pt);
         line_strip.points.push_back(pt);
     }
 
-    if(show_sphere) pub.publish(sphere);
+    pub.publish(sphere);
     pub.publish(line_strip);
-
 }
 
-void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<Vector3d> &list, const MatrixXd& ctrl_pts, double scale, Color color, int id, bool show_sphere)
+void TrajVisualizer::visualizeTrajectoryAndControlPoints(ros::Publisher &pub, const vector<Vector3d> &traj, const MatrixXd &ctrl_pts, double scale, Color color, string ns, int id)
 {
+
     visualization_msgs::Marker sphere, line_strip;
     sphere.header.frame_id = line_strip.header.frame_id = "world";
     sphere.header.stamp = line_strip.header.stamp = ros::Time::now();
@@ -180,6 +313,7 @@ void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<
     sphere.action = line_strip.action = visualization_msgs::Marker::ADD;
     sphere.id = id;
     line_strip.id = id + 1000;
+    sphere.ns = line_strip.ns = ns;
     
     sphere.pose.orientation.w = line_strip.pose.orientation.w = 1.0;
     sphere.color.r = line_strip.color.r = color.r;
@@ -191,11 +325,11 @@ void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<
     sphere.scale.z = scale;
     line_strip.scale.x = scale/2;
     geometry_msgs::Point pt;
-    for(size_t i = 0; i < list.size(); i++)
+    for(size_t i = 0; i < traj.size(); i++)
     {
-        pt.x = list[i](0);
-        pt.y = list[i](1);
-        pt.z = list[i](2);
+        pt.x = traj[i](0);
+        pt.y = traj[i](1);
+        pt.z = traj[i](2);
         line_strip.points.push_back(pt);
     }
     for(int i = 0; i < ctrl_pts.cols(); i++)
@@ -203,72 +337,10 @@ void TrajVisualizer::visualizeMarkerList(ros::Publisher &pub, const std::vector<
         pt.x = ctrl_pts(0,i);
         pt.y = ctrl_pts(1,i);
         pt.z = ctrl_pts(2,i);
-        if(show_sphere) sphere.points.push_back(pt);
+        sphere.points.push_back(pt);
     }
 
-    if(show_sphere) pub.publish(sphere);
+    pub.publish(sphere);
     pub.publish(line_strip);
-}
-
-void TrajVisualizer::visualizeKinodynamicTraj(const std::vector<Vector3d> &kino_traj, ros::Time local_time)
-{
-    if(pub_kino_traj_.getNumSubscribers() == 0)
-    {
-        return;
-    }
-    visualizeMarkerList(pub_kino_traj_, kino_traj, 0.2, Color::Green(), kino_traj_id_, false);
-}
-
-
-void TrajVisualizer::visualizeOptimalTraj(const std::vector<Vector3d> &optimal_traj, ros::Time local_time)
-{
-    if(pub_opti_traj_.getNumSubscribers() == 0)
-    {
-        return;
-    }
-    visualizeMarkerList(pub_opti_traj_, optimal_traj, 0.2, Color::Red(), opti_traj_id_, false);
-}
-void TrajVisualizer::visualizeBsplineTraj(const std::vector<Vector3d> &bspline, const MatrixXd& ctrl_pts, ros::Time local_time)
-{
-    if(pub_bspline_traj_.getNumSubscribers() == 0)
-    {
-        return;
-    }
-
-    visualizeMarkerList(pub_bspline_traj_, bspline, ctrl_pts, 0.2, Color::Blue(), bspline_traj_id_, true);
-}
-
-void TrajVisualizer::visualizeAstarPath(const std::vector<std::vector<Vector3d>> &astar_pathes, ros::Time local_time)
-{
-    if(pub_astar_pathes_.getNumSubscribers() == 0)
-    {
-        return;
-    }
-
-    static int last_nums = 0;
-    
-    for(int i = 0; i < last_nums; i++)
-    {
-        if(i >= astar_pathes_id.size()) 
-        {
-            break;
-        }
-        int scale = 0.2;
-        Color color(0,0,0,0);
-        int id = astar_pathes_id[i];
-        std::vector<Vector3d> blank;
-        visualizeMarkerList(pub_astar_pathes_,blank,scale,color,id,false);
-    }
-    last_nums = 0;
-
-    for(size_t i = 0; i < astar_pathes.size(); i++)
-    {
-        int id = astar_pathes_id[i];
-        Color color = Color::SteelBlue();
-        visualizeMarkerList(pub_astar_pathes_,astar_pathes[i],0.2,color,id,false);
-        visualizeMarkerList(pub_astar_pathes_,astar_pathes[i],0.2,color,id,false);
-        last_nums ++;
-        ros::Duration(0.001).sleep();
-    }
 
 }

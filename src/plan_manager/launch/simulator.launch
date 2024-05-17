@@ -5,14 +5,15 @@
     <arg name="drone_id" />
     <arg name="use_gpu" />
     <arg name="sensor_type" />
+    <!-- <arg name="odom_topic_"/> -->
 
     <!-- 接受cmd 发出odom -->
     <node pkg="fake_drone" name="drone_$(arg drone_id)_poscmd_2_odom" type="poscmd_2_odom" output="screen">
         <param name="init_x" value="$(arg init_x_)"/>
         <param name="init_y" value="$(arg init_y_)"/>
         <param name="init_z" value="$(arg init_z_)"/>
-        <remap from="~command" to="drone_$(arg drone_id)/planning/pos_cmd"/>
-        <remap from="~odometry" to="drone_$(arg drone_id)/odometry"/>
+        <remap from="~command" to="/drone_$(arg drone_id)/planning/pos_cmd"/>
+        <remap from="~odometry" to="/drone_$(arg drone_id)/odometry"/>
     </node>
 
 
@@ -52,21 +53,8 @@
     ]]>
 
 
-    <!-- 接受odom 建立无人机模型 -->
-    <node pkg="odom_visualization" name="drone_$(arg drone_id)_odom_visualization"
-        type="odom_visualization" output="screen">
-        <remap from="~odom" to="drone_$(arg drone_id)/odometry" />
-        <param name="color/a" value="1.0" />
-        <param name="color/r" value="0.0" />
-        <param name="color/g" value="0.0" />
-        <param name="color/b" value="0.0" />
-        <param name="covariance_scale" value="100.0" />
-        <param name="robot_scale" value="1.0" />
-        <param name="tf45" value="false" />
-        <param name="drone_id" value="$(arg drone_id)" />
-    </node>
 
-    <![CDATA[ 
+    <![CDATA[     ]]>
     <!-- sensor simulator -->
     <group if="$(arg use_gpu)">
         <group if="$(eval sensor_type == 'depth')">
@@ -94,7 +82,7 @@
                 <remap from="~static_map" to="/static_env/global_cloud" />
                 <remap from="~dynamic_map" to="/dynamic_env/global_cloud" />
                 <!-- output -->
-                <remap from="~cloud" to="drone_$(arg drone_id)/rendered_pcl" />
+                <remap from="~cloud" to="/drone_$(arg drone_id)/rendered_pcl" />
                 <param name="is_360lidar" value="1" />
                 <param name="sensing_horizon" value="15.0" />
                 <param name="sensing_rate" value="10.0" />
@@ -113,6 +101,6 @@
             </node>
         </group>
     </group>
-    ]]>
+
 
 </launch>

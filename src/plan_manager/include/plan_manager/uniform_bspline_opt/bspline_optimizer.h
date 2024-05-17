@@ -4,8 +4,8 @@
 #include <Eigen/Eigen>
 #include <plan_manager/path_searching/astar.h>
 #include <trajectories/uniform_bspline.h>
-#include <plan_env/static/grid_map.h>
-#include <plan_env/dynamic/tracker_pool.h> 
+#include <env_manager/static/grid_map.h>
+#include <env_manager/dynamic/tracker_pool.h> 
 // #include <plan_env/map_visualizer.h>
 #include <visualization_utils/map_visualizer.h>
 #include <ros/ros.h>
@@ -55,7 +55,7 @@ namespace fast_planner
   public:
     BsplineOptimizer() {}
     ~BsplineOptimizer() {}
-    void init(const ros::NodeHandle &nh, const EnvManager::Ptr& env_manager); 
+    void init(const ros::NodeHandle &nh, const EnvManager::Ptr& env_manager, double max_vel, double max_acc); 
 
   private:
     void setEnvironment(const EnvManager::Ptr& env_manager);

@@ -24,7 +24,7 @@
 #include <plan_manager/path_searching/kinodynamic_astar.h>
 #include <sstream>
 // #include <plan_env/sdf_map.h>
-#include <plan_env/static/grid_map.h>
+#include <env_manager/static/grid_map.h>
 
 using namespace std;
 using namespace Eigen;
@@ -40,15 +40,12 @@ KinodynamicAstar::~KinodynamicAstar()
 }
 
 
-void KinodynamicAstar::init(ros::NodeHandle& nh, EnvManager::Ptr& env_ptr)
+void KinodynamicAstar::init(const ros::NodeHandle& nh,const EnvManager::Ptr& env_ptr, double max_vel, double max_acc)
 {
 
   /* ---------- map params ---------- */
-
   nh.param("kino_search/max_tau", max_tau_, 0.6);
   nh.param("kino_search/init_max_tau", init_max_tau_, 0.8);
-  nh.param("kino_search/max_vel", max_vel_, 3.0);
-  nh.param("kino_search/max_acc", max_acc_, 3.0);
   nh.param("kino_search/w_time", w_time_, 10.0);
   nh.param("kino_search/horizon", horizon_, 7.0);
   nh.param("kino_search/resolution_astar", resolution_, 0.1);
@@ -57,18 +54,16 @@ void KinodynamicAstar::init(ros::NodeHandle& nh, EnvManager::Ptr& env_ptr)
   nh.param("kino_search/allocate_num", allocate_num_, 100000);
   nh.param("kino_search/check_num", check_num_, 5);
   nh.param("kino_search/optimistic", optimistic_, true);
-  tie_breaker_ = 1.0 + 1.0 / 10000;
+  max_vel_ = max_vel;
+  max_acc_ = max_acc;
 
-  double vel_margin;
-  nh.param("search/vel_margin", vel_margin, 0.0);
-  max_vel_ += vel_margin;
+  tie_breaker_ = 1.0 + 1.0 / 10000;
   
   /* environment */
   this->setEnvironment(env_ptr);
   this->inv_resolution_ = 1.0 / resolution_;
   inv_time_resolution_ = 1.0 / time_resolution_;
   env_manager_->getRegion(origin_,map_size_3d_);
-  map_size_3d_ = 10 * Vector3d(1,1,1);
 
   cout << "origin_: " << origin_.transpose() << endl;
   cout << "map size: " << map_size_3d_.transpose() << endl;

@@ -125,13 +125,13 @@ namespace fast_planner
             double seg_time = 0.0;   // duration of the truncated segment
             double radius = 0.0;     // distance to the first point of the segment
 
+            // 先根据delt向前搜索，直到到达期望半径，或者到达轨迹总时间
             double delt = 0.2;
             Eigen::Vector3d first_pt = getPosition(start_t); // first point of the segment
             Eigen::Vector3d prev_pt = first_pt;              // previous point
             Eigen::Vector3d cur_pt;                          // current point
 
             // go forward until the traj exceed radius or global time
-
             while (radius < des_radius && seg_time < global_duration_ - start_t - 1e-3)
             {
                 seg_time += delt;
@@ -142,7 +142,8 @@ namespace fast_planner
                 prev_pt = cur_pt;
                 radius = (cur_pt - first_pt).norm();
             }
-
+            
+            // 之后反向计算离散点数量，并根据步长进行采样
             // get parameterization dt by desired density of points
             int seg_num = floor(seg_length / dist_pt);
 
@@ -194,10 +195,10 @@ namespace fast_planner
         double max_vel_, max_acc_, max_jerk_;   //physical limits
         double local_traj_len_;                 // local replanning trajectory length
         double ctrl_pt_dist_;                   // distance between adjacient B-spline control points
-        double feasibility_tolerance_;  
-        double planning_horizon_;
-        double clearance_;
-        int dynamic_;
+        double feasibility_tolerance_;          // 
+        double planning_horizon_;               // 
+        // double clearance_;                      // 
+        int dynamic_environment_;
 
 
 

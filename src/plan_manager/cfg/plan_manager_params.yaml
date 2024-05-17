@@ -1,0 +1,39 @@
+
+
+manager:
+  max_vel: 3.0
+  max_acc: 3.0
+  max_jerk: 4.0
+  control_points_distance: 0.4
+  feasibility_tolerance: 0.05
+  planning_horizon: 7.5
+  dynamic_environment: true
+  local_segment_length: 6.0
+  use_kinodynamic_path: true
+  use_topological_path: false
+  use_optimization: false
+
+kino_search: 
+  max_tau: 0.6
+  init_max_tau: 0.8
+  w_time: 10.0
+  horizon: 7.0
+  lambda_heu: 5.0
+  resolution_astar: 0.1
+  time_resolution: 0.8
+  margin: 0.2
+  allocate_num: 100000
+  check_num: 5
+
+optimization:
+  lmabda_smooth: 1.0
+  lambda_collision: 0.5
+  lambda_feasiblity: 0.1
+  lambda_fitness: 1.0
+  dist0: 0.5
+
+
+# bspline:
+  # limit_vel: 3.0
+  # limit_acc: 3.0
+  # limit_ratio: 1.1

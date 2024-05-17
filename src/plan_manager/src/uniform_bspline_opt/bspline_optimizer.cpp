@@ -6,11 +6,12 @@
 namespace fast_planner
 {
 
-    void BsplineOptimizer::init(const ros::NodeHandle& nh, const EnvManager::Ptr& env_manager)
+    void BsplineOptimizer::init(const ros::NodeHandle& nh, const EnvManager::Ptr& env_manager, double max_vel, double max_acc)
     {
         this->setParam(nh);
         this->setEnvironment(env_manager);
-
+        max_vel_ = max_vel;
+        max_acc_ = max_acc;
     }
 
     void BsplineOptimizer::setParam(const ros::NodeHandle &nh)
@@ -21,9 +22,6 @@ namespace fast_planner
         nh.param("optimization/lambda_fitness", lambda4_, -1.0);
 
         nh.param("optimization/clearance", dist0_, -1.0);
-        nh.param("optimization/max_vel", max_vel_, -1.0);
-        nh.param("optimization/max_acc", max_acc_, -1.0);
-
         nh.param("optimization/order", order_, 3);
     }
 

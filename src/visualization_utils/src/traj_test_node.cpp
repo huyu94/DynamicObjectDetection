@@ -27,9 +27,9 @@ void simcallback(const geometry_msgs::PoseStampedConstPtr& msg)
     goal.y() = msg->pose.position.y;
     goal.z() = msg->pose.position.z;
     // visualizer->visualizeStartAndGoal(start,goal,ros::Time::now());
-    visualizer->visualizeCollision(goal,ros::Time::now());
-    visualizer->visualizeKinodynamicTraj(kino_paths,ros::Time::now());
-    visualizer->visualizeMultiTopoTrajs(multi_topo_paths,success,ros::Time::now());
+    visualizer->visualizeCollision(goal,false);
+    visualizer->visualizeKinodynamicTraj(kino_paths,true,false);
+    visualizer->visualizeMultiTopoTrajs(multi_topo_paths,success,true,true);
 }   
 
 

@@ -168,15 +168,12 @@ class KinodynamicAstar {
 
   /* main API */
   // void setParam(ros::NodeHandle& nh);
-  void init(ros::NodeHandle& nh, EnvManager::Ptr& env); 
+  void init(const ros::NodeHandle& nh, const EnvManager::Ptr& env, double max_vel, double max_acc); 
   void reset();
   int search(Eigen::Vector3d start_pt, Eigen::Vector3d start_vel,
              Eigen::Vector3d start_acc, Eigen::Vector3d end_pt,
              Eigen::Vector3d end_vel, bool init, bool dynamic = false,
              double time_start = -1.0); // 搜索A*轨迹，
-
-  // void setEnvironment(const EDTEnvironment::Ptr& env);
-  // void setEnvironment(const GridMap::Ptr& env);
 
 
   std::vector<Eigen::Vector3d> getKinoTraj(double delta_t); // 获取搜索到的Kinodynamic trajectory

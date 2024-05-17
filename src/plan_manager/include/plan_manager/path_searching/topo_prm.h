@@ -2,9 +2,9 @@
 #define _TOPO_PRM_H_
 
 
-#include <plan_env/static/grid_map.h>
-#include <plan_env/static/raycast.h>
-#include <plan_env/env_manager.h>
+#include <env_manager/static/grid_map.h>
+#include <env_manager/static/raycast.h>
+#include <env_manager/env_manager.h>
 #include <random>
 #include <memory>
 #include <list> // Add missing include for 'list'
@@ -132,7 +132,7 @@ public:
     TopoPRM(/* args */);
     ~TopoPRM();
 
-    void init(const ros::NodeHandle& nh);
+    void init(const ros::NodeHandle& nh, const EnvManager::Ptr& env_manager_ptr);
 
     // void setEnvironment(const DspMap::Ptr dsp_map);
     // void setPosChecker(const PosChecker::Ptr pos_checker);

@@ -28,7 +28,7 @@
         <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic_)"/>
         <remap from="~odom"  to="/drone_$(arg drone_id)/odometry"/>
         <rosparam file="$(find env_manager)/cfg/env_manager_params.yaml" />
-        <rosparam file="$(find env_manager)/cfg/grid_map_params.yaml" />
+        <!-- <rosparam file="$(find env_manager)/cfg/grid_map_params.yaml" /> -->
     </node>
 
 

@@ -9,12 +9,13 @@ TopoPRM::TopoPRM(){}
 
 TopoPRM::~TopoPRM(){}  
 
-void TopoPRM::init(const ros::NodeHandle& nh)
+void TopoPRM::init(const ros::NodeHandle& nh, const EnvManager::Ptr& env_manager_ptr)
 {
     
+    setEnvironment(env_manager_ptr);
+
     graph_.clear();
     eng_ = default_random_engine(rd_());
-    
     rand_pos_ = uniform_real_distribution<double>(-1.0, 1.0);
 
     // init parameter
