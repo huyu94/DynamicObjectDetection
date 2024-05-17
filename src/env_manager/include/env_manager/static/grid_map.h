@@ -45,8 +45,8 @@ struct MappingParameters
   int inf_grid_; // 向外膨胀多少格子
   string frame_id_;
   int pose_type_;
-  bool enable_virtual_walll_;
-  double virtual_ceil_, virtual_ground_;
+  // bool enable_virtual_walll_;
+  // double virtual_ceil_, virtual_ground_;
 
   /* camera parameters */
   // double cx_, cy_, fx_, fy_;
@@ -178,11 +178,14 @@ private:
   inline int globalIdx2InfBufIdx(const Eigen::Vector3i &id);        // 2.2ns
   inline Eigen::Vector3i BufIdx2GlobalIdx(size_t address);          // 10.18ns
   inline Eigen::Vector3i infBufIdx2GlobalIdx(size_t address);       // 10.18ns
+
+public:
   inline bool isInBuf(const Eigen::Vector3d &pos);
   inline bool isInBuf(const Eigen::Vector3i &idx);
   inline bool isInInfBuf(const Eigen::Vector3d &pos);
   inline bool isInInfBuf(const Eigen::Vector3i &idx);
 
+private:
   /* publish */
   void publishMap();
   void publishMapInflate();
@@ -383,8 +386,8 @@ inline int GridMap::getOccupancy(Eigen::Vector3d pos)
   if (!isInBuf(pos))
     return 0;
 
-  if (mp_.enable_virtual_walll_ && (pos(2) >= mp_.virtual_ceil_ || pos(2) <= mp_.virtual_ground_))
-    return -1;
+  // if (mp_.enable_virtual_walll_ && (pos(2) >= mp_.virtual_ceil_ || pos(2) <= mp_.virtual_ground_))
+  //   return -1;
 
   return md_.occupancy_buffer_[globalIdx2BufIdx(pos2GlobalIdx(pos))] > mp_.min_occupancy_log_ ? 1 : 0;
 }
@@ -394,8 +397,8 @@ inline int GridMap::getInflateOccupancy(Eigen::Vector3d pos)
   if (!isInInfBuf(pos))
     return 0;
 
-  if (mp_.enable_virtual_walll_ && (pos(2) >= mp_.virtual_ceil_ || pos(2) <= mp_.virtual_ground_))
-    return -1;
+  // if (mp_.enable_virtual_walll_ && (pos(2) >= mp_.virtual_ceil_ || pos(2) <= mp_.virtual_ground_))
+  //   return -1;
 
   return int(md_.occupancy_buffer_inflate_[globalIdx2InfBufIdx(pos2GlobalIdx(pos))]);
 }

@@ -7,11 +7,10 @@ manager:
   control_points_distance: 0.4
   feasibility_tolerance: 0.05
   planning_horizon: 7.5
-  dynamic_environment: true
   local_segment_length: 6.0
   use_kinodynamic_path: true
   use_topological_path: false
-  use_optimization: false
+  use_optimization: true
 
 kino_search: 
   max_tau: 0.6
@@ -24,11 +23,12 @@ kino_search:
   margin: 0.2
   allocate_num: 100000
   check_num: 5
+  dynamic_environment: true
 
 optimization:
-  lmabda_smooth: 1.0
+  lambda_smooth: 1.0
   lambda_collision: 0.5
-  lambda_feasiblity: 0.1
+  lambda_feasibility: 0.1
   lambda_fitness: 1.0
   dist0: 0.5
 

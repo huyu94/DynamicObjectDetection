@@ -31,7 +31,7 @@ set(MunkresLIB
 
 catkin_package(
  INCLUDE_DIRS include 
- LIBRARIES plan_env 
+ LIBRARIES env_manager 
  CATKIN_DEPENDS roscpp std_msgs visualization_utils
 #  DEPENDS system_lib
 )
@@ -48,12 +48,8 @@ include_directories(
 
 # link_directories(${PCL_LIBRARY_DIRS})
 
-# file(GLOB_RECURSE plan_env_SRC
-#     "src/*.cpp"
-# )
 
 add_library(${PROJECT_NAME} 
-    ${plan_env_SRC}
     include/${PROJECT_NAME}/ikd-Tree/ikd_Tree.cpp
     src/grid_map.cpp
     src/kalman_filter.cpp

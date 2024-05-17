@@ -1,5 +1,5 @@
 #include <env_manager/dynamic/tracker_pool.h>
-
+#include <visualization_utils/map_visualizer.h>
 
 
 
@@ -41,7 +41,7 @@ int TrackerPool::addNewTracker(const VectorXd &state, const Vector3d &length, ro
         free_ids_.pop();
         pool_[new_id] = std::make_shared<Tracker>(state,length,new_id, current_time);
     }
-    std::cout << " success add new tracker, id :" << new_id << std::endl;
+    // std::cout << " success add new tracker, id :" << new_id << std::endl;
     return new_id;
 }
 
@@ -75,7 +75,7 @@ void TrackerPool::checkTracker(int id, ros::Time current_time)
 
     if(mis_match_time > missing_tracking_threshold_)
     {
-        std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
+        // std::cout << "Tracker " << id << " mis-match time is larger than the threshold, remove it from the pool" << std::endl;
         removeTracker(id);
     }
 
@@ -194,23 +194,32 @@ void TrackerPool::updatePool(const vector<TrackerInput> &input, ros::Time curren
 }
 
 
-bool TrackerPool::checkCollision(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
-{
-    vector<TrackerOutput> target_tracker_outputs;
-    this->forwardPool(target_tracker_outputs,pos_time);
-    for(auto &obj : target_tracker_outputs)
-    {
-        Vector3d obj_pos = obj.state.head(3);
-        Vector3d obj_axis = obj.length/2;
-
-        if(abs(pos.x() - obj_pos.x()) < obj_axis.x() / 2 &&
-           abs(pos.y() - obj_pos.y()) < obj_axis.y() / 2 &&
-           abs(pos.z() - obj_pos.z()) < obj_axis.z() / 2)
-        {
-            collision_id = obj.id;
-            return true;
-        }
-    }
-    collision_id = -1;
-    return false;
-}
+// bool TrackerPool::checkCollision(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
+// {
+//     vector<TrackerOutput> target_tracker_outputs;
+//     this->forwardPool(target_tracker_outputs,pos_time);
+//     ROS_INFO_STREAM("tracker pool size:  " << target_tracker_outputs.size());
+//     ROS_INFO_STREAM("query pos : " << pos.transpose());
+//     vector<VisualBox> boxes;
+//     for(auto &obj : target_tracker_outputs)
+//     {
+//         boxes.emplace_back(VisualBox(obj.state.head(3),obj.length/2,obj.length/2,obj.id));
+//     }
+//     ->visualizeFutureBox(boxes);  
+//     for(auto &obj : target_tracker_outputs)
+//     {
+//         Vector3d obj_pos = obj.state.head(3);
+//         Vector3d obj_axis = obj.length/2;
+//         ROS_INFO_STREAM("obj pos : " << obj_pos.transpose());
+        
+//         if(abs(pos.x() - obj_pos.x()) < obj_axis.x() / 2 &&
+//            abs(pos.y() - obj_pos.y()) < obj_axis.y() / 2 &&
+//            abs(pos.z() - obj_pos.z()) < obj_axis.z() / 2)
+//         {
+//             collision_id = obj.id;
+//             return true;
+//         }
+//     }
+//     collision_id = -1;
+//     return false;
+// }

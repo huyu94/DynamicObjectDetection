@@ -3,12 +3,17 @@ env_manager:
   dbscan_min_ptn: 10
   dbscan_min_cluster_size: 40
   dbscan_max_cluster_size: 500
-  gamma1_threshold: 0.0001
-  gamma2_threshold: 30.0
+  gamma1_threshold: 0.001
+  gamma2_threshold: 10.0
   record: false
   slide_window_size: 5
   distance_gate: 0.8
   cluster_max_height: 1.5
+  # 双边膨胀
+  dynamic_object_inflation: 1.0 
+  enable_virtual_wall: true
+  virtual_ceil: 2.0
+  virtual_ground: 0.0
 
 tracker_pool:
   missing_tracking_threshold: 0.5
@@ -20,10 +25,7 @@ grid_map:
   local_update_range_z: 2.0
   obstacles_inflation: 0.1
   local_map_margin: 10
-  enable_virtual_wall: true
-  virtual_ceil: 2.0
-  virtual_ground: 0.0
-  ground_height: 0.01
+
 
   p_hit: 0.65
   p_miss: 0.35

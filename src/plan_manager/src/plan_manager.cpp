@@ -134,26 +134,23 @@ namespace fast_planner
             return false;
         }
 
-        ros::Time t1,t2;
+        ros::Time t_start;
         local_data_.start_time_ = ros::Time::now();
-        double t_search = 0.0, t_opt = 0.0, t_adjust = 0.0;
+        ros::Duration t_search, t_opt, t_refine;
 
         Vector3d init_pos = start_pos;
         Vector3d init_vel = start_vel;
         Vector3d init_acc = start_acc;
 
         /* 1. kinodynamic path searhcing */
-        t1 = ros::Time::now();
+        t_start = ros::Time::now();
         kino_path_finder_ptr_->reset();
-        ROS_INFO_STREAM("START SEARCH");
-        int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true);
-        ROS_INFO_STREAM("FINISH START SEARCH");
-        ROS_INFO_STREAM("search status : " << status);
+        int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true, ros::Time::now());
         if(status == KinodynamicAstar::NO_PATH)
         {
             ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
             kino_path_finder_ptr_->reset();
-            status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false);
+            status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false, ros::Time::now());
 
             if(status == KinodynamicAstar::NO_PATH)
             {
@@ -169,19 +166,18 @@ namespace fast_planner
             ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
         }
     
-        ROS_INFO_STREAM("FINISH SEARCH");
         plan_data_.kino_path_ = kino_path_finder_ptr_->getKinoTraj(0.01);
-        ROS_INFO_STREAM("path size : " << plan_data_.kino_path_.size());
+        // ROS_INFO_STREAM("path size : " << plan_data_.kino_path_.size());
         if(plan_data_.kino_path_.size() == 0)
         {
             return false;
         }
 
-        t_search =  (ros::Time::now() - t1).toSec();
+        t_search =  (ros::Time::now() - t_start);
         traj_visual_ptr_->visualizeKinodynamicTraj(plan_data_.kino_path_, false,false);
 
         /* 2. parameterize the path to bspline */
-        ROS_INFO_STREAM("ctrl_pt_dist : " << pp_.ctrl_pt_dist_ << "max_vel : " << pp_.max_vel_);
+        // ROS_INFO_STREAM("ctrl_pt_dist : " << pp_.ctrl_pt_dist_ << "max_vel : " << pp_.max_vel_);
         double ts = pp_.ctrl_pt_dist_ / pp_.max_vel_;
         vector<Vector3d> point_set, start_end_derivatives;
         kino_path_finder_ptr_->getSamples(ts,point_set,start_end_derivatives);
@@ -192,7 +188,73 @@ namespace fast_planner
         traj_visual_ptr_->visualizeBsplineTraj(point_set,ctrl_pts,true);
 
         /* 3.1 bound optimization */
-        t1 = ros::Time::now();
+        t_start = ros::Time::now();
+        // ROS_INFO_STREAM("start a* search");
+        vector<vector<Vector3d>> astar_pathes;
+        astar_pathes = bspline_optimizer_ptrs_[0]->initControlPoints(ctrl_pts,true);
+        // ROS_INFO_STREAM("end a* search");
+        ROS_INFO_STREAM("astar_pathes size : " << astar_pathes.size());
+        // traj_visual_ptr_->visualizeAstarPath(astar_pathes,false);
+
+        bool flag_step_1_success = bspline_optimizer_ptrs_[0]->BsplineOptimizeTrajRebound(ctrl_pts, ts);
+        ROS_INFO_STREAM("flag_step_1_success : " << flag_step_1_success);
+        if(!flag_step_1_success)
+        {
+            continuous_failures_count_++;
+            return false;
+        }
+        ROS_INFO_STREAM("ctrl_pts size : " << ctrl_pts.cols());
+        vector<Vector3d> vis_point_set;
+        // UniformBspline::parameterizeToBspline(ts,vis_point_set,start_end_derivatives,ctrl_pts);
+        UniformBspline rebound_traj(ctrl_pts,3,ts);
+
+        // double rebound_t_sum = rebound_traj.getTimeSum();
+        // for(double i = 0; i < rebound_t_sum; i+= 0.1)
+        // {
+        //     vis_point_set.push_back(rebound_traj.evaluateDeBoorT(i));
+        
+        // }
+        t_opt = (ros::Time::now() - t_start);
+        // traj_visual_ptr_->visualizeOptimalTraj(vis_point_set,false,true);
+        /* 3.2 refine */
+        t_start = ros::Time::now();
+        rebound_traj.setPhysicalLimits(pp_.max_vel_,pp_.max_acc_,pp_.feasibility_tolerance_);
+        double ratio;
+        bool flag_step_2_success = true;
+        Eigen::MatrixXd optimal_control_points;
+        if(!rebound_traj.checkFeasibility(ratio,false))
+        {
+            ROS_INFO_STREAM("Need to reallocate time");
+            
+            flag_step_2_success = refineTraj(rebound_traj, start_end_derivatives, ratio, ts, optimal_control_points);
+            if(flag_step_2_success)
+            {
+                rebound_traj = UniformBspline(optimal_control_points,3,ts);
+            }
+        }
+        t_refine = ros::Time::now() - t_start;
+
+        if (!flag_step_2_success)
+        {
+            printf("\033[34mThis refined trajectory hits obstacles. It doesn't matter if appeares occasionally. But if continously appearing, Increase parameter \"lambda_fitness\".\n\033[0m");
+            continuous_failures_count_++;
+            return false;
+        }
+        vector<Vector3d> opti_point_set = sampleTraj(optimal_control_points,ts);
+        traj_visual_ptr_->visualizeOptimalTraj(opti_point_set,false,true);
+
+
+        updateTrajInfo(rebound_traj,ros::Time::now());
+
+        ROS_INFO_STREAM("total_time : " << (t_search + t_opt + t_refine).toSec() 
+                        << ", search_time : " << t_search.toSec()
+                        << ", opt_time : " << t_opt.toSec() 
+                        << ", refine_time : " << t_refine.toSec());
+        // cout << "total time:\033[42m" << (t_search + t_opt + t_refine).toSec() << "\033[0m,optimize:" << t_opt.toSec() << ",refine:" << t_refine.toSec() << endl;
+
+        
+
+
         
         // int cost_function = BsplineOptimizer
 
@@ -355,6 +417,40 @@ namespace fast_planner
         }
 
         UniformBspline::parameterizeToBspline(dt, point_set, start_end_derivative, ctrl_pts);
+    }
+
+    bool PlanManager::refineTraj(UniformBspline &traj, vector<Vector3d> &start_end_derivatives, double ratio, double &ts, MatrixXd &optimal_control_points)
+    {
+        double t_inc;
+        Eigen::MatrixXd ctrl_pts;
+
+        reparamBspline(traj, start_end_derivatives, ratio, ctrl_pts, ts, t_inc);
+
+        traj = UniformBspline(ctrl_pts, 3, ts);
+
+        double t_step = traj.getTimeSum() / (ctrl_pts.cols() - 3);
+        bspline_optimizer_ptrs_[0]->ref_pts_.clear();
+        for(double t = 0; t < traj.getTimeSum() + 1e-4; t += t_step)
+        {
+            bspline_optimizer_ptrs_[0]->ref_pts_.push_back(traj.evaluateDeBoor(t));
+        }
+        bool success = bspline_optimizer_ptrs_[0]->BsplineOptimizeTrajRefine(ctrl_pts,ts,optimal_control_points);
+
+        return success;
+    }
+
+    vector<Vector3d> PlanManager::sampleTraj(Eigen::MatrixXd& ctrl_pts, double ts)
+    {
+        UniformBspline traj(ctrl_pts,3,ts);
+        vector<Vector3d> point_set;
+        double t_step = traj.getTimeSum() / (ctrl_pts.cols() - 3);
+
+        for(double t = 0; t < traj.getTimeSum() + 1e-4; t += t_step)
+        {
+            point_set.push_back(traj.evaluateDeBoor(t));
+        }
+        return point_set;
+
     }
 
 } // namespace fast_planner

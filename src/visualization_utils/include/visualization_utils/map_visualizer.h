@@ -10,6 +10,7 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/common/common.h>
+#include <visualization_utils/color.hpp>
 
 #include <visualization_utils/color.hpp>
 
@@ -34,8 +35,6 @@ struct VisualCluster
                 min_bound(minb), max_bound(maxb) {} 
 };
 
-
-
 struct VisualKalmanTracker
 {
   Vector3d pos;
@@ -55,6 +54,16 @@ struct VisualizeSlideBox
   VisualizeSlideBox(Vector3d c,Vector3d l,Matrix3d r,int i) : center(c),length(l),rotation(r), id(i){}
 };
 
+struct VisualBox
+{
+  Vector3d pos;
+  Vector3d vel;
+  Vector3d len;
+  int id;
+  VisualBox(Vector3d p,Vector3d v,Vector3d l,int i):pos(p),vel(v),len(l),id(i){}
+};
+
+
 
 visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id);
 visualization_msgs::Marker generateArrows(const Vector3d &pos, const Vector3d &vel, int id);
@@ -65,7 +74,7 @@ class MapVisualizer
 {
 public:
     MapVisualizer();
-    MapVisualizer(const ros::NodeHandle& node);
+    void init(const ros::NodeHandle& node);
 
     void visualizeReceiveCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     void visualizeClusterResult(std::vector<VisualCluster> &visual_clusters);
@@ -74,6 +83,7 @@ public:
     void visualizeStaticPoint(vector<Eigen::Vector3d> &static_points);
     void visualizeKalmanTracker(std::vector<VisualKalmanTracker> &visual_trackers);
     void visualizeSlideBox(std::vector<VisualizeSlideBox> &visual_slideboxes);
+    void visualizeFutureBox(std::vector<VisualBox>& visual_box);
     void visualizeMovingObjectBox();
     void visualizeMovingObjectTraj();
 
@@ -91,6 +101,7 @@ private:
     ros::Publisher moving_object_traj_pub_;
     ros::Publisher slide_box_pub_;
     ros::Publisher receive_cloud_pub_;
+    ros::Publisher box_pub_;
 
 };
 

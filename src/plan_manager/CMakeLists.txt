@@ -21,7 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 
-
+# catkin_package只是声明
 catkin_package(
   INCLUDE_DIRS include 
   LIBRARIES plan_manager

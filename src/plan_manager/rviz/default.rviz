@@ -10,9 +10,11 @@ Panels:
         - /simulation_map1/Autocompute Value Bounds1
         - /drone01
         - /drone01/Planning1
+        - /drone01/Planning1/optimal_traj1
+        - /drone01/Planning1/AStar1
         - /drone01/Planning1/drone_path1/Offset1
         - /drone01/Mapping1
-        - /drone01/Mapping1/map inflate1
+        - /drone01/Mapping1/kalman tracker1
       Splitter Ratio: 0.43611112236976624
     Tree Height: 911
   - Class: rviz/Selection
@@ -42,13 +44,13 @@ Visualization Manager:
   Displays:
     - Alpha: 1
       Class: rviz/Axes
-      Enabled: false
+      Enabled: true
       Length: 1
       Name: Axes
       Radius: 0.10000000149011612
       Reference Frame: <Fixed Frame>
       Show Trail: false
-      Value: false
+      Value: true
     - Alpha: 0.5
       Cell Size: 1
       Class: rviz/Grid
@@ -126,7 +128,7 @@ Visualization Manager:
               Value: true
             - Class: rviz/Marker
               Enabled: true
-              Marker Topic: /drone_0_node/optimal_list
+              Marker Topic: /opti_traj
               Name: optimal_traj
               Namespaces:
                 {}
@@ -134,10 +136,10 @@ Visualization Manager:
               Value: true
             - Class: rviz/Marker
               Enabled: true
-              Marker Topic: /drone_0_node/a_star_list
+              Marker Topic: /astar_pathes
               Name: AStar
               Namespaces:
-                {}
+                astar_pathes: true
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -172,6 +174,22 @@ Visualization Manager:
               Topic: /drone_0_odom_visualization/path
               Unreliable: false
               Value: true
+            - Class: rviz/Marker
+              Enabled: true
+              Marker Topic: /kino_traj
+              Name: kino_traj
+              Namespaces:
+                kino_trajs: true
+              Queue Size: 100
+              Value: true
+            - Class: rviz/Marker
+              Enabled: true
+              Marker Topic: /bspline_traj
+              Name: bspline_traj
+              Namespaces:
+                bspline: true
+              Queue Size: 100
+              Value: true
           Enabled: true
           Name: Planning
         - Class: rviz/Group
@@ -179,14 +197,14 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 10
-                Min Value: -10
+                Max Value: 2.299999952316284
+                Min Value: -0.10000000149011612
                 Value: true
               Axis: Z
               Channel Name: intensity
               Class: rviz/PointCloud2
               Color: 29; 108; 212
-              Color Transformer: FlatColor
+              Color Transformer: AxisColor
               Decay Time: 0
               Enabled: true
               Invert Rainbow: false
@@ -197,9 +215,9 @@ Visualization Manager:
               Queue Size: 10
               Selectable: true
               Size (Pixels): 3
-              Size (m): 0.10000000149011612
-              Style: Flat Squares
-              Topic: /drone_0_node/grid_map/occupancy
+              Size (m): 0.20000000298023224
+              Style: Boxes
+              Topic: /drone_0_test_node/grid_map/occupancy
               Unreliable: false
               Use Fixed Frame: true
               Use rainbow: true
@@ -207,8 +225,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 1.899999976158142
-                Min Value: 0.10000000149011612
+                Max Value: 2.5
+                Min Value: -0.30000001192092896
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -233,11 +251,35 @@ Visualization Manager:
               Use rainbow: true
               Value: true
             - Class: rviz/MarkerArray
-              Enabled: true
-              Marker Topic: /drone_0_node/kalman_filter
+              Enabled: false
+              Marker Topic: /drone_0_test_node/kalman_filter
               Name: kalman tracker
               Namespaces:
                 {}
+              Queue Size: 100
+              Value: false
+            - Class: rviz/MarkerArray
+              Enabled: false
+              Marker Topic: /drone_0_test_node/cluster_result
+              Name: cluster_result
+              Namespaces:
+                {}
+              Queue Size: 100
+              Value: false
+            - Class: rviz/MarkerArray
+              Enabled: true
+              Marker Topic: /drone_0_test_node/future_box
+              Name: future_box
+              Namespaces:
+                {}
+              Queue Size: 100
+              Value: true
+            - Class: rviz/MarkerArray
+              Enabled: true
+              Marker Topic: /drone_0_test_node/segmentation_result
+              Name: segementation_result
+              Namespaces:
+                bbox: true
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -257,7 +299,7 @@ Visualization Manager:
               Marker Topic: /drone_0_odom_visualization/robot
               Name: robot
               Namespaces:
-                {}
+                mesh: true
               Queue Size: 100
               Value: true
             - Class: rviz/Image
@@ -320,22 +362,6 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: false
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /kino_traj
-      Name: Marker
-      Namespaces:
-        kino_trajs: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /bspline_traj
-      Name: Marker
-      Namespaces:
-        bspline: true
-      Queue Size: 100
-      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -363,7 +389,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 17.556007385253906
+      Distance: 33.57973861694336
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -371,17 +397,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.078678846359253
-        Y: -2.8925161361694336
-        Z: -1.0718275916588027e-05
+        X: -9.035367965698242
+        Y: 0.7153658866882324
+        Z: -1.3579298865806777e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.064796805381775
+      Pitch: 1.544796347618103
       Target Frame: <Fixed Frame>
-      Yaw: 4.066582202911377
+      Yaw: 3.0947506427764893
     Saved:
       - Class: rviz/FPS
         Enable Stereo Rendering:

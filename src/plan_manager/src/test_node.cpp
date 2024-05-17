@@ -11,7 +11,7 @@ nav_msgs::Odometry odom;
 
 void goalCallback(const geometry_msgs::PoseStampedConstPtr& msg)
 {
-    Vector3d goal(msg->pose.position.x,msg->pose.position.y,msg->pose.position.z);
+    Vector3d goal(msg->pose.position.x,msg->pose.position.y,0.6);
     Vector3d pos(odom.pose.pose.position.x,odom.pose.pose.position.y,odom.pose.pose.position.z);
     plan_manager_ptr_->kinodynamicReplan(pos, Vector3d(0,0,0), Vector3d(0,1,1), goal, Vector3d(0,0,0));
 

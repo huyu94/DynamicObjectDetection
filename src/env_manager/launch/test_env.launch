@@ -25,7 +25,8 @@
     
 
     <node pkg="env_manager" type="test_node" name="test_node" output="screen">
-        <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic_)"/>
+        <!-- <remap from="~cloud" to="/drone_$(arg drone_id)/$(arg cloud_topic_)"/> -->
+        <remap from="~cloud" to="/dynamic_env/global_cloud"/>
         <remap from="~odom"  to="/drone_$(arg drone_id)/odometry"/>
         <rosparam file="$(find env_manager)/cfg/env_manager_params.yaml" />
         <!-- <rosparam file="$(find env_manager)/cfg/grid_map_params.yaml" /> -->

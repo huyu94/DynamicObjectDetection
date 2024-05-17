@@ -133,12 +133,13 @@ class KinodynamicAstar {
   double w_time_, horizon_, lambda_heu_;
   int allocate_num_, check_num_;
   double tie_breaker_;
-  bool optimistic_;
+  bool dynamic_environment_;
 
   /* map */
   double resolution_, inv_resolution_, time_resolution_, inv_time_resolution_;
-  Eigen::Vector3d origin_, map_size_3d_;
+  // Eigen::Vector3d origin_, map_size_3d_;
   double time_origin_;
+  Vector3d pos_origin_;
 
   /* helper */
   Eigen::Vector3i posToIndex(Eigen::Vector3d pt);
@@ -149,7 +150,7 @@ class KinodynamicAstar {
   vector<double> cubic(double a, double b, double c, double d); // 求解三次方程
   vector<double> quartic(double a, double b, double c, double d, double e); // 求解四次方程，依赖cubic
   bool computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd state2, // 计算
-                       double time_to_goal);
+                       double time_to_goal, ros::Time search_time);
   double estimateHeuristic(Eigen::VectorXd x1, Eigen::VectorXd x2,
                            double& optimal_time);
 
@@ -170,10 +171,10 @@ class KinodynamicAstar {
   // void setParam(ros::NodeHandle& nh);
   void init(const ros::NodeHandle& nh, const EnvManager::Ptr& env, double max_vel, double max_acc); 
   void reset();
+
   int search(Eigen::Vector3d start_pt, Eigen::Vector3d start_vel,
              Eigen::Vector3d start_acc, Eigen::Vector3d end_pt,
-             Eigen::Vector3d end_vel, bool init, bool dynamic = false,
-             double time_start = -1.0); // 搜索A*轨迹，
+             Eigen::Vector3d end_vel, bool init, ros::Time time_start); // 搜索A*轨迹，init 是限制刚开始的加速度
 
 
   std::vector<Eigen::Vector3d> getKinoTraj(double delta_t); // 获取搜索到的Kinodynamic trajectory

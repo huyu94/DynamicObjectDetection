@@ -45,7 +45,14 @@ struct ClusterFeature
     pcl::PointIndices cluster_indices;
     double gamma_1; // global_average_minimum_distance
     double gamma_2; // normalized average variance of distance
-    int motion_type; // 0:moving; 1:static; 2:Unkown ; -1:undefine
+    // int motion_type; // 0:moving; 1:static; 2:Unkown ; -1:undefine
+    enum MotionType
+    {
+        MOVING = 0,
+        STATIC = 1,
+        UNKOWN = 2,
+        UNDEFINE = -1
+    } motion_type;
     typedef std::shared_ptr<ClusterFeature> Ptr;   
 };
 
@@ -96,8 +103,13 @@ private:
 
     double gamma1_threshold_,gamma2_threshold_;
 
+/* inflation */
+    double dynamic_object_inflation_;
 
 
+/* poschecker */
+    bool enable_virtual_walll_;
+    double virtual_ceil_,virtual_ground_;
 
 
 
@@ -136,13 +148,18 @@ public:
 
     void generateSlideBox(double forward_time, vector<SlideBox>& slide_boxes);
 
+    // inline bool isInInfMap(const Vector3d& pos)
+    // {
+    //     return grid_map_ptr_->isInInfBuf(pos);
+    // }
+    bool isInInfMap(const Vector3d& pos);
 
-    void getRegion(Vector3d& ori, Vector3d& size);
-    inline int getResolution()
+    inline double getResolution()
     {
         return grid_map_ptr_->getResolution();
     }
 
+    
 
 
 public:

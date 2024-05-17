@@ -81,7 +81,9 @@ private:
     */
     void reparamBspline(UniformBspline& bspline, vector<Vector3d>& start_end_derivative, double ratio, MatrixXd& ctrl_pts, double& dt, double& time_inc); // 拉长b样条时间，重新参数化，生成新的控制点ctrl_pts
 
-    // bool refineTraj(UniformBspline& traj, vector<Vector3d>& start_end_derivatives, double ratio, double& ts, MatrixXd& optimal_control_points);
+    bool refineTraj(UniformBspline& traj, vector<Vector3d>& start_end_derivatives, double ratio, double& ts, MatrixXd& optimal_control_points);
+
+    vector<Vector3d> sampleTraj(Eigen::MatrixXd& ctrl_pts, double ts);
 
 
 public:

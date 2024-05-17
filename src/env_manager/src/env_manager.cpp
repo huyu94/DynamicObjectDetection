@@ -68,7 +68,9 @@ void EnvManager::init(const ros::NodeHandle &nh)
     node_.param<double>("env_manager/tracking_update_timeout",tracking_update_timeout_,1.0);
 
 /* visualizer */
-    map_vis_ptr_.reset(new MapVisualizer(node_));
+    // map_vis_ptr_.reset(new MapVisualizer(node_));
+    map_vis_ptr_.reset(new MapVisualizer());
+    map_vis_ptr_->init(node_);
 
 
 
@@ -92,6 +94,14 @@ void EnvManager::init(const ros::NodeHandle &nh)
     node_.param<double>("env_manager/distance_gate",distance_gate_,0.5);
     node_.param<double>("env_manager/cluster_max_height",cluster_max_height_,1.5);
     
+/* inflation */
+    node_.param<double>("env_manager/dynamic_object_inflation",dynamic_object_inflation_, 0.5);
+
+
+/* pos checker */
+    node_.param<bool>("env_manager/enable_virtual_wall", enable_virtual_walll_, false);
+    node_.param<double>("env_manager/virtual_ceil", virtual_ceil_, -1.0);
+    node_.param<double>("env_manager/virtual_ground", virtual_ground_, -1.0);
 
 /* sync subscriber */
     cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "cloud", 1));
@@ -184,11 +194,14 @@ void EnvManager::cluster()
 
         calClusterFeatureProperty(y);
         // std::cout << "can calculate properties" << std::endl;
+        // length 长轴全长，非半长
+        // Vector3d inflation(dynamic_object_inflation_);
+        y->length.x() += dynamic_object_inflation_;
+        y->length.y() += dynamic_object_inflation_;
+        y->length.z() += dynamic_object_inflation_;
         vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
         
     }
-    ROS_INFO_STREAM("vis_cluster size: " << vis_clusters.size());
-    std::cout << "step 2 finished " << std::endl;
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
 
 }
@@ -239,7 +252,7 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     cluster_ptr->length = length;
     cluster_ptr->min_bound = min_bound;
     cluster_ptr->max_bound = max_bound;
-    cluster_ptr->motion_type = -1;
+    cluster_ptr->motion_type = ClusterFeature::MotionType::UNDEFINE;
     cluster_ptr->gamma_1 = 0;
     cluster_ptr->gamma_2 = 0;
     cluster_ptr->match_id = -1;
@@ -293,24 +306,24 @@ void EnvManager::segmentation()
 
         if(cluster->state(2) > cluster_max_height_) //排除过高的物体,例如墙体等
         {
-            cluster->motion_type = 2;
+            cluster->motion_type = ClusterFeature::MotionType::STATIC;
             continue;
         }
         if(cluster->gamma_1 < gamma1_threshold_)
         {
-            cluster->motion_type = 1;
+            cluster->motion_type = ClusterFeature::MotionType::STATIC;
         }
         else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 < gamma2_threshold_)
         {
-            cluster->motion_type = 0;
+            cluster->motion_type = ClusterFeature::MotionType::MOVING;
         }
         else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 > gamma2_threshold_)
         {
-            cluster->motion_type = 2;
+            cluster->motion_type = ClusterFeature::MotionType::UNKOWN;
         }
         else{
             ROS_WARN("gamma1 or gamma2 is nan");
-            cluster->motion_type = -1;
+            cluster->motion_type = ClusterFeature::MotionType::UNDEFINE;
         }
     }
 
@@ -319,12 +332,12 @@ void EnvManager::segmentation()
     for(auto &t : cluster_features_)
     {
         // std::cout << "cluster motion type: " << t->motion_type << std::endl;
-        if(t->motion_type == 0) // 
+        if(t->motion_type == ClusterFeature::MotionType::MOVING) // 
         {
             // std::cout << " cluster size : " << t->length.transpose() << std::endl;
             visual_clusters.push_back(VisualCluster(t->state.head(3),t->length,t->min_bound,t->max_bound,t->state.tail(3)));
         }
-        else if(t->motion_type == 1 || t->motion_type == 2) // static or unkown
+        else if(t->motion_type == ClusterFeature::MotionType::STATIC || t->motion_type == ClusterFeature::MotionType::UNKOWN) // static or unkown
         {
             for(int j=0;j<t->cluster_indices.indices.size();j++)
             {
@@ -447,7 +460,7 @@ void EnvManager::match()
         }
     }
 
-/* update pool */
+    /* update pool */
     vector<TrackerInput> tracker_inputs;
     for(auto &t : measurement_moving_clusters)
     {
@@ -488,7 +501,7 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
         // ROS_WARN("cloud window is not ready || no new cloud and odom !!");
         return ;
     }
-    ROS_INFO("in [updateCallback]");
+    // ROS_INFO("in [updateCallback]");
     
     static int update_count = 1;
     static double cluster_time, segmentation_time, match_time,total_time;
@@ -517,7 +530,6 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
 
     total_time = updateMean(total_time,(t2-t0).toSec(),update_count);
 
-    ROS_INFO_STREAM("finish update");
     // record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
     // update_time_record_ << update_count << "\t" << pcl_cloud_ptr_->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
     cloud_odom_window_ready_ = false;
@@ -638,40 +650,40 @@ void EnvManager::visCallback(const ros::TimerEvent&)
 
 /* poschecker 的相关功能 */
 
-void EnvManager::getLineGrids(const Vector3d &s_p, const Vector3d &e_p, vector<Vector3d> &grids)
-{
-    RayCaster raycaster;
-    Eigen::Vector3d ray_pt;
-    double resolution = getResolution();
-    Eigen::Vector3d start = s_p / resolution, end = e_p / resolution;
-    bool need_ray = raycaster.setInput(start, end);
-    if (need_ray)
-    {
-    while (raycaster.step(ray_pt))
-    {
-        Eigen::Vector3d tmp = (ray_pt) * resolution;
-        tmp[0] += resolution / 2.0;
-        tmp[1] += resolution / 2.0;
-        tmp[2] += resolution / 2.0;
-        grids.push_back(tmp);
-    }
-    }
+// void EnvManager::getLineGrids(const Vector3d &s_p, const Vector3d &e_p, vector<Vector3d> &grids)
+// {
+//     RayCaster raycaster;
+//     Eigen::Vector3d ray_pt;
+//     double resolution = getResolution();
+//     Eigen::Vector3d start = s_p / resolution, end = e_p / resolution;
+//     bool need_ray = raycaster.setInput(start, end);
+//     if (need_ray)
+//     {
+//     while (raycaster.step(ray_pt))
+//     {
+//         Eigen::Vector3d tmp = (ray_pt) * resolution;
+//         tmp[0] += resolution / 2.0;
+//         tmp[1] += resolution / 2.0;
+//         tmp[2] += resolution / 2.0;
+//         grids.push_back(tmp);
+//     }
+//     }
 
-    //check end
-    Eigen::Vector3d end_idx;
-    end_idx[0] = std::floor(end.x());
-    end_idx[1] = std::floor(end.y());
-    end_idx[2] = std::floor(end.z());
+//     //check end
+//     Eigen::Vector3d end_idx;
+//     end_idx[0] = std::floor(end.x());
+//     end_idx[1] = std::floor(end.y());
+//     end_idx[2] = std::floor(end.z());
 
-    ray_pt[0] = (double)end_idx[0];
-    ray_pt[1] = (double)end_idx[1];
-    ray_pt[2] = (double)end_idx[2];
-    Eigen::Vector3d tmp = (ray_pt) * resolution;
-    tmp[0] += resolution / 2.0;
-    tmp[1] += resolution / 2.0;
-    tmp[2] += resolution / 2.0;
-    grids.push_back(tmp);
-}
+//     ray_pt[0] = (double)end_idx[0];
+//     ray_pt[1] = (double)end_idx[1];
+//     ray_pt[2] = (double)end_idx[2];
+//     Eigen::Vector3d tmp = (ray_pt) * resolution;
+//     tmp[0] += resolution / 2.0;
+//     tmp[1] += resolution / 2.0;
+//     tmp[2] += resolution / 2.0;
+//     grids.push_back(tmp);
+// }
 
 bool EnvManager::checkCollision(const Vector3d& pos, ros::Time check_time, int& collision_type, int& collision_id)
 {
@@ -693,12 +705,53 @@ bool EnvManager::checkCollision(const Vector3d& pos, ros::Time check_time, int& 
 
 bool EnvManager::checkCollisionInGridMap(const Vector3d& pos)
 {
-    return grid_map_ptr_->getInflateOccupancy(pos) != 0;
+    if(grid_map_ptr_->getInflateOccupancy(pos) != 0)
+    {
+        return true;
+    }
+    if (enable_virtual_walll_ && (pos(2) >= virtual_ceil_ || pos(2) <= virtual_ground_))
+    {
+        return true;
+    }
+    return false;
 }
 
 bool EnvManager::checkCollisionInTrackerPool(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
 {
-    return tracker_pool_ptr_->checkCollision(pos,pos_time,collision_id);
+    vector<TrackerOutput> target_tracker_outputs;
+    tracker_pool_ptr_->forwardPool(target_tracker_outputs,pos_time);
+    // ROS_INFO_STREAM("tracker pool size:  " << target_tracker_outputs.size());
+    // ROS_INFO_STREAM("query pos : " << pos.transpose());
+    // vector<VisualBox> boxes;
+    // for(auto &obj : target_tracker_outputs)
+    // {
+    //     boxes.emplace_back(VisualBox(obj.state.head(3),obj.length,obj.length,obj.id));
+    // }
+    // map_vis_ptr_->visualizeFutureBox(boxes);  
+    for(auto &obj : target_tracker_outputs)
+    {
+        Vector3d obj_pos = obj.state.head(3);
+        Vector3d obj_axis = obj.length;
+        // ROS_INFO_STREAM("obj pos : " << obj_pos.transpose());
+        // ROS_INFO_STREAM("obj axis :" << obj_axis.transpose());
+        
+        if(abs(pos.x() - obj_pos.x()) < (obj_axis.x()  ) / 2 &&
+           abs(pos.y() - obj_pos.y()) < (obj_axis.y()  ) / 2 &&
+           abs(pos.z() - obj_pos.z()) < (obj_axis.z()  ) / 2)
+        {
+            // ROS_INFO("collsiion happened!" );
+            collision_id = obj.id;
+            return true;
+        }
+    }
+    collision_id = -1;
+
+    if (enable_virtual_walll_ && (pos(2) >= virtual_ceil_ || pos(2) <= virtual_ground_))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void EnvManager::generateSlideBox(double forward_time,vector<SlideBox>& slide_boxes)
@@ -707,7 +760,8 @@ void EnvManager::generateSlideBox(double forward_time,vector<SlideBox>& slide_bo
     tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(forward_time));
 }
 
-bool EnvManager::checkCollisionInSlideBox(const Vector3d& pos, int& collision_id)
+
+bool EnvManager::checkCollisionInSlideBox(const Vector3d &pos, int &collision_id)
 {
     vector<SlideBox> slide_boxes;
     tracker_pool_ptr_->forwardSlideBox(slide_boxes,ros::Time::now() + ros::Duration(0.5));
@@ -723,9 +777,9 @@ bool EnvManager::checkCollisionInSlideBox(const Vector3d& pos, int& collision_id
     return false;
 }
 
-
-
-void EnvManager::getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size)
+bool EnvManager::isInInfMap(const Vector3d& pos)
 {
-    grid_map_ptr_->getRegion(ori,size);
+    return grid_map_ptr_->isInInfBuf(pos);
 }
+
+

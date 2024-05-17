@@ -53,20 +53,18 @@ void KinodynamicAstar::init(const ros::NodeHandle& nh,const EnvManager::Ptr& env
   nh.param("kino_search/lambda_heu", lambda_heu_, 5.0);
   nh.param("kino_search/allocate_num", allocate_num_, 100000);
   nh.param("kino_search/check_num", check_num_, 5);
-  nh.param("kino_search/optimistic", optimistic_, true);
+  nh.param("kino_search/dynamic_environment",dynamic_environment_,false);
+  ROS_INFO_STREAM("dynamic environment : " << dynamic_environment_);
   max_vel_ = max_vel;
   max_acc_ = max_acc;
-
+  pos_origin_ << 0,0,0;
+  time_origin_ = 0;
   tie_breaker_ = 1.0 + 1.0 / 10000;
   
   /* environment */
   this->setEnvironment(env_ptr);
   this->inv_resolution_ = 1.0 / resolution_;
   inv_time_resolution_ = 1.0 / time_resolution_;
-  env_manager_->getRegion(origin_,map_size_3d_);
-
-  cout << "origin_: " << origin_.transpose() << endl;
-  cout << "map size: " << map_size_3d_.transpose() << endl;
 
   /* ---------- pre-allocated node ---------- */
   path_node_pool_.resize(allocate_num_);
@@ -83,7 +81,7 @@ void KinodynamicAstar::init(const ros::NodeHandle& nh,const EnvManager::Ptr& env
 
 
 int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, Eigen::Vector3d start_a,
-                             Eigen::Vector3d end_pt, Eigen::Vector3d end_v, bool init, bool dynamic, double time_start)
+                             Eigen::Vector3d end_pt, Eigen::Vector3d end_v, bool init, ros::Time search_time)
 {
   start_vel_ = start_v;
   start_acc_ = start_a;
@@ -107,16 +105,18 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
   open_set_.push(cur_node);
   use_node_num_ += 1;
 
-  if (dynamic)
+  if (dynamic_environment_)
   {
-    time_origin_ = time_start; 
-    cur_node->time = time_start; 
-    cur_node->time_idx = timeToIndex(time_start);
+    // time_origin_ = time_start; 
+    cur_node->time = 0; 
+    cur_node->time_idx = timeToIndex(0);
     expanded_nodes_.insert(cur_node->index, cur_node->time_idx, cur_node);
     // cout << "time start: " << time_start << endl;
   }
   else
+  {
     expanded_nodes_.insert(cur_node->index, cur_node);
+  }
 
   PathNodePtr neighbor = NULL;
   PathNodePtr terminate_node = NULL;
@@ -142,7 +142,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
       {
         // Check whether shot traj exist
         estimateHeuristic(cur_node->state, end_state, time_to_goal);
-        computeShotTraj(cur_node->state, end_state, time_to_goal);
+        computeShotTraj(cur_node->state, end_state, time_to_goal, search_time);
         if (init_search)
           ROS_ERROR("Shot in first search loop!");
       }
@@ -197,8 +197,10 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
       // init_max_tau 最大时间tau, time_res_init 分辨率， [0.1tau , 0.2tau , 0.3 tau ... tau ]
       for (double tau = time_res_init * init_max_tau_; tau <= init_max_tau_ + 1e-3;
            tau += time_res_init * init_max_tau_)
+      {
         durations.push_back(tau);
-      init_search = false;
+      }
+      init_search = false; // 置false
     }
     else // 非初始，以不同的加速度进行搜索
     {
@@ -235,7 +237,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         Eigen::Vector3i pro_id = posToIndex(pro_pos);
         int pro_t_id = timeToIndex(pro_t); 
         // 根据pro_node_index找pro_node
-        PathNodePtr pro_node = dynamic ? expanded_nodes_.find(pro_id, pro_t_id) : expanded_nodes_.find(pro_id); 
+        PathNodePtr pro_node = dynamic_environment_ ? expanded_nodes_.find(pro_id, pro_t_id) : expanded_nodes_.find(pro_id); 
         // pro_node -> close_set | open_set | NULL
         if (pro_node != NULL && pro_node->node_state == IN_CLOSE_SET) // in close set
         {
@@ -259,7 +261,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         // corner case : start_vel(0,0,0) && start_acc(0,0,0)的时候，pro_node 和 cur_node 始终在同一个voxel里。导致始终continue出循环
         Eigen::Vector3i diff = pro_id - cur_node->index;
         int diff_time = pro_t_id - cur_node->time_idx;
-        if (diff.norm() == 0 && ((!dynamic) || diff_time == 0))
+        if (diff.norm() == 0 && ((!dynamic_environment_) || diff_time == 0))
         {
           if (init_search)
             std::cout << "same" << std::endl;
@@ -275,10 +277,22 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
           double dt = tau * double(k) / double(check_num_);
           stateTransit(cur_state, xt, um, dt);
           pos = xt.head(3);
-          if(env_manager_->checkCollisionInGridMap(pos))
+          if(dynamic_environment_)
           {
-            is_occ = true;
-            break;
+            int collision_id;
+            if(env_manager_->checkCollisionInTrackerPool(pos, search_time + ros::Duration(cur_node->time + dt),collision_id))
+            {
+              is_occ = true;
+              break;
+            }
+          }
+          else
+          {
+            if(env_manager_->checkCollisionInGridMap(pos))
+            {
+              is_occ = true;
+              break;
+            }
           }
         }
         if (is_occ)
@@ -298,7 +312,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
         for (int j = 0; j < tmp_expand_nodes.size(); ++j)
         {
           PathNodePtr expand_node = tmp_expand_nodes[j];
-          if ((pro_id - expand_node->index).norm() == 0 && ((!dynamic) || pro_t_id == expand_node->time_idx))
+          if ((pro_id - expand_node->index).norm() == 0 && ((!dynamic_environment_) || pro_t_id == expand_node->time_idx))
           { // 找到了
             prune = true;
             if (tmp_f_score < expand_node->f_score)
@@ -308,7 +322,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
               expand_node->state = pro_state;
               expand_node->input = um;
               expand_node->duration = tau;
-              if (dynamic)
+              if (dynamic_environment_)
                 expand_node->time = cur_node->time + tau;
             }
             break;
@@ -329,14 +343,14 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
             pro_node->duration = tau;
             pro_node->parent = cur_node;
             pro_node->node_state = IN_OPEN_SET;
-            if (dynamic)
+            if (dynamic_environment_)
             {
               pro_node->time = cur_node->time + tau;
               pro_node->time_idx = timeToIndex(pro_node->time);
             }
             open_set_.push(pro_node);
 
-            if (dynamic)
+            if (dynamic_environment_)
             {
               expanded_nodes_.insert(pro_id, pro_node->time, pro_node);
             }
@@ -366,7 +380,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
               pro_node->input = um;
               pro_node->duration = tau;
               pro_node->parent = cur_node;
-              if (dynamic)
+              if (dynamic_environment_)
               {
                 pro_node->time = cur_node->time + tau;
               }
@@ -439,7 +453,7 @@ double KinodynamicAstar::estimateHeuristic(Eigen::VectorXd x1, Eigen::VectorXd x
   return 1.0 * (1 + tie_breaker_) * cost;
 }
 
-bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd state2, double time_to_goal)
+bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd state2, double time_to_goal, ros::Time search_time)
 {
   /* ---------- get coefficient ---------- */
   const Vector3d p0 = state1.head(3);
@@ -489,23 +503,22 @@ bool KinodynamicAstar::computeShotTraj(Eigen::VectorXd state1, Eigen::VectorXd s
       }
     }
 
-    if (coord(0) < origin_(0) || coord(0) >= map_size_3d_(0) || coord(1) < origin_(1) || coord(1) >= map_size_3d_(1) ||
-        coord(2) < origin_(2) || coord(2) >= map_size_3d_(2))
+    if(dynamic_environment_) // 动态障碍物检测
     {
-      return false;
+      int collision_id;
+      if(env_manager_->checkCollisionInTrackerPool(coord, search_time + ros::Duration(time), collision_id))
+      {
+        return false;
+      }
+    }
+    else // 静态障碍物检测
+    {
+      if(!env_manager_->isInInfMap(coord))
+      {
+        return false;
+      }
     }
 
-    // if (edt_environment_->evaluateCoarseEDT(coord, -1.0) <= margin_) {
-    //   return false;
-    // }
-    // if (edt_environment_->sdf_map_->getInflateOccupancy(coord) == 1)
-    // {
-    //   return false;
-    // }
-    if(env_manager_->checkCollisionInGridMap(coord))
-    {
-      return false;
-    }
   }
   coef_shot_ = coef;
   t_shot_ = t_d;
@@ -799,7 +812,7 @@ std::vector<PathNodePtr> KinodynamicAstar::getVisitedNodes()
 // 计算位置下标 idx 
 Eigen::Vector3i KinodynamicAstar::posToIndex(Eigen::Vector3d pt)
 {
-  Vector3i idx = ((pt - origin_) * inv_resolution_).array().floor().cast<int>();
+  Vector3i idx = ((pt - pos_origin_) * inv_resolution_).array().floor().cast<int>();
 
   // idx << floor((pt(0) - origin_(0)) * inv_resolution_), floor((pt(1) -
   // origin_(1)) * inv_resolution_),

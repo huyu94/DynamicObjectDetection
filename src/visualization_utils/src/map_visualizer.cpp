@@ -2,8 +2,13 @@
 #include <queue>
 #include <string>
 
-MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
+
+MapVisualizer::MapVisualizer()
+{}
+
+void MapVisualizer::init(const ros::NodeHandle &node)
 {
+    node_ = node;
     cluster_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("cluster_result", 1);
     segmentation_result_pub_ = node_.advertise<visualization_msgs::MarkerArray>("segmentation_result", 1);
     static_point_pub_ = node_.advertise<sensor_msgs::PointCloud2>("static_point", 1);
@@ -13,8 +18,9 @@ MapVisualizer::MapVisualizer(const ros::NodeHandle &nh) : node_(nh)
     moving_object_box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_box", 1);
     moving_object_traj_pub_ = node_.advertise<visualization_msgs::MarkerArray>("moving_object_traj", 1);
     receive_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("received_cloud",1);
-}
+    box_pub_ = node_.advertise<visualization_msgs::MarkerArray>("future_box", 1);
 
+}
 void MapVisualizer::visualizeStaticPoint(std::vector<Eigen::Vector3d> &static_points)
 {
     if(static_points.size() == 0)
@@ -135,6 +141,50 @@ void MapVisualizer::visualizeSlideBox(std::vector<VisualizeSlideBox> &visual_sli
     slide_box_pub_.publish(slide_boxes);
 }
 
+void MapVisualizer::visualizeFutureBox(std::vector<VisualBox> &visual_box)
+{
+    visualization_msgs::MarkerArray boxes;
+
+    // delete
+    visualization_msgs::Marker delete_all_markers;
+    delete_all_markers.header.frame_id = "world";
+    delete_all_markers.ns = "future_box";
+    delete_all_markers.id = 0;
+    delete_all_markers.type = visualization_msgs::Marker::DELETEALL;
+    delete_all_markers.action = visualization_msgs::Marker::DELETEALL;
+    boxes.markers.push_back(delete_all_markers);
+
+    box_pub_.publish(boxes);
+    boxes.markers.clear();
+
+    // add    
+    for(int i=0; i < visual_box.size() ;i++)
+    {
+        visualization_msgs::Marker box;
+        box.header.frame_id = "world";
+        box.header.stamp = ros::Time::now();
+
+        box.ns = "future_box";
+        box.id = i;
+        box.type = visualization_msgs::Marker::CUBE;
+        box.action = visualization_msgs::Marker::ADD;
+
+        box.pose.position.x = visual_box[i].pos.x();
+        box.pose.position.y = visual_box[i].pos.y();
+        box.pose.position.z = visual_box[i].pos.z();
+
+        box.pose.orientation.w = 1.0;
+
+        box.scale.x = visual_box[i].len.x();
+        box.scale.y = visual_box[i].len.y();
+        box.scale.z = visual_box[i].len.z();
+
+        box.color = Color::Chartreuse();
+        boxes.markers.push_back(box);  
+    }
+    box_pub_.publish(boxes);
+
+}
 visualization_msgs::Marker generateEllipse(const Vector3d &pos, const Vector3d &len, int id)
 {
     visualization_msgs::Marker marker;
