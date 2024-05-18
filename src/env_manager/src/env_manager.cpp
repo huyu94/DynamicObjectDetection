@@ -501,8 +501,9 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
         // ROS_WARN("cloud window is not ready || no new cloud and odom !!");
         return ;
     }
-    // ROS_INFO("in [updateCallback]");
-    
+#ifdef DEBUG
+    ROS_INFO("in [updateCallback]");
+#endif
     static int update_count = 1;
     static double cluster_time, segmentation_time, match_time,total_time;
     // lock of slide window  

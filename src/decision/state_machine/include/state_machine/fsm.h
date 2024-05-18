@@ -23,12 +23,12 @@ namespace fast_planner
 {
 class FSM
 {
-private:
-    /* data */
 public:
     FSM(/* args */);
     ~FSM();
     void init(ros::NodeHandle& nh);
+    typedef std::shared_ptr<ClusterFeature> Ptr;   
+
 
 private:
     bool searchForTraj(Vector3d start_pos, Vector3d start_vel, Vector3d start_acc,

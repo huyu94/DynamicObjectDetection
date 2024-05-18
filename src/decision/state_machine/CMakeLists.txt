@@ -38,11 +38,20 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
-add_executable(state_machine_node 
-  src/state_machine_node.cpp 
-  src/fsm.cpp
-  )
 
-  target_link_libraries(state_machine_node
+add_library(${PROJECT_NAME}
+  src/fsm.cpp
+)
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+
+add_executable(${PROJECT_NAME}_NODE 
+  src/state_machine_node.cpp 
+)
+
+  target_link_libraries(${PROJECT_NAME}_NODE
+    ${PROJECT_NAME}
     ${catkin_LIBRARIES}
   )

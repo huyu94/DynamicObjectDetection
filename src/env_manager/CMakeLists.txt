@@ -9,6 +9,8 @@ add_compile_options(-w)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 
+add_definitions(-DDEBUG)
+
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
