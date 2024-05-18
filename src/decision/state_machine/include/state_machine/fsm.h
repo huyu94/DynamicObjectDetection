@@ -13,6 +13,7 @@
 // #include <trajectories/non_uniform_bspline.h>
 // #include <state_machine/plan_container.hpp>
 #include <plan_manager/plan_manager.h>
+#include <trajectories/Bspline>
 
 
 using string = std::string;
@@ -102,6 +103,7 @@ private:
     void printState();
 
     bool callKinoDynamicReplan();
+    boool callEmergencyStop(Vector3d stop_pos);
 
 
 
