@@ -104,67 +104,68 @@ void FSM::execCallback(const ros::TimerEvent& event)
             break;
         }
 
-        // case FOLLOW_TRAJ:
-        // {
-        //     LocalTrajData* info = &state_machine->local_data_;
-        //     ros::Time       time_now = ros::Time::now();
-        //     double          t_cur    = (time_now - info->start_time_).toSec();
-        //     t_cur                    = min(info->duration_, t_cur);
+        case FOLLOW_TRAJ:
+        {
+            LocalTrajData* info = &state_machine->local_data_;
+            ros::Time       time_now = ros::Time::now();
+            double          t_cur    = (time_now - info->start_time_).toSec();
+            t_cur                    = min(info->duration_, t_cur);
 
-        //     Eigen::Vector3d pos = info->position_traj_.evaluateDeBoorT(t_cur);
+            Eigen::Vector3d pos = info->position_traj_.evaluateDeBoorT(t_cur);
 
 
-        //     if(t_cur >= info->duration_ - 1e-2)
-        //     {
-        //         have_goal_ = false;
-        //         changeState(WAIT_GOAL, "FSM");
-        //         return ;
-        //     }
-        //     else if((end_pos_ - pos).norm() < no_replan_thresh_)
-        //     {
-        //         ROS_INFO_STREAM("[FSM]: near local traj end");
-        //         return ;
-        //     }
-        //     else if((info->start_pos_ - pos).norm() < replan_thresh_)
-        //     {
-        //         ROS_INFO_STREAM("near start");
-        //         return ;
-        //     }
-        //     else
-        //     {
-        //         changeState(REPLAN_TRAJ, "FSM");
-        //     }
-        //     break;
-        // }
+            if(t_cur >= info->duration_ - 1e-2)
+            {
+                have_goal_ = false;
+                changeState(WAIT_GOAL, "FSM");
+                return ;
+            }
+            else if((end_pos_ - pos).norm() < no_replan_thresh_)
+            {
+                ROS_INFO_STREAM("[FSM]: near local traj end");
+                return ;
+            }
+            else if((info->start_pos_ - pos).norm() < replan_thresh_)
+            {
+                ROS_INFO_STREAM("near start");
+                return ;
+            }
+            else
+            {
+                changeState(REPLAN_TRAJ, "FSM");
+            }
+            break;
+        }
 
-        // case REPLAN_TRAJ:
-        // {
-        //     LocalTrajData*  info        = &state_machine->local_data_;
-        //     ros::Time       time_now    = ros::Time::now();
-        //     double          t_cur       = (time_now - info->start_time_).toSec();
+        case REPLAN_TRAJ:
+        {
+            LocalTrajData*  info        = &state_machine->local_data_;
+            ros::Time       time_now    = ros::Time::now();
+            double          t_cur       = (time_now - info->start_time_).toSec();
 
-        //     start_pos_ = info->position_traj_.evaluateDeBoorT(t_cur);
-        //     start_vel_ = info->velocity_traj_.evaluateDeBoorT(t_cur);
-        //     start_acc_ = info->acceleration_traj_.evaluateDeBoorT(t_cur);
+            start_pos_ = info->position_traj_.evaluateDeBoorT(t_cur);
+            start_vel_ = info->velocity_traj_.evaluateDeBoorT(t_cur);
+            start_acc_ = info->acceleration_traj_.evaluateDeBoorT(t_cur);
 
-        //     start_yaw(0) = info->yaw_traj_.evaluateDeBoorT(t_cur)[0];
-        //     start_yaw(1) = info->yaw_rate_traj_.evaluateDeBoorT(t_cur)[0];
-        //     start_yaw(2) = info->yawdotdot_traj_.evaluateDeBoorT(t_cur)[0];
+            start_yaw(0) = info->yaw_traj_.evaluateDeBoorT(t_cur)[0];
+            start_yaw(1) = info->yaw_rate_traj_.evaluateDeBoorT(t_cur)[0];
+            start_yaw(2) = info->yawdotdot_traj_.evaluateDeBoorT(t_cur)[0];
 
-        //     // std_msgs::Empty replan_msg;
-        //     // replan_pub_.publish(replan_msg);
+            // std_msgs::Empty replan_msg;
+            // replan_pub_.publish(replan_msg);
 
-        //     bool success = callKinodynamicReplan();
-        //     if(success)
-        //     {
-        //         changeState(FOLLOW_TRAJ,"FSM");
-        //     }
-        //     else
-        //     {
-        //         changeState(GENERATE_TRAJ, "FSM");
-        //     }
+            bool success = callKinodynamicReplan();
+            if(success)
+            {
+                changeState(FOLLOW_TRAJ,"FSM");
+            }
+            else
+            {
+                changeState(GENERATE_TRAJ, "FSM");
+            }
 
-        //     break;
+            break;
+        }
     }
 
 }
