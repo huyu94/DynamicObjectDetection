@@ -1,0 +1,23 @@
+fsm:
+  flight_type: 1
+  thresh_replan: 1.5
+  thresh_no_replan: 2.0
+  planning_horizon: 7.5
+  planning_horizen_time: 3
+  emergency_time_: 1.0
+  waypoint_num: 5
+  waypoint0_x: -15.0
+  waypoint0_y: 0.0
+  waypoint0_z: 1.0
+  waypoint1_x: 0.0
+  waypoint1_y: 15.0
+  waypoint1_z: 1.0
+  waypoint2_x: 0.0
+  waypoint2_y: -15.0
+  waypoint2_z: 1.0
+  waypoint3_x: 0.0
+  waypoint3_y: -15.0
+  waypoint3_z: 1.0
+  waypoint4_x: -15.0
+  waypoint4_y: 0.0
+  waypoint4_z: 1.0

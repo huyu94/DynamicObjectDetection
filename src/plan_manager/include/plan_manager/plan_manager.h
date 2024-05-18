@@ -55,9 +55,9 @@ public:
     MidPlanData plan_data_;
 
     TrajVisualizer::Ptr traj_visual_ptr_;
+    EnvManager::Ptr env_manager_ptr_;
 
 private:
-    EnvManager::Ptr env_manager_ptr_;
 
     // unique_ptr<Astar> geo_path_finder_;
     unique_ptr<KinodynamicAstar> kino_path_finder_ptr_;

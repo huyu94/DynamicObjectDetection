@@ -7,7 +7,6 @@
     <arg name="max_acc" />
     <arg name="planning_horizon" />
     <arg name="flight_type" />
-    <arg name="use_distinctive_trajs"/>
 
     <arg name="point_num" />
     <arg name="point0_x" />

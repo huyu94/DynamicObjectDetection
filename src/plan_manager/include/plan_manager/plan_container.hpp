@@ -24,6 +24,7 @@ namespace fast_planner
         double local_start_time_, local_end_time_; // local traj start and end time
         double time_increase_; // ?? 
         double last_time_inc_; // ?? 
+        double last_progress_time_; 
 
 
         GlobalTrajData(/* args */){}
