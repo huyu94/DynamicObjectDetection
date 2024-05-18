@@ -175,6 +175,42 @@ bool FSM::callKinoDynamicReplan()
     // bool plan_success = 
 }
 
+bool FSM::callEmergencyStop(Vector3d stop_pos)
+{   
+    
+    plan_manager_ptr_->emergencyStop(stop_pos);
+
+    auto info = &plan_manager_ptr_->local_data_;
+
+    /* publish traj */
+    fast_planner::Bspline bspline;
+    bspline.order = 3;
+    bspline.start_time = info->start_time_;
+    bspline.traj_id = info->traj_id_;
+
+    Eigen::MatrixXd pos_pts = info->position_traj_.getControlPoint();
+    bspline.pos_pts.reverse(pos_pts.cols());
+    for(int i = 0; i < pos_pts.cols(); i++)
+    {
+        geometry_msgs::Point pt;
+        pt.x = pos_pts(0,i);
+        pt.y = pos_pts(1,i);
+        pt.z = pos_pts(2,i);
+        bspline.pos_pts.push_back(pt);
+    }
+
+    Eigen::Vector3d knots = info->position_traj_.getKnot();
+    bspline.knots.reserve(knots.rows());
+    for(int i = 0; i< knots.rows(); i++)
+    {
+        bspline.knots.push_back(knots(i));
+    }
+
+    bspline_pub_.publish(bspline);
+
+    return true;
+}
+
 
 
 
