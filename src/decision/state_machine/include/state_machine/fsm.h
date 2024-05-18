@@ -27,7 +27,8 @@ public:
     FSM(/* args */);
     ~FSM();
     void init(ros::NodeHandle& nh);
-    typedef std::shared_ptr<ClusterFeature> Ptr;   
+    typedef std::shared_ptr<FSM> Ptr;   
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 
 private:
@@ -124,7 +125,6 @@ private:
 
 
 
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 
