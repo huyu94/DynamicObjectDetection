@@ -43,7 +43,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
         std::stringstream ss;
         ss << std::put_time(std::localtime(&now_c), "%Y%m%d%H%M%S");
         std::string filename = ss.str() + ".txt";
-        string log_dir = ros::package::getPath("plan_env") + "/logs/";
+        string log_dir = ros::package::getPath("env_manager") + "/logs/";
         update_time_record_.open(log_dir + filename, std::ios::out);
         if(!update_time_record_.is_open())
         {
@@ -63,7 +63,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
 
 /* data */
     cloud_odom_window_ready_ = false;
-    pcl_cloud_ptr_.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    // pcl_cloud_ptr_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     node_.param<int>("env_manager/slide_window_size",slide_window_size_,5);
     node_.param<double>("env_manager/tracking_update_timeout",tracking_update_timeout_,1.0);
 
@@ -88,7 +88,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
 /* segmentation */
     node_.param<double>("env_manager/gamma1_threshold",gamma1_threshold_,0.5);
     node_.param<double>("env_manager/gamma2_threshold",gamma2_threshold_,0.5);
-    segmentation_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
+    // segmentation_ikdtree_ptr_.reset(new KD_TREE<PointType>(0.3,0.6,0.2));
     
 /* match */
     node_.param<double>("env_manager/distance_gate",distance_gate_,0.5);
@@ -137,8 +137,8 @@ void EnvManager::cluster()
 {
 
     /* dbscan cluster */
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-    tree->setInputCloud(pcl_cloud_ptr_);
+    // pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    // tree->setInputCloud(pcl_cloud_ptr_);
     vector<pcl::PointIndices> cluster_indices;
     DBSCANKdtreeCluster<pcl::PointXYZ> ec;
     ec.setCorePointMinPts(dbscan_min_ptn_);
@@ -147,20 +147,25 @@ void EnvManager::cluster()
     ec.setMinClusterSize(dbscan_min_cluster_size_);
     ec.setMaxClusterSize(dbscan_max_cluster_size_);
 
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(pcl_cloud_ptr_);
+    // ec.setSearchMethod(tree);
+    // ec.setInputCloud(pcl_cloud_ptr_);
+    ec.setSearchMethod(segmentation_kdtree_ptrs_.back());
+    ec.setInputCloud(cloud_odom_slide_window_.back().first);
+
     ec.extract(cluster_indices);
 
     // 其余的点设置为静态点
     static_points_.clear();
     pcl::Indices static_indices;
     ec.getOtherPoints(static_indices);
-    PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
-    PointVector &cloud_ref = (*cloud);
+    // PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
+    // PointVector &cloud_ref = (*cloud);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr = cloud_odom_slide_window_.back().first;
     for(auto &t : static_indices)
     {
         Vector3d p;
-        p << cloud_ref[t].x,cloud_ref[t].y,cloud_ref[t].z;
+        p << cloud_ptr->points[t].x,cloud_ptr->points[t].y,cloud_ptr->points[t].z;
+        // p << cloud_ref[t].x,cloud_ref[t].y,cloud_ref[t].z;
         static_points_.push_back(p);
     }
 
@@ -205,7 +210,7 @@ void EnvManager::cluster()
         vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
         
     }
-
+    map_vis_ptr_->visualizeClusterResult(vis_clusters);
 #ifdef DEBUG
     for(auto &t : cluster_features_)
     {
@@ -215,12 +220,14 @@ void EnvManager::cluster()
         }
         ROS_INFO_STREAM("cluster " << t->state.transpose());
     }
+
+    ROS_INFO_STREAM("cluster finished");
 #endif
 
 
 
 
-    map_vis_ptr_->visualizeClusterResult(vis_clusters);
+
 
 }
 /* 计算聚类属性 */
@@ -231,19 +238,25 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     Vector3d position;
     Vector3d length;
     Vector3d pt;
-    PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
-    PointVector &cloud_ref = (*cloud);
+    // PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
+    // PointVector &cloud_ref = (*cloud);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr = cloud_odom_slide_window_.back().first;
+
+
     int size = cluster_ptr->cluster_indices.indices.size();
 
     for(size_t i=0; i < size;i++)
     {
         int index = cluster_ptr->cluster_indices.indices[i];
-        pt.x() = cloud_ref[index].x;
-        pt.y() = cloud_ref[index].y;
-        pt.z() = cloud_ref[index].z;
-#ifdef DEBUG
-    ROS_INFO_STREAM("pt : " << pt.transpose());
-#endif
+        pt.x() = cloud_ptr->points[index].x;
+        pt.y() = cloud_ptr->points[index].y;
+        pt.z() = cloud_ptr->points[index].z;
+
+        // pt.x() = cloud_ref[index].x;
+        // pt.y() = cloud_ref[index].y;
+        // pt.z() = cloud_ref[index].z;
+
+
         // ROS_INFO_STREAM("pt : " << pt.transpose());
         position += pt;
         if(i == 0)
@@ -284,30 +297,46 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
 /* 簇分割 */
 void EnvManager::segmentation()
 {
-    shared_ptr<PointVector> point_vector = cloud_odom_slide_window_.back().first;
-    PointVector search_vector;
-    vector<float> search_distance;
-    double max_dist;
+    // shared_ptr<PointVector> point_vector = cloud_odom_slide_window_.back().first;
+    // PointVector search_vector;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr = cloud_odom_slide_window_.back().first;
+    pcl::PointXYZ searchPoint;
+    vector<int> point_idx_radius_search;
+    vector<float> point_radius_squared_distance;
     vector<float> global_nearest_distance;
     double global_average_minimum_distance,normalized_average_variance_of_distance;
     for(auto &cluster : cluster_features_)
     {
         global_nearest_distance.clear();
-        Vector3d min_bound,max_bound;
+        Vector3d min_bound, max_bound;
         Vector3d position;
 
         global_average_minimum_distance = 0;
-        for(size_t i=0; i < cluster->cluster_indices.indices.size();i++)
+        for(size_t i = 0; i < cluster->cluster_indices.indices.size(); i++)
         {
-
-            int index = cluster->cluster_indices.indices[i];
-            search_vector.clear();
-            search_distance.clear();
-            segmentation_ikdtree_ptr_->Nearest_Search((*point_vector)[index],2,search_vector,search_distance);
-            // ROS_INFO("search_point: %lf, %lf, %lf", (*point_vector)[index].x,(*point_vector)[index].y,(*point_vector)[index].z);
-            // ROS_INFO("search_vector : %lf, %lf, %lf", search_vector[0].x,search_vector[0].y,search_vector[0].z);
-            global_nearest_distance.push_back(search_distance[1]);
+            float min_dist = 10000000;
+            for(auto &kdtree : segmentation_kdtree_ptrs_)
+            {
+                searchPoint.x = cloud_ptr->points[cluster->cluster_indices.indices[i]].x;
+                searchPoint.y = cloud_ptr->points[cluster->cluster_indices.indices[i]].y;
+                searchPoint.z = cloud_ptr->points[cluster->cluster_indices.indices[i]].z;
+                if(kdtree->nearestKSearch(searchPoint, 2, point_idx_radius_search, point_radius_squared_distance) > 0)
+                {
+                    if(point_radius_squared_distance[1] < min_dist)
+                    {
+                        min_dist = point_radius_squared_distance[1];
+                    }
+                }
+            }
+            if(min_dist == 10000000)
+            {
+                ROS_ERROR_STREAM("in env manager [segmentation] : abnormal value");
+            }
+            global_nearest_distance.push_back(min_dist);
+            
         }
+
         double gamma_1 = 0, gamma_2 = 0;
         for(auto dis : global_nearest_distance)
         {
@@ -349,7 +378,72 @@ void EnvManager::segmentation()
     }
 
 
+
+    // vector<float> search_distance;
+    // double max_dist;
+    // vector<float> global_nearest_distance;
+    // double global_average_minimum_distance,normalized_average_variance_of_distance;
+    // for(auto &cluster : cluster_features_)
+    // {
+    //     global_nearest_distance.clear();
+    //     Vector3d min_bound,max_bound;
+    //     Vector3d position;
+
+    //     global_average_minimum_distance = 0;
+    //     for(size_t i=0; i < cluster->cluster_indices.indices.size();i++)
+    //     {
+
+    //         int index = cluster->cluster_indices.indices[i];
+    //         search_vector.clear();
+    //         search_distance.clear();
+    //         segmentation_ikdtree_ptr_->Nearest_Search((*point_vector)[index],2,search_vector,search_distance);
+    //         // ROS_INFO("search_point: %lf, %lf, %lf", (*point_vector)[index].x,(*point_vector)[index].y,(*point_vector)[index].z);
+    //         // ROS_INFO("search_vector : %lf, %lf, %lf", search_vector[0].x,search_vector[0].y,search_vector[0].z);
+    //         global_nearest_distance.push_back(search_distance[1]);
+    //     }
+    //     double gamma_1 = 0, gamma_2 = 0;
+    //     for(auto dis : global_nearest_distance)
+    //     {
+    //         gamma_1 += dis;
+    //     }
+    //     gamma_1 /= global_nearest_distance.size();
+
+    //     for(size_t j = 0; j < global_nearest_distance.size();j++)
+    //     {
+    //         gamma_2 += pow(global_nearest_distance[j] - gamma_1,2) ;
+    //     }
+    //     gamma_2 /= (global_nearest_distance.size() * pow(gamma_1,2));
+    //     cluster->gamma_1 = gamma_1;
+    //     cluster->gamma_2 = gamma_2;
+
+    //     // ROS_INFO("gamma1: %lf, gamma2: %lf",gamma_1,gamma_2);
+
+    //     if(cluster->state(2) > cluster_max_height_) //排除过高的物体,例如墙体等
+    //     {
+    //         cluster->motion_type = ClusterFeature::MotionType::STATIC;
+    //         continue;
+    //     }
+    //     if(cluster->gamma_1 < gamma1_threshold_)
+    //     {
+    //         cluster->motion_type = ClusterFeature::MotionType::STATIC;
+    //     }
+    //     else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 < gamma2_threshold_)
+    //     {
+    //         cluster->motion_type = ClusterFeature::MotionType::MOVING;
+    //     }
+    //     else if(cluster->gamma_1 > gamma1_threshold_ && cluster->gamma_2 > gamma2_threshold_)
+    //     {
+    //         cluster->motion_type = ClusterFeature::MotionType::UNKOWN;
+    //     }
+    //     else{
+    //         ROS_WARN("gamma1 or gamma2 is nan");
+    //         cluster->motion_type = ClusterFeature::MotionType::UNDEFINE;
+    //     }
+    // }
+
+
     std::vector<VisualCluster> visual_clusters;
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr = cloud_odom_slide_window_.back().first;
     for(auto &t : cluster_features_)
     {
         // std::cout << "cluster motion type: " << t->motion_type << std::endl;
@@ -363,12 +457,21 @@ void EnvManager::segmentation()
             for(int j=0;j<t->cluster_indices.indices.size();j++)
             {
                 int index = t->cluster_indices.indices[j];
-                Vector3d p((*pcl_cloud_ptr_)[index].x,(*pcl_cloud_ptr_)[index].y,(*pcl_cloud_ptr_)[index].z);
+                // Vector3d p((*pcl_cloud_ptr_)[index].x,(*pcl_cloud_ptr_)[index].y,(*pcl_cloud_ptr_)[index].z);
+                Vector3d p;
+                p.x() = cloud_ptr->points[index].x;
+                p.y() = cloud_ptr->points[index].y;
+                p.z() = cloud_ptr->points[index].z;
                 static_points_.push_back(p);
             }
         }
     }
     map_vis_ptr_->visualizeSegmentationResult(visual_clusters);
+
+#ifdef DEBUG
+    ROS_INFO_STREAM("segmentation finished!");
+#endif
+
 }
 /* 簇匹配 */
 void EnvManager::match()
@@ -431,7 +534,7 @@ void EnvManager::match()
                 2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
 
                 float feature_distance = (measurement_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
-                std::cout << "row :" << row << " col :" << col << " feature_distance : " << feature_distance << std::endl;
+                // std::cout << "row :" << row << " col :" << col << " feature_distance : " << feature_distance << std::endl;
                 matrix_cost(row,col) = feature_distance < distance_gate_ ? feature_distance : 5000 * feature_distance;
                 matrix_gate(row,col) = matrix_cost(row,col) < distance_gate_;
             }
@@ -457,9 +560,7 @@ void EnvManager::match()
 #endif
 
         Munkres<float> munkres_solver;
-        ROS_INFO_STREAM("here");
         munkres_solver.solve(matrix_cost);
-        ROS_INFO_STREAM("out");
         
         for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
@@ -511,6 +612,11 @@ void EnvManager::match()
         tracker_inputs.emplace_back(t->match_id,t->state,t->length);
     }
     tracker_pool_ptr_->updatePool(tracker_inputs,odom_time_);
+
+
+#ifdef DEBUG
+    ROS_INFO_STREAM("match finished");
+#endif
 
 }
 
@@ -565,7 +671,7 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
     t2 = ros::Time::now();
     segmentation_time = updateMean(segmentation_time,(t2-t1).toSec(),update_count);
     
-    map_vis_ptr_->visualizeStaticPoint(static_points_);
+    // map_vis_ptr_->visualizeStaticPoint(static_points_);
     grid_map_ptr_->updateOccupancy(static_points_,cloud_odom_slide_window_.back().second);
 
     t1 = ros::Time::now();
@@ -575,8 +681,9 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
 
     total_time = updateMean(total_time,(t2-t0).toSec(),update_count);
 
-    // record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
-    // update_time_record_ << update_count << "\t" << pcl_cloud_ptr_->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr = cloud_odom_slide_window_.back().first;
+    record(update_count,cloud_ptr->points.size(),cluster_time,segmentation_time,match_time,total_time);
+    update_time_record_ << update_count << "\t" << cloud_ptr->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
     cloud_odom_window_ready_ = false;
     update_count ++;
 }
@@ -587,7 +694,7 @@ void EnvManager::record(int update_count, int point_size, double cluster_time, d
     if(record_)
     {
         update_time_record_ << std::left << std::setw(15) << update_count 
-                            << std::setw(10) << pcl_cloud_ptr_->points.size() 
+                            << std::setw(10) << cloud_odom_slide_window_.back().first->size()/*pcl_cloud_ptr_->points.size()*/ 
                             << std::setw(15) << cluster_time 
                             << std::setw(20) << segmentation_time 
                             << std::setw(20) << match_time 
@@ -595,29 +702,24 @@ void EnvManager::record(int update_count, int point_size, double cluster_time, d
     }
 
 }
+
+
 /* 添加点云到滑动窗口，并且删除窗口中第一帧点云 */
-void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
+void EnvManager::addCloudOdomToSlideWindow(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, OdomPtr& odom)
 {
-
-
-    // initialize, build ikd-tree
-    if(cloud_odom_slide_window_.size() == 0)
+    if(cloud_odom_slide_window_.size() < slide_window_size_)
     {
-        cloud_odom_slide_window_.push(make_pair(cloud,odom));
-        segmentation_ikdtree_ptr_->Build(*cloud);
+        cloud_odom_slide_window_.push_back(make_pair(cloud,odom));
+        segmentation_kdtree_ptrs_.emplace_back(new pcl::search::KdTree<pcl::PointXYZ>);
+        segmentation_kdtree_ptrs_.back()->setInputCloud(cloud);
     }
-    else if(cloud_odom_slide_window_.size() < slide_window_size_)
+    else // cloud windows size >= slide_windows_size_
     {
-        cloud_odom_slide_window_.push(make_pair(cloud,odom));
-        segmentation_ikdtree_ptr_->Add_Points(*cloud,false);
-    }
-    else
-    {
-        PointVectorPtr front_cloud = cloud_odom_slide_window_.front().first;
-        cloud_odom_slide_window_.pop();
-        cloud_odom_slide_window_.push(make_pair(cloud,odom));
-        segmentation_ikdtree_ptr_->Delete_Points(*front_cloud);
-        segmentation_ikdtree_ptr_->Add_Points(*cloud,false);
+        cloud_odom_slide_window_.pop_front();
+        cloud_odom_slide_window_.push_back(make_pair(cloud,odom));
+        segmentation_kdtree_ptrs_.pop_front();
+        segmentation_kdtree_ptrs_.emplace_back(new pcl::search::KdTree<pcl::PointXYZ>);
+        segmentation_kdtree_ptrs_.back()->setInputCloud(cloud);
     }
 
     if(cloud_odom_slide_window_.size() == slide_window_size_)
@@ -627,12 +729,44 @@ void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
     }
 }
 
+// void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
+// {
+
+
+//     // initialize, build ikd-tree
+//     if(cloud_odom_slide_window_.size() == 0)
+//     {
+//         cloud_odom_slide_window_.push(make_pair(cloud,odom));
+//         segmentation_ikdtree_ptr_->Build(*cloud);
+//     }
+//     else if(cloud_odom_slide_window_.size() < slide_window_size_)
+//     {
+//         cloud_odom_slide_window_.push(make_pair(cloud,odom));
+//         segmentation_ikdtree_ptr_->Add_Points(*cloud,false);
+//     }
+//     else
+//     {
+//         PointVectorPtr front_cloud = cloud_odom_slide_window_.front().first;
+//         cloud_odom_slide_window_.pop();
+//         cloud_odom_slide_window_.push(make_pair(cloud,odom));
+//         segmentation_ikdtree_ptr_->Delete_Points(*front_cloud);
+//         segmentation_ikdtree_ptr_->Add_Points(*cloud,false);
+//     }
+
+//     if(cloud_odom_slide_window_.size() == slide_window_size_)
+//     {
+//         odom_time_ = cloud_odom_slide_window_.back().second->header.stamp;
+//         cloud_odom_window_ready_ = true;
+//     }
+// }
+
 
 /* 同步获取点云和里程计信息 */
 void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud,
                                    const nav_msgs::OdometryConstPtr& odom)
 {
-    PointVectorPtr cloud_ptr;
+    // PointVectorPtr cloud_ptr;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>());
     OdomPtr odom_ptr;
 
     // ROS_INFO("Receive odom & cloud");
@@ -644,26 +778,26 @@ void EnvManager::cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud
     // mutex, let pcl_cloud_ptr_ and slide window buffer operate in the same time
     // std::lock_guard<std::mutex> guard(slide_window_mtx_);
 
-    pcl_cloud_ptr_->clear();
-    pcl::fromROSMsg(*cloud,*pcl_cloud_ptr_);
-    if(pcl_cloud_ptr_->empty())
+    pcl_cloud_ptr->clear();
+    pcl::fromROSMsg(*cloud,*pcl_cloud_ptr);
+    if(pcl_cloud_ptr->empty())
     {
         ROS_WARN("cloud is empty");
         return ;
     }
 
     // convert : 0.01ms
-    cloud_ptr = make_shared<PointVector>();
-    for(auto t : (*pcl_cloud_ptr_))
-    {
-        cloud_ptr->emplace_back(t.x,t.y,t.z);
-    }
+    // cloud_ptr = make_shared<PointVector>();
+    // for(auto t : (*pcl_cloud_ptr_))
+    // {
+    //     cloud_ptr->emplace_back(t.x,t.y,t.z);
+    // }
 
 
     // add PointVector to slide window buffer and build ikd_tree
-    addCloudOdomToSlideWindow(cloud_ptr,odom_ptr);
+    addCloudOdomToSlideWindow(pcl_cloud_ptr,odom_ptr);
     
-    map_vis_ptr_->visualizeReceiveCloud(pcl_cloud_ptr_);
+    map_vis_ptr_->visualizeReceiveCloud(pcl_cloud_ptr);
 
 }
 
