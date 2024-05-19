@@ -43,7 +43,7 @@ void EnvManager::init(const ros::NodeHandle &nh)
         std::stringstream ss;
         ss << std::put_time(std::localtime(&now_c), "%Y%m%d%H%M%S");
         std::string filename = ss.str() + ".txt";
-        string log_dir = ros::package::getPath("plan_env") + "/logs/";
+        string log_dir = ros::package::getPath("env_manager") + "/logs/";
         update_time_record_.open(log_dir + filename, std::ios::out);
         if(!update_time_record_.is_open())
         {
@@ -52,9 +52,9 @@ void EnvManager::init(const ros::NodeHandle &nh)
         else
         {
             ROS_INFO("open update_time_record.txt");
-            update_time_record_ << std::left << std::setw(15) << "update_count" 
-                                << std::setw(10) << "point_num" 
-                                << std::setw(15) << "cluster_time" 
+            update_time_record_ << std::left << std::setw(20) << "update_count" 
+                                << std::setw(20) << "point_num" 
+                                << std::setw(20) << "cluster_time" 
                                 << std::setw(20) << "segmentation_time" 
                                 << std::setw(20) << "match_time"
                                 << "total_time\n";
@@ -431,7 +431,7 @@ void EnvManager::match()
                 2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
 
                 float feature_distance = (measurement_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
-                std::cout << "row :" << row << " col :" << col << " feature_distance : " << feature_distance << std::endl;
+                // std::cout << "row :" << row << " col :" << col << " feature_distance : " << feature_distance << std::endl;
                 matrix_cost(row,col) = feature_distance < distance_gate_ ? feature_distance : 5000 * feature_distance;
                 matrix_gate(row,col) = matrix_cost(row,col) < distance_gate_;
             }
@@ -457,9 +457,9 @@ void EnvManager::match()
 #endif
 
         Munkres<float> munkres_solver;
-        ROS_INFO_STREAM("here");
+        // ROS_INFO_STREAM("here");
         munkres_solver.solve(matrix_cost);
-        ROS_INFO_STREAM("out");
+        // ROS_INFO_STREAM("out");
         
         for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
@@ -575,7 +575,7 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
 
     total_time = updateMean(total_time,(t2-t0).toSec(),update_count);
 
-    // record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
+    record(update_count,pcl_cloud_ptr_->points.size(),cluster_time,segmentation_time,match_time,total_time);
     // update_time_record_ << update_count << "\t" << pcl_cloud_ptr_->points.size() << "\t" << cluster_time << "\t" << segmentation_time << "\t" << match_time << "\t" << total_time << std::endl;
     cloud_odom_window_ready_ = false;
     update_count ++;
@@ -586,9 +586,9 @@ void EnvManager::record(int update_count, int point_size, double cluster_time, d
 {
     if(record_)
     {
-        update_time_record_ << std::left << std::setw(15) << update_count 
-                            << std::setw(10) << pcl_cloud_ptr_->points.size() 
-                            << std::setw(15) << cluster_time 
+        update_time_record_ << std::left << std::setw(20) << update_count 
+                            << std::setw(20) << pcl_cloud_ptr_->points.size() 
+                            << std::setw(20) << cluster_time 
                             << std::setw(20) << segmentation_time 
                             << std::setw(20) << match_time 
                             << total_time << "\n";
@@ -616,7 +616,10 @@ void EnvManager::addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom)
         PointVectorPtr front_cloud = cloud_odom_slide_window_.front().first;
         cloud_odom_slide_window_.pop();
         cloud_odom_slide_window_.push(make_pair(cloud,odom));
+        // ros::Time t1 = ros::Time::now();
         segmentation_ikdtree_ptr_->Delete_Points(*front_cloud);
+        // ros::Duration d = ros::Time::now() - t1;
+        // ROS_INFO_STREAM("delete time : " << d.toSec());
         segmentation_ikdtree_ptr_->Add_Points(*cloud,false);
     }
 

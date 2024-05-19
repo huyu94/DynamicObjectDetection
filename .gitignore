@@ -7,4 +7,4 @@
 # project
 *build
 *devel
-*logs
+/logs
