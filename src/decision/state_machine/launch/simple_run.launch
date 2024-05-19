@@ -33,12 +33,6 @@
     <arg name="cloud_topic" value="$(arg cloud_topic_)"/>
 
 
-
-
-
-  
-
-
   </include>
 
   <!-- <node name="data_analyzer" pkg="data_analyzer" type="data_analyzer" output="screen">

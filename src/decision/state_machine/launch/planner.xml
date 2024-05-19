@@ -13,10 +13,10 @@
 
     <!-- <node pkg="plan_env" name="drone_$(arg drone_id)_node" type="env_node" output="screen"> -->
     <node pkg="state_machine" name="drone_$(arg drone_id)_node" type="state_machine_node" output="screen">
-        <remap from="~odom_world" to="/drone_$(arg drone_id)/$(arg odometry_topic)"/>
+        <remap from="~odom_world" to="/drone_$(arg drone_id)/odometry"/>
         <remap from="~planning/bspline" to = "/drone_$(arg drone_id)/planning/bspline"/>
         <!-- fsm -->
-        <rosparam file="$(find state_machine)/cfg/fsm_params.yaml"/>
+        <!-- <rosparam file="$(find state_machine)/cfg/fsm_params.yaml"/> -->
 
 
         <!-- env manager -->

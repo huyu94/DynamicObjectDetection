@@ -1,6 +1,6 @@
 #include <state_machine/fsm.h>
 #include <ros/ros.h>
-
+#include <plan_manager/plan_manager.h>
 
 
 using namespace fast_planner;
@@ -11,8 +11,11 @@ int main(int argc, char** argv)
     ros::NodeHandle nh("~");
 
     FSM::Ptr fsm_ptr;
-    fsm_ptr.reset(new FSM);
+    fsm_ptr.reset(new FSM());
     fsm_ptr->init(nh);
+    // PlanManager::Ptr plan_manager_ptr;
+    // plan_manager_ptr.reset(new PlanManager());
+    // plan_manager_ptr->initPlanModules(nh);
 
     // FSM kino_replan;
     // kino_replan.init(nh);

@@ -1,8 +1,8 @@
 #include <state_machine/fsm.h>
 
 namespace fast_planner
-{
-    FSM::FSM(/* args */)
+{  
+    FSM::FSM()
     {
     }
 
@@ -10,56 +10,57 @@ namespace fast_planner
     {
     }
 
+
     void FSM::init(ros::NodeHandle &nh)
     {
 
-        // ros
-        node_ = nh;
-        current_wp_ = 0;
-        machine_state_ = INIT;
-        have_goal_ = false;
-        have_odom_ = false;
-        /*  fsm param  */
-        node_.param("fsm/flight_type", target_type_, -1);
-        node_.param("fsm/thresh_replan", replan_thresh_, -1.0);
-        node_.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
-        node_.param("fsm/planning_horizon", planning_horizon_, -1.0);
-        node_.param("fsm/planning_horizen_time", planning_horizon_time_, -1.0);
-        node_.param("fsm/emergency_time_", emergency_time_, 1.0);
+        // // ros
+        // node_ = nh;
+        // current_wp_ = 0;
+        // machine_state_ = INIT;
+        // have_goal_ = false;
+        // have_odom_ = false;
+        // /*  fsm param  */
+        // node_.param("fsm/flight_type", target_type_, -1);
+        // node_.param("fsm/thresh_replan", replan_thresh_, -1.0);
+        // node_.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
+        // node_.param("fsm/planning_horizon", planning_horizon_, -1.0);
+        // node_.param("fsm/planning_horizen_time", planning_horizon_time_, -1.0);
+        // node_.param("fsm/emergency_time_", emergency_time_, 1.0);
 
-        node_.param("fsm/waypoint_num", waypoint_num_, -1);
-        for (int i = 0; i < waypoint_num_; i++)
-        {
-            node_.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-            node_.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-            node_.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-        }
+        // node_.param("fsm/waypoint_num", waypoint_num_, -1);
+        // for (int i = 0; i < waypoint_num_; i++)
+        // {
+        //     node_.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
+        //     node_.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
+        //     node_.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
+        // }
 
         // function classes
-        plan_manager_ptr_.reset(new PlanManager());
+        plan_manager_ptr_.reset(new PlanManager);
         plan_manager_ptr_->initPlanModules(nh);
 
-        /* callback */
-        exec_timer_ = nh.createTimer(ros::Duration(0.01), &FSM::execCallback, this);
-        safety_timer_ = nh.createTimer(ros::Duration(0.05), &FSM::safetyCallback, this);
+        // /* callback */
+        // exec_timer_ = nh.createTimer(ros::Duration(0.01), &FSM::execCallback, this);
+        // safety_timer_ = nh.createTimer(ros::Duration(0.05), &FSM::safetyCallback, this);
 
-        odom_sub_ = nh.subscribe("odom", 1, &FSM::odomCallback, this);
+        // odom_sub_ = nh.subscribe("odom", 1, &FSM::odomCallback, this);
 
-        bspline_pub_ = nh.advertise<trajectories::Bspline>("bspline", 10);
-        // data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
+        // bspline_pub_ = nh.advertise<trajectories::Bspline>("bspline", 10);
+        // // data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
 
-        if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
-            waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &FSM::waypointCallback, this);
-        else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
-        {
-            ROS_ERROR("not implemeneted!!");
-            // ros::Duration(1.0).sleep();
-            // while (ros::ok() && !have_odom_)
-            //     ros::spinOnce();
-            // planGlobalTrajbyGivenWps();
-        }
-        else
-            cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
+        // if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
+        //     waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &FSM::waypointCallback, this);
+        // else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
+        // {
+        //     ROS_ERROR("not implemeneted!!");
+        //     // ros::Duration(1.0).sleep();
+        //     // while (ros::ok() && !have_odom_)
+        //     //     ros::spinOnce();
+        //     // planGlobalTrajbyGivenWps();
+        // }
+        // else
+        //     cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
     }
 
     void FSM::changeState(FSM::MACHINE_STATE state, string pos_call)

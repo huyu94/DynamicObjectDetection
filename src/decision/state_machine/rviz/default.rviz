@@ -14,7 +14,6 @@ Panels:
         - /drone01/Planning1/AStar1
         - /drone01/Planning1/drone_path1/Offset1
         - /drone01/Mapping1
-        - /drone01/Mapping1/kalman tracker1
       Splitter Ratio: 0.43611112236976624
     Tree Height: 911
   - Class: rviz/Selection
@@ -139,7 +138,7 @@ Visualization Manager:
               Marker Topic: /astar_pathes
               Name: AStar
               Namespaces:
-                astar_pathes: true
+                {}
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -179,7 +178,7 @@ Visualization Manager:
               Marker Topic: /kino_traj
               Name: kino_traj
               Namespaces:
-                kino_trajs: true
+                {}
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -187,7 +186,7 @@ Visualization Manager:
               Marker Topic: /bspline_traj
               Name: bspline_traj
               Namespaces:
-                bspline: true
+                {}
               Queue Size: 100
               Value: true
           Enabled: true
@@ -197,8 +196,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 2.299999952316284
-                Min Value: -0.10000000149011612
+                Max Value: -9999
+                Min Value: 9999
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -217,7 +216,7 @@ Visualization Manager:
               Size (Pixels): 3
               Size (m): 0.20000000298023224
               Style: Boxes
-              Topic: /drone_0_test_node/grid_map/occupancy
+              Topic: /drone_0_node/grid_map/occupancy
               Unreliable: false
               Use Fixed Frame: true
               Use rainbow: true
@@ -225,8 +224,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 2.5
-                Min Value: -0.30000001192092896
+                Max Value: -9999
+                Min Value: 9999
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -245,22 +244,22 @@ Visualization Manager:
               Size (Pixels): 3
               Size (m): 0.20000000298023224
               Style: Flat Squares
-              Topic: /drone_0_test_node/grid_map/occupancy_inflate
+              Topic: /drone_0_node/grid_map/occupancy_inflate
               Unreliable: false
               Use Fixed Frame: true
               Use rainbow: true
               Value: true
             - Class: rviz/MarkerArray
-              Enabled: false
-              Marker Topic: /drone_0_test_node/kalman_filter
+              Enabled: true
+              Marker Topic: /drone_0_node/kalman_filter
               Name: kalman tracker
               Namespaces:
                 {}
               Queue Size: 100
-              Value: false
+              Value: true
             - Class: rviz/MarkerArray
               Enabled: false
-              Marker Topic: /drone_0_test_node/cluster_result
+              Marker Topic: /drone_0_node/cluster_result
               Name: cluster_result
               Namespaces:
                 {}
@@ -279,7 +278,7 @@ Visualization Manager:
               Marker Topic: /drone_0_test_node/segmentation_result
               Name: segementation_result
               Namespaces:
-                bbox: true
+                {}
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -389,7 +388,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 33.57973861694336
+      Distance: 26.004150390625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -405,9 +404,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.544796347618103
+      Pitch: 0.5297971963882446
       Target Frame: <Fixed Frame>
-      Yaw: 3.0947506427764893
+      Yaw: 2.6397478580474854
     Saved:
       - Class: rviz/FPS
         Enable Stereo Rendering:
@@ -478,7 +477,7 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1457
-  X: 385
-  Y: 27
+  X: 449
+  Y: 123
   depth:
     collapsed: false

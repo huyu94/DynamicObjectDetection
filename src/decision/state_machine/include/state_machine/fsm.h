@@ -27,8 +27,6 @@ public:
     FSM(/* args */);
     ~FSM();
     void init(ros::NodeHandle& nh);
-    typedef std::shared_ptr<FSM> Ptr;   
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 
 private:
@@ -121,8 +119,10 @@ private:
     void getLocalTarget();
     void publishBspline();
 
+public:
+    typedef std::shared_ptr<FSM> Ptr;   
 
-
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 
 };

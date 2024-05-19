@@ -97,7 +97,6 @@ void EnvManager::init(const ros::NodeHandle &nh)
 /* inflation */
     node_.param<double>("env_manager/dynamic_object_inflation",dynamic_object_inflation_, 0.5);
 
-
 /* pos checker */
     node_.param<bool>("env_manager/enable_virtual_wall", enable_virtual_walll_, false);
     node_.param<double>("env_manager/virtual_ceil", virtual_ceil_, -1.0);
@@ -178,6 +177,10 @@ void EnvManager::cluster()
         // std::cout << "cluster size : " << cluster_indices[i].indices.size() << std::endl;
     }
 
+#ifdef DEBUG
+    ROS_INFO("cluster size : %d",cluster_features_.size());
+
+#endif
 
     /**
      * 1. 给ClsuterFeature 添加一些属性
@@ -202,6 +205,21 @@ void EnvManager::cluster()
         vis_clusters.push_back(VisualCluster(y->state.head(3),y->length,y->min_bound,y->max_bound));
         
     }
+
+#ifdef DEBUG
+    for(auto &t : cluster_features_)
+    {
+        if(t == nullptr)
+        {
+            continue;
+        }
+        ROS_INFO_STREAM("cluster " << t->state.transpose());
+    }
+#endif
+
+
+
+
     map_vis_ptr_->visualizeClusterResult(vis_clusters);
 
 }
@@ -216,14 +234,17 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
     PointVector &cloud_ref = (*cloud);
     int size = cluster_ptr->cluster_indices.indices.size();
-    
+
     for(size_t i=0; i < size;i++)
     {
         int index = cluster_ptr->cluster_indices.indices[i];
         pt.x() = cloud_ref[index].x;
         pt.y() = cloud_ref[index].y;
         pt.z() = cloud_ref[index].z;
-
+#ifdef DEBUG
+    ROS_INFO_STREAM("pt : " << pt.transpose());
+#endif
+        // ROS_INFO_STREAM("pt : " << pt.transpose());
         position += pt;
         if(i == 0)
         {
@@ -408,15 +429,38 @@ void EnvManager::match()
                 /* 确保：
                 1. 在距离大于gate的时候，不会被关联中
                 2. 全都没有匹配时，会调一个相对较小的距离，这个时候把这个关联去除掉 */
+
                 float feature_distance = (measurement_moving_clusters[row]->state.head(3) - tracker_outputs[col].state.head(3)).norm();
+                std::cout << "row :" << row << " col :" << col << " feature_distance : " << feature_distance << std::endl;
                 matrix_cost(row,col) = feature_distance < distance_gate_ ? feature_distance : 5000 * feature_distance;
                 matrix_gate(row,col) = matrix_cost(row,col) < distance_gate_;
             }
         }
 
-        Munkres<float> munkres_solver;
-        munkres_solver.solve(matrix_cost);
 
+
+#ifdef DEBUG
+        
+    for(auto& t : tracker_outputs)
+    {
+        std::cout << "tracker id : " << t.id << " state : " << t.state.transpose() << std::endl;
+    }
+    ROS_INFO_STREAM("measurment_moving_clusters size : " << measurement_moving_clusters.size());
+    ROS_INFO_STREAM("tracker_outputs size : " << tracker_outputs.size());
+    for(size_t row=0; row < measurement_moving_clusters.size(); row++)
+    {
+        for(size_t col=0; col < tracker_outputs.size(); col++)
+        {
+            std::cout << "cost : " << matrix_cost(row,col) << " gate : " << matrix_gate(row,col) << std::endl;
+        }
+    }
+#endif
+
+        Munkres<float> munkres_solver;
+        ROS_INFO_STREAM("here");
+        munkres_solver.solve(matrix_cost);
+        ROS_INFO_STREAM("out");
+        
         for(size_t row=0; row < measurement_moving_clusters.size(); row++)
         {
             bool find_match = false;
