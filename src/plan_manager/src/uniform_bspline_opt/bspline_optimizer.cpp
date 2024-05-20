@@ -1056,7 +1056,7 @@ namespace fast_planner
                 double tm, tmp;
                 traj.getTimeSpan(tm, tmp);
                 ros::Time t_now = ros::Time::now();
-
+                
                 double t_step = (tmp - tm) / ((traj.evaluateDeBoorT(tmp) - traj.evaluateDeBoorT(tm)).norm() / env_manager_->getResolution());
                 for (double t = tm; t < tmp * 2 / 3; t += t_step) // Only check the closest 2/3 partition of the whole trajectory.
                 {
@@ -1070,10 +1070,10 @@ namespace fast_planner
 
                         if (t <= bspline_interval_) // First 3 control points in obstacles!
                         {
-                            ROS_INFO_STREAM(cps_.points.col(1).transpose() << "\n"
-                                                                           << cps_.points.col(2).transpose() << "\n"
-                                                                           << cps_.points.col(3).transpose() << "\n"
-                                                                           << cps_.points.col(4).transpose());
+                            // ROS_INFO_STREAM(cps_.points.col(1).transpose() << "\n"
+                            //                                                << cps_.points.col(2).transpose() << "\n"
+                            //                                                << cps_.points.col(3).transpose() << "\n"
+                            //                                                << cps_.points.col(4).transpose());
                             // cout << cps_.points.col(1).transpose() << "\n"
                             //      << cps_.points.col(2).transpose() << "\n"
                             //      << cps_.points.col(3).transpose() << "\n"
@@ -1085,6 +1085,7 @@ namespace fast_planner
                         break;
                     }
                 }
+                // time consumption : e-6
 
                 if (!flag_occ)
                 {

@@ -33,7 +33,6 @@
 
 
     <!-- controller -->
-
     <node pkg="so3_quadrotor_simulator" type="quadrotor_simulator_so3"
         name="quadrotor_simulator_so3" output="screen">
         <param name="rate/odom" value="200.0" />
@@ -65,7 +64,8 @@
         <param name="gains/rot/z" value="1.0" />
         <param name="gains/ang/z" value="0.1" />
     </node>
-    <![CDATA[ ]]>
+    <![CDATA[
+    ]]>
 
 
 

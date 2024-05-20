@@ -914,6 +914,7 @@ bool EnvManager::checkCollisionInGridMap(const Vector3d& pos)
 bool EnvManager::checkCollisionInTrackerPool(const Vector3d& pos, const ros::Time& pos_time, int& collision_id)
 {
     vector<TrackerOutput> target_tracker_outputs;
+    // time :: e-6
     tracker_pool_ptr_->forwardPool(target_tracker_outputs,pos_time);
     // ROS_INFO_STREAM("tracker pool size:  " << target_tracker_outputs.size());
     // ROS_INFO_STREAM("query pos : " << pos.transpose());

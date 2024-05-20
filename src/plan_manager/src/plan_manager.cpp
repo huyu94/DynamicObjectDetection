@@ -197,9 +197,10 @@ namespace fast_planner
         // ROS_INFO_STREAM("end a* search");
         // ROS_INFO_STREAM("astar_pathes size : " << astar_pathes.size());
         // traj_visual_ptr_->visualizeAstarPath(astar_pathes,false);
-
+        ros::Time t1 = ros::Time::now();
         bool flag_step_1_success = bspline_optimizer_ptrs_[0]->BsplineOptimizeTrajRebound(ctrl_pts, ts);
-
+        ros::Duration d = ros::Time::now() - t1;
+        ROS_INFO_STREAM("optimize time : " << d.toSec());
         // ROS_INFO_STREAM("flag_step_1_success : " << flag_step_1_success);
         if(!flag_step_1_success)
         {
