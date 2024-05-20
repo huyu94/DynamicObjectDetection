@@ -102,7 +102,7 @@ public:
         return grid_map_->getLocalTime();
     }
 
-    void getResolution()
+    bool getResolution()
     {
         return resolution_;
     }

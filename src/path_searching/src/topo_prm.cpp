@@ -277,7 +277,7 @@ Eigen::Vector3d TopoPRM::getSample()
 bool TopoPRM::lineVisib(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, Eigen::Vector3d& pc, int caster_id)
 {
     Eigen::Vector3d ray_pt;
-    Eigen::Vector3i pt_id;
+    Eigen::Vector3d pt_id;
 
     casters_[caster_id].setInput(p1 / resolution_, p2 /resolution_);
     while(casters_[caster_id].step(ray_pt))
