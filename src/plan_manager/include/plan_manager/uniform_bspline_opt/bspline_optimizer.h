@@ -122,7 +122,7 @@ namespace fast_planner
     double lambda2_, new_lambda2_; // distance weight
     double lambda3_;               // feasibility weight
     double lambda4_;               // curve fitting
-
+    double lambda5_, new_lambda5_; // dynamic weight
     //
     double dist0_;                  // safe distance
     double max_vel_, max_acc_;      // dynamic limits

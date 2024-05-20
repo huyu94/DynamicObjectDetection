@@ -166,7 +166,7 @@ namespace fast_planner
         }
     
         plan_data_.kino_path_ = kino_path_finder_ptr_->getKinoTraj(0.01);
-        // ROS_INFO_STREAM("path size : " << plan_data_.kino_path_.size());
+        ROS_INFO_STREAM("path size : " << plan_data_.kino_path_.size());
         if(plan_data_.kino_path_.size() == 0)
         {
             return false;
@@ -197,10 +197,7 @@ namespace fast_planner
         // ROS_INFO_STREAM("end a* search");
         // ROS_INFO_STREAM("astar_pathes size : " << astar_pathes.size());
         // traj_visual_ptr_->visualizeAstarPath(astar_pathes,false);
-        ros::Time t1 = ros::Time::now();
         bool flag_step_1_success = bspline_optimizer_ptrs_[0]->BsplineOptimizeTrajRebound(ctrl_pts, ts);
-        ros::Duration d = ros::Time::now() - t1;
-        ROS_INFO_STREAM("optimize time : " << d.toSec());
         // ROS_INFO_STREAM("flag_step_1_success : " << flag_step_1_success);
         if(!flag_step_1_success)
         {
@@ -253,14 +250,21 @@ namespace fast_planner
 
 
         static double sum_time = 0;
+        static double sum_search_time, sum_opt_time, sum_refine_time;
         static int count_success = 0;
         sum_time += (t_search + t_opt + t_refine).toSec();
+        sum_search_time += t_search.toSec();
+        sum_opt_time += t_opt.toSec();
+        sum_refine_time += t_refine.toSec();
         count_success++;
         ROS_INFO_STREAM("total_time : " << (t_search + t_opt + t_refine).toSec() 
                         << ", search_time : " << t_search.toSec()
                         << ", opt_time : " << t_opt.toSec() 
                         << ", refine_time : " << t_refine.toSec()
-                        << ", avg time : " << sum_time / count_success);
+                        << ", avg time : " << sum_time / count_success
+                        << ", avg search time : " << sum_search_time / count_success
+                        << ", avg opt time : " << sum_opt_time / count_success
+                        << ", avg refine time : " << sum_refine_time / count_success);
         // cout << "total time:\033[42m" << (t_search + t_opt + t_refine).toSec() << "\033[0m,optimize:" << t_opt.toSec() << ",refine:" << t_refine.toSec() << endl;
 
         

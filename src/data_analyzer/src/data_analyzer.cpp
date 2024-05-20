@@ -21,6 +21,8 @@ private:
 
 public:
     Logger(){
+        ROS_INFO_STREAM("data ananlyzer start");
+        
     }
 
     void init()
@@ -43,7 +45,9 @@ public:
         std::ofstream file;
         file.open(log_dir + filename, std::ios::out);
         if (file.is_open())
-        {
+        {   
+            // ROS_WARN_STREAM("destroying data Ananlyzer");
+            std::cout << "destroying data Ananlyzer" << std::endl;
             std::cout << "Writing to file" << std::endl;
             // path len
             double len = 0.0;
@@ -51,7 +55,9 @@ public:
             {
                 len += (path_vec[i] - path_vec[i-1]).norm();
             }
-            std::cout << "Path length: " << len << std::endl;
+            // ROS_WARN_STREAM("Path length: " << len );
+            std::cout << "path length: " << len << std::endl;
+
             // average velocity
             double average_vel = std::accumulate(vel_vec.begin(), vel_vec.end(), 0.0);
             // double vel_sum = 0.0;
@@ -60,13 +66,16 @@ public:
             // //     file << t << std::endl;
             // // }
             average_vel /= vel_vec.size();
-            std::cout << "Average velocity: " << average_vel << std::endl;
+            // ROS_WARN_STREAM( "Average velocity: " << average_vel );
+            std::cout << "Average velocity : " << average_vel << std::endl;
+
             file << len << std::endl;
             file << average_vel << std::endl; 
 
             double planning_time = (ros::Time::now() - start_time).toSec();
             planning_time -= 2.0;
-            std::cout << "planning_time: " << planning_time << std::endl;
+            // ROS_WARN_STREAM( "planning_time: " << planning_time);
+            std::cout << "planning time : " << planning_time << std::endl;
 
             file << planning_time << std::endl;
             file.close();

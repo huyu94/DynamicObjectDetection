@@ -27,9 +27,10 @@ kino_search:
 
 optimization:
   lambda_smooth: 1.0
-  lambda_collision: 0.5
+  lambda_collision: 10
   lambda_feasibility: 0.1
   lambda_fitness: 1.0
+  lambda_dynamic: 1.0
   dist0: 0.5
 
 

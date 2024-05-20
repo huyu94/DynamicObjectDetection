@@ -3,7 +3,7 @@ fsm:
   thresh_replan: 1.5
   thresh_no_replan: 2.0
   planning_horizon: 7.5
-  planning_horizen_time: 3
+  planning_horizon_time: 3
   emergency_time_: 1.0
   waypoint_num: 5
   waypoint0_x: -15.0

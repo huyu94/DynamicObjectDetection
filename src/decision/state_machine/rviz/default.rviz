@@ -130,7 +130,7 @@ Visualization Manager:
               Marker Topic: /opti_traj
               Name: optimal_traj
               Namespaces:
-                {}
+                opti_trajs: true
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -178,7 +178,7 @@ Visualization Manager:
               Marker Topic: /kino_traj
               Name: kino_traj
               Namespaces:
-                {}
+                kino_trajs: true
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -196,8 +196,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 1.899999976158142
-                Min Value: -0.10000000149011612
+                Max Value: 1.7000000476837158
+                Min Value: 0.5
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -224,8 +224,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 2.0999999046325684
-                Min Value: -0.30000001192092896
+                Max Value: 1.899999976158142
+                Min Value: 0.30000001192092896
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -250,14 +250,13 @@ Visualization Manager:
               Use rainbow: true
               Value: true
             - Class: rviz/MarkerArray
-              Enabled: true
+              Enabled: false
               Marker Topic: /drone_0_node/kalman_filter
               Name: kalman tracker
               Namespaces:
-                arrow: true
-                tracker: true
+                {}
               Queue Size: 100
-              Value: true
+              Value: false
             - Class: rviz/MarkerArray
               Enabled: false
               Marker Topic: /drone_0_node/cluster_result
@@ -388,7 +387,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 15.645284652709961
+      Distance: 42.76084899902344
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -396,17 +395,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.2296557426452637
-        Y: -0.42293262481689453
+        X: 1.226740837097168
+        Y: -13.11019229888916
         Z: -1.3579298865806777e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0447962284088135
+      Pitch: 1.4797959327697754
       Target Frame: <Fixed Frame>
-      Yaw: 4.6997575759887695
+      Yaw: 4.66975736618042
     Saved:
       - Class: rviz/FPS
         Enable Stereo Rendering:
@@ -478,6 +477,6 @@ Window Geometry:
     collapsed: false
   Width: 1457
   X: 449
-  Y: 49
+  Y: 27
   depth:
     collapsed: false

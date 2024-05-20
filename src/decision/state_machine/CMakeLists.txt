@@ -38,6 +38,7 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/fsm.cpp
+  src/replan_fsm.cpp
 )
 
 

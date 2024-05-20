@@ -23,13 +23,14 @@ namespace fast_planner
         nh.param("optimization/lambda_collision", lambda2_, -1.0);
         nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
         nh.param("optimization/lambda_fitness", lambda4_, -1.0);
-
+        nh.param("optimization/lambda_dynamic",lambda5_, -1.0);
         nh.param("optimization/dist0", dist0_, -1.0);
         nh.param("optimization/order", order_, 3);
         // ROS_INFO_STREAM("lambda_smooth: " << lambda1_);
         // ROS_INFO_STREAM("lambda_collision: " << lambda2_);
         // ROS_INFO_STREAM("lambda_feasibility: " << lambda3_);
         // ROS_INFO_STREAM("lambda_fitness: " << lambda4_);
+        // ROS_INFO_STREAM("lambda_dynamic: " << lambda5_);
         // ROS_INFO_STREAM("dist0: " << dist0_);
         // ROS_INFO_STREAM("order: " << order_);
     }
@@ -397,11 +398,15 @@ namespace fast_planner
         ros::Time t_now = ros::Time::now();
 
         vector<Tracker::Ptr> alive_trackers;
+        ros::Time t1,t2;
+        t1 = ros::Time::now();
         env_manager_->getTrackerPool()->getAliveTracker(alive_trackers);
+        ros::Duration d = ros::Time::now() - t1;
+        // ROS_INFO_STREAM("getAliveTrakcer takes(ms) : " << d.toSec());
+        t1 = ros::Time::now();
         for (int i = order_; i < end_idx; i++)
         {
             double time = (double)(i - order_ + 1) * bspline_interval_;
-            // double time = ((double)(order_ - 1) / 2 + (i - order_ + 1)) * bspline_interval_;
             ros::Duration inc_time = ros::Duration(time);
             for (int id = 0; id < alive_trackers.size(); id++)
             {
@@ -423,6 +428,7 @@ namespace fast_planner
                 }
             }
         }
+        // ROS_INFO_STREAM("calcMovingObjCost takes(ms) : " << (ros::Time::now() - t1).toSec());
     }
 
     // void BsplineOptimizer::calcMovingObjCost2(const Eigen::MatrixXd &q, double &cost, Eigen::MatrixXd &gradient)
@@ -1041,6 +1047,7 @@ namespace fast_planner
             t2 = ros::Time::now();
             double time_ms = (t2 - t1).toSec() * 1000;
             double total_time_ms = (t2 - t0).toSec() * 1000;
+            ROS_INFO_STREAM("optimization iter takes (ms) : " << time_ms);
 
             /* ---------- success temporary, check collision again ---------- */
             if (result == lbfgs::LBFGS_CONVERGENCE ||
@@ -1215,9 +1222,9 @@ namespace fast_planner
         calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
         calcMovingObjCost(cps_.points, f_mov_objs, g_mov_objs);
 
-        f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + new_lambda2_ * f_mov_objs;
+        f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + lambda5_ * f_mov_objs;
 
-        Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + new_lambda2_ * g_mov_objs;
+        Eigen::MatrixXd grad_3D = lambda1_ * g_smoothness + new_lambda2_ * g_distance + lambda3_ * g_feasibility + lambda5_ * g_mov_objs;
         memcpy(grad, grad_3D.data() + 3 * order_, n * sizeof(grad[0]));
     }
 
