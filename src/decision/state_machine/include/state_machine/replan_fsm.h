@@ -82,6 +82,7 @@ private:
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj);
     bool callEmergencyStop(Eigen::Vector3d stop_pos);
     bool planFromCurrentTraj();
+    bool planFromGlobalTraj(const int trial_times);
 
     /* state machine change */
     void changeFSMExecState(FSM_EXEC_STATE new_state, string pose_call);

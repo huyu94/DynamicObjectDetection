@@ -147,22 +147,22 @@ namespace fast_planner
         int status = kino_path_finder_ptr_->search(start_pos, start_vel, start_acc, end_pos, end_vel, true, ros::Time::now());
         if(status == KinodynamicAstar::NO_PATH)
         {
-            ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
+            // ROS_WARN_STREAM("[kino replan]: kinodynamic search fail!" );
             kino_path_finder_ptr_->reset();
             status = kino_path_finder_ptr_->search(start_pos,start_vel, start_acc, end_pos, end_vel, false, ros::Time::now());
 
             if(status == KinodynamicAstar::NO_PATH)
             {
-                ROS_WARN_STREAM("[kino replan]: kinodynamic second search fail!" );
+                // ROS_WARN_STREAM("[kino replan]: kinodynamic second search fail!" );
                 return false;
             }
             else
             {
-                ROS_WARN_STREAM("[kino replan]: kinodynamic second search success!" );
+                // ROS_WARN_STREAM("[kino replan]: kinodynamic second search success!" );
             }
         }
         else{
-            ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
+            // ROS_WARN_STREAM("[kino replan]: kinodynamic search success!" );
         }
     
         plan_data_.kino_path_ = kino_path_finder_ptr_->getKinoTraj(0.01);
@@ -222,7 +222,7 @@ namespace fast_planner
         rebound_traj.setPhysicalLimits(pp_.max_vel_,pp_.max_acc_,pp_.feasibility_tolerance_);
         double ratio;
         bool flag_step_2_success = true;
-        Eigen::MatrixXd optimal_control_points;
+        Eigen::MatrixXd optimal_control_points = ctrl_pts;
         if(!rebound_traj.checkFeasibility(ratio,false))
         {
             // ROS_INFO_STREAM("Need to reallocate time");
@@ -242,6 +242,7 @@ namespace fast_planner
             return false;
         }
         vector<Vector3d> opti_point_set = sampleTraj(optimal_control_points,ts);
+        // ROS_INFO_STREAM("opti_point_set size : " << opti_point_set.size());
         traj_visual_ptr_->visualizeOptimalTraj(opti_point_set,false,true);
 
 
@@ -260,7 +261,7 @@ namespace fast_planner
         ROS_INFO_STREAM("total_time : " << (t_search + t_opt + t_refine).toSec() 
                         << ", search_time : " << t_search.toSec()
                         << ", opt_time : " << t_opt.toSec() 
-                        << ", refine_time : " << t_refine.toSec()
+                        << ", refine_time : " << t_refine.toSec() << endl
                         << ", avg time : " << sum_time / count_success
                         << ", avg search time : " << sum_search_time / count_success
                         << ", avg opt time : " << sum_opt_time / count_success

@@ -34,7 +34,7 @@ void TopoReplanFSM::init(ros::NodeHandle &nh)
     planner_manager_->initPlanModules(nh);
 
     /* callback */
-    exec_timer_ = nh.createTimer(ros::Duration(0.05), &TopoReplanFSM::execFSMCallback, this);
+    exec_timer_ = nh.createTimer(ros::Duration(0.03), &TopoReplanFSM::execFSMCallback, this);
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &TopoReplanFSM::checkCollisionCallback, this);
 
     odom_sub_ = nh.subscribe("odom", 1, &TopoReplanFSM::odometryCallback, this);
@@ -274,8 +274,9 @@ void TopoReplanFSM::execFSMCallback(const ros::TimerEvent &e)
         }
 
 
-        bool success = callReboundReplan(true,flag_random_poly_init);
-
+        // bool success = callReboundReplan(true,flag_random_poly_init);
+        bool success = planFromCurrentTraj();
+        // bool success = planFromGlobalTraj(1);
 
         if (success)
         {
@@ -360,6 +361,21 @@ void TopoReplanFSM::execFSMCallback(const ros::TimerEvent &e)
     }
 }
 
+
+bool TopoReplanFSM::planFromGlobalTraj(const int trial_times)
+{
+    start_pt_ = odom_pos_;
+    start_vel_ = odom_vel_;
+    start_acc_.setZero();
+
+    if(callReboundReplan(false,false))
+    {
+        return true;
+    }
+    return false;
+}
+
+
 bool TopoReplanFSM::planFromCurrentTraj()
 {
 
@@ -369,9 +385,13 @@ bool TopoReplanFSM::planFromCurrentTraj()
 
     // cout << "info->velocity_traj_=" << info->velocity_traj_.get_control_points() << endl;
 
-    start_pt_ = info->position_traj_.evaluateDeBoorT(t_cur);
-    start_vel_ = info->velocity_traj_.evaluateDeBoorT(t_cur);
-    start_acc_ = info->acceleration_traj_.evaluateDeBoorT(t_cur);
+    // start_pt_ = info->position_traj_.evaluateDeBoorT(t_cur);
+    // start_vel_ = info->velocity_traj_.evaluateDeBoorT(t_cur);
+    // start_acc_ = info->acceleration_traj_.evaluateDeBoorT(t_cur);
+    start_pt_ = odom_pos_;
+    start_vel_ = odom_vel_;
+    start_acc_.setZero();
+    ROS_INFO_STREAM("start call rebound replan");
 
     bool success = callReboundReplan(false, false); // 在原轨迹基础制上rebound
 
@@ -476,7 +496,7 @@ bool TopoReplanFSM::callReboundReplan(bool flag_use_poly_init, bool flag_randomP
             planner_manager_->kinodynamicReplan(start_pt_,start_vel_,start_acc_,local_target_pt_,local_target_vel_);
             // planner_manager_->reboundReplan(start_pt_, start_vel_, start_acc_, local_target_pt_, local_target_vel_, (have_new_target_ || flag_use_poly_init), flag_randomPolyTraj);
         have_new_target_ = false;
-
+        ROS_INFO_STREAM("odom_pos : " << start_pt_.transpose());
         cout << "final_plan_success=" << plan_success << endl;
 
         if (plan_success)

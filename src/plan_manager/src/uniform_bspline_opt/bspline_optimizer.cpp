@@ -369,10 +369,11 @@ namespace fast_planner
     double BsplineOptimizer::costFunctionRebound(void *func_data, const double *x, double *grad, const int n)
     {
         BsplineOptimizer *opt = reinterpret_cast<BsplineOptimizer *>(func_data);
-
         double cost;
+        ros::Time t1 = ros::Time::now();
         opt->combineCostRebound(x, grad, cost, n);
-
+        // ROS_WARN_STREAM("combine cost rebound take(ms) : " << (ros::Time::now() - t1).toSec());
+    
         opt->iter_num_ += 1;
         return cost;
     }
@@ -400,13 +401,73 @@ namespace fast_planner
         vector<Tracker::Ptr> alive_trackers;
         ros::Time t1,t2;
         t1 = ros::Time::now();
+
         env_manager_->getTrackerPool()->getAliveTracker(alive_trackers);
+        // std::vector<Vector3d> alive_tracker_pos;
+        // std::vector<Vector3d> alive_tracker_vel;
+        // std::vector<Vector3d> alive_tracker_axis;
+        // for (int i = 0; i < alive_trackers.size(); i++)
+        // {
+        //     alive_tracker_pos.push_back(alive_trackers[i]->getPos());
+        //     alive_tracker_vel.push_back(alive_trackers[i]->getVel());
+        //     alive_tracker_axis.push_back(alive_trackers[i]->getAxis());
+        // }
+
+        // for(int i = order_; i < end_idx; i++)
+        // {
+        //     // double time = ((double)(order_ - 1) / 2 + (i - order_ + 1)) * bspline_interval_;
+        //     double time = (double)(i - order_ + 1) * bspline_interval_;
+        //     ros::Duration inc_time = ros::Duration(time);
+        //     for(int id = 0; id < alive_tracker_pos.size(); id++)
+        //     {
+        //         Vector3d x = (q.col(i) - alive_tracker_pos[id] - alive_tracker_vel[id] * time);
+        //         double ellip_dist = x(0) * x(0) * alive_tracker_axis[id](0) + x(1) * x(1) * alive_tracker_axis[id](1) + x(2) * x(2) * alive_tracker_axis[id](2);
+
+        //         double clearance2 = CLEARANCE * CLEARANCE;
+        //         double dist2_err = clearance2 - ellip_dist;
+        //         double dist2_err2 = dist2_err * dist2_err;
+        //         double dist2_err3 = dist2_err2 * dist2_err;
+
+        //         if(dist2_err3 < 0)
+        //         {
+        //             /* do nothing */
+        //         }
+        //         else
+        //         {
+        //             cost += dist2_err3;
+        //             gradient.col(i) += -3.0 * dist2_err2 * x;
+        //         }
+
+        //         // if(ellip_dist < 1.0)
+        //         // {
+        //         //     double dist_err = 1.0 - ellip_dist;
+        //         //     Vector3d dist_grad = Vector3d(2.0 * x(0) * alive_tracker_axis[id](0), 2.0 * x(1) * alive_tracker_axis[id](1), 2.0 * x(2) * alive_tracker_axis[id](2));
+
+        //         //     if(dist_err < 0)
+        //         //     {
+        //         //         /* do nothing */
+        //         //     }
+        //         //     else
+        //         //     {
+        //         //         cost += pow(dist_err, 2);
+        //         //         gradient.col(i) += -2.0 * dist_err * dist_grad;
+        //         //     }
+        //         // }
+
+        //     }
+        // }
+        // ROS_INFO_STREAM("calcMovingObjCost takes(ms) : " << (ros::Time::now() - t1).toSec());
+
+
+
+
         ros::Duration d = ros::Time::now() - t1;
-        // ROS_INFO_STREAM("getAliveTrakcer takes(ms) : " << d.toSec());
-        t1 = ros::Time::now();
+        // ROS_INFO_STREAM("getAliveTrakcer takes(ms) : " << d.toSec()  * 1000);
+        // t1 = ros::Time::now();
         for (int i = order_; i < end_idx; i++)
         {
-            double time = (double)(i - order_ + 1) * bspline_interval_;
+            // double time = (double)(i - order_ + 1) * bspline_interval_;
+            double time = ((double)(order_ - 1) / 2 + (i - order_ + 1)) * bspline_interval_;
             ros::Duration inc_time = ros::Duration(time);
             for (int id = 0; id < alive_trackers.size(); id++)
             {
@@ -1047,7 +1108,7 @@ namespace fast_planner
             t2 = ros::Time::now();
             double time_ms = (t2 - t1).toSec() * 1000;
             double total_time_ms = (t2 - t0).toSec() * 1000;
-            ROS_INFO_STREAM("optimization iter takes (ms) : " << time_ms);
+            // ROS_INFO_STREAM("optimization iter takes (ms) : " << time_ms);
 
             /* ---------- success temporary, check collision again ---------- */
             if (result == lbfgs::LBFGS_CONVERGENCE ||
@@ -1121,7 +1182,8 @@ namespace fast_planner
             }
 
         } while ((flag_occ && restart_nums < MAX_RESART_NUMS_SET) ||
-                 (flag_force_return && force_stop_type_ == STOP_FOR_REBOUND && rebound_times <= 20));
+                 (flag_force_return && force_stop_type_ == STOP_FOR_REBOUND && rebound_times <= 10));
+        // ROS_WARN_STREAM("iter_num : " << iter_num_);
         //  while (
         //     ((flag_occ || ((min_ellip_dist_ != INIT_min_ellip_dist_) && (min_ellip_dist_ > swarm_clearance_))) && restart_nums < MAX_RESART_NUMS_SET) ||
         //     (flag_force_return && force_stop_type_ == STOP_FOR_REBOUND && rebound_times <= 20));
@@ -1216,11 +1278,19 @@ namespace fast_planner
         Eigen::MatrixXd g_distance = Eigen::MatrixXd::Zero(3, cps_.size);
         Eigen::MatrixXd g_feasibility = Eigen::MatrixXd::Zero(3, cps_.size);
         Eigen::MatrixXd g_mov_objs = Eigen::MatrixXd::Zero(3, cps_.size);
-
+        // ros::Time t1 = ros::Time::now();
         calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
+        // ROS_INFO_STREAM("smoothness cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+        // t1 = ros::Time::now();
         calcDistanceCostRebound(cps_.points, f_distance, g_distance, iter_num_, f_smoothness);
+        // ROS_INFO_STREAM("distance cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+        // t1 = ros::Time::now();
         calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
+        // ROS_INFO_STREAM("feasibility cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+        // t1 = ros::Time::now();
         calcMovingObjCost(cps_.points, f_mov_objs, g_mov_objs);
+        // ROS_INFO_STREAM("moving obj cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+        // ROS_INFO_STREAM("smooth cost : " << f_smoothness << ", distance cost : " << f_distance << ", feasibility cost : " << f_feasibility << ", moving obj cost : " << f_mov_objs);
 
         f_combine = lambda1_ * f_smoothness + new_lambda2_ * f_distance + lambda3_ * f_feasibility + lambda5_ * f_mov_objs;
 

@@ -26,11 +26,11 @@ kino_search:
   dynamic_environment: true
 
 optimization:
-  lambda_smooth: 1.0
-  lambda_collision: 10
-  lambda_feasibility: 0.1
+  lambda_smooth: 0.5
+  lambda_collision: 1
+  lambda_feasibility: 0.5
   lambda_fitness: 1.0
-  lambda_dynamic: 1.0
+  lambda_dynamic: 0.3
   dist0: 0.5
 
 

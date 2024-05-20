@@ -118,6 +118,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
     expanded_nodes_.insert(cur_node->index, cur_node);
   }
 
+  ros::Time t1 = ros::Time::now();
   PathNodePtr neighbor = NULL;
   PathNodePtr terminate_node = NULL;
   bool init_search = init; // 是否是第一次搜索
@@ -126,6 +127,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
   // ROS_INFO_STREAM("[kino searching] : before while");
   while (!open_set_.empty())
   {
+
     cur_node = open_set_.top();
 
     // Terminate?
@@ -182,6 +184,12 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
     open_set_.pop();
     cur_node->node_state = IN_CLOSE_SET;
     iter_num_ += 1;
+
+    if((ros::Time::now() - t1).toSec() > 0.02)
+    {
+      return NO_PATH;
+    }
+
 
     double res = 1 / 2.0, time_res = 1 / 1.0, time_res_init = 1 / 20.0;
     Eigen::Matrix<double, 6, 1> cur_state = cur_node->state;

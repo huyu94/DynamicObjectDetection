@@ -127,6 +127,24 @@ public:
         return kf_.getState();
     }
 
+    Vector3d getPos()
+    {
+        VectorXd state = kf_.getState();
+        return Vector3d(state(0),state(1),state(2));
+    }
+
+    Vector3d getVel()
+    {
+        VectorXd state = kf_.getState();
+        return Vector3d(state(3),state(4),state(5));
+    }
+
+
+    Vector3d getAxis()
+    {
+        return this->length_;
+    }
+
     ros::Time getUpdateTime()
     {
         return udpate_time_;

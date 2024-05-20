@@ -35,7 +35,7 @@
         <remap from="~position_cmd" to="/drone_$(arg drone_id)/planning/pos_cmd" />
         <remap from="~planning/bspline" to="/drone_$(arg drone_id)/planning/bspline" />
 
-        <param name="traj_server/time_forward" value="1.0" type="double" />
+        <param name="traj_server/time_forward" value="2.5" type="double" />
     </node>
 
 </launch>
