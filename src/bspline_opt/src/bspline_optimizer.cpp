@@ -1517,6 +1517,7 @@ namespace ego_planner
       int result = lbfgs::lbfgs_optimize(variable_num_, q, &final_cost, BsplineOptimizer::costFunctionRebound, NULL, BsplineOptimizer::earlyExit, this, &lbfgs_params);
       t2 = ros::Time::now();
       double time_ms = (t2 - t1).toSec() * 1000;
+      ROS_INFO_STREAM("iter takes (ms) : " << (t2 - t1).toSec() * 1000);
       double total_time_ms = (t2 - t0).toSec() * 1000;
 
       /* ---------- success temporary, check collision again ---------- */
