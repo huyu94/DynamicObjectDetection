@@ -16,7 +16,7 @@
         <remap from="~odom_world" to="/drone_$(arg drone_id)/odometry"/>
         <remap from="~planning/bspline" to = "/drone_$(arg drone_id)/planning/bspline"/>
         <!-- fsm -->
-        <!-- <rosparam file="$(find state_machine)/cfg/fsm_params.yaml"/> -->
+        <rosparam file="$(find state_machine)/cfg/fsm_params.yaml"/>
 
 
         <!-- env manager -->

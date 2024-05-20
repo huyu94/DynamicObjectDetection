@@ -23,6 +23,7 @@ Panels:
       - /2D Pose Estimate1
       - /2D Nav Goal1
       - /Publish Point1
+      - /3D Nav Goal1
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
   - Class: rviz/Views
@@ -196,8 +197,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: -9999
-                Min Value: 9999
+                Max Value: 1.899999976158142
+                Min Value: -0.10000000149011612
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -224,8 +225,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: -9999
-                Min Value: 9999
+                Max Value: 2.0999999046325684
+                Min Value: -0.30000001192092896
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -254,7 +255,8 @@ Visualization Manager:
               Marker Topic: /drone_0_node/kalman_filter
               Name: kalman tracker
               Namespaces:
-                {}
+                arrow: true
+                tracker: true
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -384,11 +386,13 @@ Visualization Manager:
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
+    - Class: rviz_plugins/Goal3DTool
+      Topic: goal
   Value: true
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 26.004150390625
+      Distance: 15.645284652709961
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -396,17 +400,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -9.035367965698242
-        Y: 0.7153658866882324
+        X: 1.2296557426452637
+        Y: -0.42293262481689453
         Z: -1.3579298865806777e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5297971963882446
+      Pitch: 1.0447962284088135
       Target Frame: <Fixed Frame>
-      Yaw: 2.6397478580474854
+      Yaw: 4.6997575759887695
     Saved:
       - Class: rviz/FPS
         Enable Stereo Rendering:
@@ -478,6 +482,6 @@ Window Geometry:
     collapsed: false
   Width: 1457
   X: 449
-  Y: 123
+  Y: 86
   depth:
     collapsed: false

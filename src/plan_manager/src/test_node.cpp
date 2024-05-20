@@ -46,7 +46,7 @@ void odomcallback(const nav_msgs::OdometryConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc,argv, "plan_manager_test_ndoe");
+    ros::init(argc,argv, "plan_manager_test_node");
 
     ros::NodeHandle nh("~");
 

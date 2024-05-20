@@ -106,7 +106,8 @@ private:
     // void goalCallback(const quadrotor_msgs::PositionCommand::ConstPtr& msg);
     void execCallback(const ros::TimerEvent& event);
     void odomCallback(const nav_msgs::OdometryConstPtr& msg);
-    void waypointCallback(const nav_msgs::PathConstPtr& msg);
+    // void waypointCallback(const nav_msgs::PathConstPtr& msg);
+    void waypointCallback(const geometry_msgs::PoseStampedConstPtr& msg);
     void safetyCallback(const ros::TimerEvent& event); 
 
     void changeState(MACHINE_STATE new_state, string pos_call);

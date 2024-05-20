@@ -39,6 +39,8 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/fsm.cpp
 )
+
+
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )

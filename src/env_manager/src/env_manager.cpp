@@ -177,10 +177,10 @@ void EnvManager::cluster()
         // std::cout << "cluster size : " << cluster_indices[i].indices.size() << std::endl;
     }
 
-#ifdef DEBUG
-    ROS_INFO("cluster size : %d",cluster_features_.size());
+// #ifdef DEBUG
+//     ROS_INFO("cluster size : %d",cluster_features_.size());
 
-#endif
+// #endif
 
     /**
      * 1. 给ClsuterFeature 添加一些属性
@@ -206,16 +206,16 @@ void EnvManager::cluster()
         
     }
 
-#ifdef DEBUG
-    for(auto &t : cluster_features_)
-    {
-        if(t == nullptr)
-        {
-            continue;
-        }
-        ROS_INFO_STREAM("cluster " << t->state.transpose());
-    }
-#endif
+// #ifdef DEBUG
+    // for(auto &t : cluster_features_)
+    // {
+    //     if(t == nullptr)
+    //     {
+    //         continue;
+    //     }
+    //     ROS_INFO_STREAM("cluster " << t->state.transpose());
+    // }
+// #endif
 
 
 
@@ -234,6 +234,10 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
     PointVectorPtr cloud = cloud_odom_slide_window_.back().first;
     PointVector &cloud_ref = (*cloud);
     int size = cluster_ptr->cluster_indices.indices.size();
+        
+// #ifdef DEBUG
+    // ROS_INFO_STREAM("size : " << size);
+// #endif
 
     for(size_t i=0; i < size;i++)
     {
@@ -241,9 +245,14 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
         pt.x() = cloud_ref[index].x;
         pt.y() = cloud_ref[index].y;
         pt.z() = cloud_ref[index].z;
-#ifdef DEBUG
-    ROS_INFO_STREAM("pt : " << pt.transpose());
-#endif
+        if(std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z()))
+        {
+            ROS_WARN("nan point");
+            continue;
+        }
+// #ifdef DEBUG
+//     // ROS_INFO_STREAM("pt : " << pt.transpose());
+// #endif
         // ROS_INFO_STREAM("pt : " << pt.transpose());
         position += pt;
         if(i == 0)
@@ -264,8 +273,16 @@ void EnvManager::calClusterFeatureProperty(ClusterFeature::Ptr cluster_ptr)
                 }
             }
         }
+    } 
+    if(size == 0)
+    {
+        ROS_WARN("cluster size is 0");
+        position = Vector3d::Zero();
     }
-    position /= size;
+    else
+    {
+        position /= size;
+    }
     length = max_bound - min_bound;
     cluster_ptr->state = VectorXd(6);
     cluster_ptr->state.head(3) = position;
@@ -439,22 +456,22 @@ void EnvManager::match()
 
 
 
-#ifdef DEBUG
+// #ifdef DEBUG
         
-    for(auto& t : tracker_outputs)
-    {
-        std::cout << "tracker id : " << t.id << " state : " << t.state.transpose() << std::endl;
-    }
-    ROS_INFO_STREAM("measurment_moving_clusters size : " << measurement_moving_clusters.size());
-    ROS_INFO_STREAM("tracker_outputs size : " << tracker_outputs.size());
-    for(size_t row=0; row < measurement_moving_clusters.size(); row++)
-    {
-        for(size_t col=0; col < tracker_outputs.size(); col++)
-        {
-            std::cout << "cost : " << matrix_cost(row,col) << " gate : " << matrix_gate(row,col) << std::endl;
-        }
-    }
-#endif
+//     for(auto& t : tracker_outputs)
+//     {
+//         std::cout << "tracker id : " << t.id << " state : " << t.state.transpose() << std::endl;
+//     }
+//     ROS_INFO_STREAM("measurment_moving_clusters size : " << measurement_moving_clusters.size());
+//     ROS_INFO_STREAM("tracker_outputs size : " << tracker_outputs.size());
+//     for(size_t row=0; row < measurement_moving_clusters.size(); row++)
+//     {
+//         for(size_t col=0; col < tracker_outputs.size(); col++)
+//         {
+//             std::cout << "cost : " << matrix_cost(row,col) << " gate : " << matrix_gate(row,col) << std::endl;
+//         }
+//     }
+// #endif
 
         Munkres<float> munkres_solver;
         // ROS_INFO_STREAM("here");
@@ -545,9 +562,9 @@ void EnvManager::updateCallback(const ros::TimerEvent&)
         // ROS_WARN("cloud window is not ready || no new cloud and odom !!");
         return ;
     }
-#ifdef DEBUG
-    ROS_INFO("in [updateCallback]");
-#endif
+// #ifdef DEBUG
+//     ROS_INFO("in [updateCallback]");
+// #endif
     static int update_count = 1;
     static double cluster_time, segmentation_time, match_time,total_time;
     // lock of slide window  

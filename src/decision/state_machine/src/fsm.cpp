@@ -14,53 +14,57 @@ namespace fast_planner
     void FSM::init(ros::NodeHandle &nh)
     {
 
-        // // ros
-        // node_ = nh;
-        // current_wp_ = 0;
-        // machine_state_ = INIT;
-        // have_goal_ = false;
-        // have_odom_ = false;
-        // /*  fsm param  */
-        // node_.param("fsm/flight_type", target_type_, -1);
-        // node_.param("fsm/thresh_replan", replan_thresh_, -1.0);
-        // node_.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
-        // node_.param("fsm/planning_horizon", planning_horizon_, -1.0);
-        // node_.param("fsm/planning_horizen_time", planning_horizon_time_, -1.0);
-        // node_.param("fsm/emergency_time_", emergency_time_, 1.0);
+        // ros
+        node_ = nh;
+        current_wp_ = 0;
+        machine_state_ = INIT;
+        have_goal_ = false;
+        have_odom_ = false;
+        /*  fsm param  */
+        node_.param("fsm/flight_type", target_type_, -1);
+        node_.param("fsm/thresh_replan", replan_thresh_, -1.0);
+        node_.param("fsm/thresh_no_replan", no_replan_thresh_, -1.0);
+        node_.param("fsm/planning_horizon", planning_horizon_, -1.0);
+        node_.param("fsm/planning_horizen_time", planning_horizon_time_, -1.0);
+        node_.param("fsm/emergency_time_", emergency_time_, 1.0);
 
-        // node_.param("fsm/waypoint_num", waypoint_num_, -1);
-        // for (int i = 0; i < waypoint_num_; i++)
-        // {
-        //     node_.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
-        //     node_.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
-        //     node_.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
-        // }
+        node_.param("fsm/waypoint_num", waypoint_num_, -1);
+        for (int i = 0; i < waypoint_num_; i++)
+        {
+            node_.param("fsm/waypoint" + to_string(i) + "_x", waypoints_[i][0], -1.0);
+            node_.param("fsm/waypoint" + to_string(i) + "_y", waypoints_[i][1], -1.0);
+            node_.param("fsm/waypoint" + to_string(i) + "_z", waypoints_[i][2], -1.0);
+        }
 
         // function classes
-        plan_manager_ptr_.reset(new PlanManager);
+        plan_manager_ptr_.reset(new PlanManager());
         plan_manager_ptr_->initPlanModules(nh);
 
-        // /* callback */
-        // exec_timer_ = nh.createTimer(ros::Duration(0.01), &FSM::execCallback, this);
-        // safety_timer_ = nh.createTimer(ros::Duration(0.05), &FSM::safetyCallback, this);
+        /* callback */
+        exec_timer_ = nh.createTimer(ros::Duration(0.01), &FSM::execCallback, this);
+        safety_timer_ = nh.createTimer(ros::Duration(0.05), &FSM::safetyCallback, this);
 
-        // odom_sub_ = nh.subscribe("odom", 1, &FSM::odomCallback, this);
+        odom_sub_ = nh.subscribe("odom", 1, &FSM::odomCallback, this);
 
-        // bspline_pub_ = nh.advertise<trajectories::Bspline>("bspline", 10);
-        // // data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
+        bspline_pub_ = nh.advertise<trajectories::Bspline>("bspline", 10);
+        // data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
 
-        // if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
-        //     waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &FSM::waypointCallback, this);
-        // else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
-        // {
-        //     ROS_ERROR("not implemeneted!!");
-        //     // ros::Duration(1.0).sleep();
-        //     // while (ros::ok() && !have_odom_)
-        //     //     ros::spinOnce();
-        //     // planGlobalTrajbyGivenWps();
-        // }
-        // else
-        //     cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
+        if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
+        {
+            // waypoint_sub_ = nh.subscribe(/*"/waypoint_generator/waypoints"*/ "/goal", 1, &FSM::waypointCallback, this);
+            waypoint_sub_ = nh.subscribe("/move_base_simple/goal", 1, &FSM::waypointCallback, this);
+            ROS_INFO_STREAM("target type :  MANUAL_TARGET");
+        }
+        else if (target_type_ == TARGET_TYPE::PRESET_TARGET)
+        {
+            ROS_ERROR("not implemeneted!!");
+            // ros::Duration(1.0).sleep();
+            // while (ros::ok() && !have_odom_)
+            //     ros::spinOnce();
+            // planGlobalTrajbyGivenWps();
+        }
+        else
+            cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
     }
 
     void FSM::changeState(FSM::MACHINE_STATE state, string pos_call)
@@ -208,9 +212,12 @@ namespace fast_planner
         have_odom_ = true;
     }
 
-    void FSM::waypointCallback(const nav_msgs::PathConstPtr &msg)
+
+    // void FSM::goalCallback()
+    void FSM::waypointCallback(const geometry_msgs::PoseStampedConstPtr &msg)
     {
-        if (msg->poses[0].pose.position.z < -0.1)
+        
+        if (msg->pose.position.z < -0.1)
         {
             return;
         }
@@ -218,7 +225,7 @@ namespace fast_planner
         ROS_INFO("Triggered");
         trigger_ = true;
         bool success = false;
-        end_pos_ << msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, 1.0;
+        end_pos_ << msg->pose.position.x, msg->pose.position.y, 1.0;
 
         success = plan_manager_ptr_->planGlobalTraj(odom_pos_);
 
@@ -250,6 +257,49 @@ namespace fast_planner
             // visualization_->displayGlobalPathList(gloabl_traj, 0.1, 0);
         }
     }
+
+    // void FSM::waypointCallback(const nav_msgs::PathConstPtr &msg)
+    // {
+    //     if (msg->poses[0].pose.position.z < -0.1)
+    //     {
+    //         return;
+    //     }
+
+    //     ROS_INFO("Triggered");
+    //     trigger_ = true;
+    //     bool success = false;
+    //     end_pos_ << msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, 1.0;
+
+    //     success = plan_manager_ptr_->planGlobalTraj(odom_pos_);
+
+    //     if (success)
+    //     {
+    //         constexpr double step_size_t = 0.1;
+    //         int i_end = floor(plan_manager_ptr_->global_data_.global_duration_ / step_size_t);
+    //         vector<Eigen::Vector3d> gloabl_traj(i_end);
+    //         for (int i = 0; i < i_end; i++)
+    //         {
+    //             gloabl_traj[i] = plan_manager_ptr_->global_data_.global_traj_.evaluate(i * step_size_t);
+    //         }
+
+
+    //         end_vel_.setZero();
+    //         have_goal_ = true;
+    //         // have_new_target_ = true;
+
+    //          /*** FSM ***/
+    //         if (machine_state_ == WAIT_GOAL)
+    //         {
+    //             changeState(GENERATE_TRAJ, "TRIG");
+    //         }
+    //         else if (machine_state_ == EXEC_TRAJ)
+    //         {
+    //             changeState(REPLAN_TRAJ, "TRIG");
+    //         }
+    //         // visualization_->displayGoalPoint(end_pt_, Eigen::Vector4d(1, 0, 0, 1), 0.3, 0);
+    //         // visualization_->displayGlobalPathList(gloabl_traj, 0.1, 0);
+    //     }
+    // }
 
     void FSM::safetyCallback(const ros::TimerEvent &event)
     {
