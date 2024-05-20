@@ -32,13 +32,16 @@ public:
 
     void initPlanModules(ros::NodeHandle& nh);
 
-    void setGlobalWaypoints(vector<Vector3d>& waypoints);
+    // void setGlobalWaypoints(vector<Vector3d>& waypoints);
 
 
 
-    bool kinodynamicReplan(Vector3d start_pos, Vector3d start_vel, Vector3d start_acc,
-                            Vector3d end_pos, Vector3d end_vel);
-    bool planGlobalTraj(Vector3d start_pos);
+    bool kinodynamicReplan(const Vector3d& start_pos, const Vector3d& start_vel, const Vector3d& start_acc,
+                            const Vector3d& end_pos, const Vector3d& end_vel);
+    bool planGlobalTraj(const Vector3d& start_pos, const Vector3d& start_vel, const Vector3d& start_acc,
+                        const Vector3d& end_pos, const Vector3d& end_vel, const Vector3d& end_acc);
+    bool planGlobalTrajWaypoints(const Vector3d& start_pos, const Vector3d& start_vel, const Vector3d& start_acc,
+                                 std::vector<Vector3d> &waypoints, const Vector3d& end_vel, const Vector3d& end_acc);
     
     bool emergencyStop(Vector3d& pos);
 

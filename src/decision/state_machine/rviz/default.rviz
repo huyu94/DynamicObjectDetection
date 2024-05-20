@@ -22,7 +22,6 @@ Panels:
     Expanded:
       - /2D Pose Estimate1
       - /2D Nav Goal1
-      - /Publish Point1
       - /3D Nav Goal1
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
@@ -383,9 +382,6 @@ Visualization Manager:
       Y std deviation: 0.5
     - Class: rviz/SetGoal
       Topic: /move_base_simple/goal
-    - Class: rviz/PublishPoint
-      Single click: true
-      Topic: /clicked_point
     - Class: rviz_plugins/Goal3DTool
       Topic: goal
   Value: true
@@ -482,6 +478,6 @@ Window Geometry:
     collapsed: false
   Width: 1457
   X: 449
-  Y: 86
+  Y: 49
   depth:
     collapsed: false

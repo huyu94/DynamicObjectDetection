@@ -81,7 +81,13 @@ private:
     // int 
     // bool new_goal_, started_, use_optimizatino_, replan_;
 
-    MACHINE_STATE machine_state_;
+    // state machine
+    MACHINE_STATE machine_state_;   
+    int continuous_called_time_;
+    bool flag_escape_emergency_;
+
+
+    // odom
     bool have_odom_, have_goal_, trigger_;
     Eigen::Vector3d odom_pos_, odom_vel_;
     Eigen::Quaterniond odom_orient_;

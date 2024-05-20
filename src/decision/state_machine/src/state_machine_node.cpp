@@ -21,8 +21,11 @@ int main(int argc, char** argv)
     // kino_replan.init(nh);
 
 
+
     ros::Duration(1.0).sleep();
-    ros::spin();
+    ros::MultiThreadedSpinner spinnner(4);
+    spinnner.spin();
+    // ros::spin();
 
     return 0;
 }

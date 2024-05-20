@@ -67,16 +67,27 @@ namespace fast_planner
             cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
     }
 
-    void FSM::changeState(FSM::MACHINE_STATE state, string pos_call)
+    void FSM::changeState(FSM::MACHINE_STATE new_state, string pos_call)
     {
-        string state_str[6] = {"INIT", "WAIT_GOAL", "GENERATE_TRAJ", "EXEC_TRAJ", "REPLAN_TRAJ", "EMERGENCY_STOP"};
-        ROS_INFO_STREAM("[FSM]: change from " << state_str[int(machine_state_)] << " to " << state_str[int(state)] << " by " << pos_call);
+
+        if(new_state == machine_state_)
+        {
+            continuous_called_time_ ++;
+        }
+        else
+        {
+            continuous_called_time_ = 1;
+        }
+        static string state_str[6] = {"INIT", "WAIT_GOAL", "GENERATE_TRAJ", "EXEC_TRAJ", "REPLAN_TRAJ", "EMERGENCY_STOP"};
+        int pre_s = int(machine_state_);
+        machine_state_ = new_state;
+        // ROS_INFO_STREAM("[FSM]: change from " << state_str[pre_s] << " to " << state_str[int(new_state)] << " by " << pos_call);
     }
 
     void FSM::printState()
     {
-        string state_str[6] = {"INIT", "WAIT_GOAL", "GENERATE_TRAJ", "EXEC_TRAJ", "REPLAN_TRAJ", "EMERGENCY_STOP"};
-        ROS_INFO_STREAM("[FSM]: state : " << state_str[int(machine_state_)]);
+        static string state_str[6] = {"INIT", "WAIT_GOAL", "GENERATE_TRAJ", "EXEC_TRAJ", "REPLAN_TRAJ", "EMERGENCY_STOP"};
+        // ROS_INFO_STREAM("[FSM]: state : " << state_str[int(machine_state_)]);
     }
 
     void FSM::execCallback(const ros::TimerEvent &event)
@@ -138,6 +149,7 @@ namespace fast_planner
             if (success)
             {
                 changeState(EXEC_TRAJ, "FSM");
+                flag_escape_emergency_ = true;
             }
             else
             {
@@ -169,26 +181,45 @@ namespace fast_planner
 
             Eigen::Vector3d pos = info->position_traj_.evaluateDeBoorT(t_cur);
 
-            if (t_cur >= info->duration_ - 1e-2)
+            if (t_cur >= info->duration_ - 1e-2) // 接近局部轨迹时间终点
             {
                 have_goal_ = false;
                 changeState(WAIT_GOAL, "FSM");
                 return;
             }
-            else if ((end_pos_ - pos).norm() < no_replan_thresh_)
+            else if ((end_pos_ - pos).norm() < no_replan_thresh_) // 接近目标点
             {
-                ROS_INFO_STREAM("[FSM]: near local traj end");
+                // ROS_INFO_STREAM("[FSM]: near local traj end");
                 return;
             }
-            else if ((info->start_pos_ - pos).norm() < replan_thresh_)
+            else if ((info->start_pos_ - pos).norm() < replan_thresh_) // 接近局部轨迹起点
             {
-                ROS_INFO_STREAM("near start");
+                // ROS_INFO_STREAM("near start");
                 return;
             }
             else
             {
                 changeState(REPLAN_TRAJ, "FSM");
             }
+            break;
+        }
+
+
+        case EMERGENCY_STOP:
+        {
+            if(flag_escape_emergency_)
+            {
+                callEmergencyStop(odom_pos_);
+            }
+            else
+            {
+                if(odom_vel_.norm() < 0.1)
+                {
+                    changeState(GENERATE_TRAJ, "FSM");
+                }
+            }
+
+            flag_escape_emergency_ = false;
             break;
         }
         }
@@ -227,7 +258,7 @@ namespace fast_planner
         bool success = false;
         end_pos_ << msg->pose.position.x, msg->pose.position.y, 1.0;
 
-        success = plan_manager_ptr_->planGlobalTraj(odom_pos_);
+        success = plan_manager_ptr_->planGlobalTraj(odom_pos_, odom_vel_, Vector3d::Zero(), end_pos_, Vector3d::Zero(),Vector3d::Zero());
 
         if (success)
         {
@@ -327,16 +358,17 @@ namespace fast_planner
                 ROS_ERROR("Collision detected in grid map!");
                 occ = true;
             }
-            int collision_id;
-            ros::Time check_time = info->start_time_ + ros::Duration(t);
-            if(env_manager->checkCollisionInTrackerPool(info->position_traj_.evaluateDeBoorT(t),check_time,collision_id))
-            {
-                ROS_ERROR("Collision detected in tracker pool!");
-                occ = true;
-            }
+            // int collision_id;
+            // ros::Time check_time = info->start_time_ + ros::Duration(t);
+            // if(env_manager->checkCollisionInTrackerPool(info->position_traj_.evaluateDeBoorT(t),check_time,collision_id))
+            // {
+            //     ROS_ERROR("Collision detected in tracker pool!");
+            //     occ = true;
+            // }
 
             if(occ)
             {
+                ROS_INFO_STREAM("collision happened !");
                 if(planFromCurrentTraj())
                 {
                     changeState(EXEC_TRAJ, "SAFETY");
@@ -374,6 +406,8 @@ namespace fast_planner
         {
             publishBspline();
         }
+
+        return plan_success;
     }
 
     bool FSM::callEmergencyStop(Vector3d stop_pos)
@@ -400,11 +434,12 @@ namespace fast_planner
 
         if (!success)
         {
-            success = callKinoDynamicReplan();
-            if (!success)
-            {
-                return false;
-            }
+            return false;
+            // success = callKinoDynamicReplan();
+            // if (!success)
+            // {
+            //     return false;
+            // }
         }
         return true;
     }

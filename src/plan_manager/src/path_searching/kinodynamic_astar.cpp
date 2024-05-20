@@ -123,7 +123,7 @@ int KinodynamicAstar::search(Eigen::Vector3d start_pt, Eigen::Vector3d start_v, 
   bool init_search = init; // 是否是第一次搜索
   const int tolerance = ceil(1 / resolution_);
 
-  ROS_INFO_STREAM("[kino searching] : before while");
+  // ROS_INFO_STREAM("[kino searching] : before while");
   while (!open_set_.empty())
   {
     cur_node = open_set_.top();

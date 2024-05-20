@@ -3,7 +3,7 @@ env_manager:
   dbscan_min_ptn: 10
   dbscan_min_cluster_size: 40
   dbscan_max_cluster_size: 500
-  gamma1_threshold: 0.001
+  gamma1_threshold: 0.0001
   gamma2_threshold: 10.0
   record: true
   slide_window_size: 5
