@@ -8,6 +8,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <list>
 
 #include <ros/package.h>
 #include <nav_msgs/Odometry.h>
@@ -31,9 +32,10 @@
 #include "env_manager/static/grid_map.h"
 #include <visualization_utils/map_visualizer.h>
 
-using PointType = ikdTree_PointType;
-using PointVector = KD_TREE<PointType>::PointVector;
-typedef shared_ptr<PointVector> PointVectorPtr;
+// using PointType = ikdTree_PointType;
+// using PointVector = KD_TREE<PointType>::PointVector;
+// typedef shared_ptr<PointVector> PointVectorPtr;
+// typedef shared_ptr<
 typedef shared_ptr<nav_msgs::Odometry> OdomPtr;
 using std::pair;
 struct ClusterFeature
@@ -80,8 +82,9 @@ private:
     ros::Time last_update_time_, odom_time_; // odom_time_ is used to record perception cloud time
     double tracking_update_timeout_;
     bool need_update_;
-    queue<pair<PointVectorPtr,OdomPtr>> cloud_odom_slide_window_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
+    // queue<pair<PointVectorPtr,OdomPtr>> cloud_odom_slide_window_;
+    list<pair<pcl::PointCloud<pcl::PointXYZ>::Ptr,OdomPtr>> cloud_odom_slide_window_;
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud_ptr_;
     int slide_window_size_; 
     bool cloud_odom_window_ready_;
     vector<Vector3d> static_points_;
@@ -99,7 +102,10 @@ private:
     vector<ClusterFeature::Ptr> cluster_features_;
 
 /* segmentation */
-    KD_TREE<PointType>::Ptr segmentation_ikdtree_ptr_;
+    // KD_TREE<PointType>::Ptr segmentation_ikdtree_ptr_;
+    // pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr segmentation_kdtree_ptr_;
+    // queue<pcl::search::kdtree<pcl::PointXYZ>::Ptr> segmentation_kdtree_ptrs_;
+    list<pcl::search::KdTree<pcl::PointXYZ>::Ptr> segmentation_kdtree_ptrs_;
 
     double gamma1_threshold_,gamma2_threshold_;
 
@@ -211,7 +217,8 @@ private:
     /**
      * @brief add cloud and odom to slide window
     */
-    void addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom);
+    // void addCloudOdomToSlideWindow(PointVectorPtr &cloud, OdomPtr &odom);
+    void addCloudOdomToSlideWindow(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, OdomPtr &odom);
     /* callback */
     void cloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr& cloud,
                                     const nav_msgs::OdometryConstPtr& odom);
