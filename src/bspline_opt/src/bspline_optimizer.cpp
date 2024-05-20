@@ -847,6 +847,7 @@ namespace ego_planner
     
     vector<Tracker::Ptr> alive_trackers;
     tracker_pool_->getAliveTracker(alive_trackers);
+    // ROS_INFO_STREAM("get alive trakcer takes (ms) : " << (ros::Time::now() - t_now).toSec() * 1000);
     for(int i=order_; i < end_idx; i++)
     {
       double time = ((double)(order_-1)/2 + (i-order_+1)) * bspline_interval_;
@@ -1743,11 +1744,20 @@ namespace ego_planner
     Eigen::MatrixXd g_mov_objs = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_swarm = Eigen::MatrixXd::Zero(3, cps_.size);
     Eigen::MatrixXd g_terminal = Eigen::MatrixXd::Zero(3, cps_.size);
-
+    
+    // ros::Time t1 = ros::Time::now();
     calcSmoothnessCost(cps_.points, f_smoothness, g_smoothness);
+    // ROS_INFO_STREAM("smoothness cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+    // t1 = ros::Time::now();
     calcDistanceCostRebound(cps_.points, f_distance, g_distance, iter_num_, f_smoothness);
+    // ROS_INFO_STREAM("distance cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+    // t1 = ros::Time::now();
     calcFeasibilityCost(cps_.points, f_feasibility, g_feasibility);
+    // ROS_INFO_STREAM("feasibility cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+    // t1 = ros::Time::now();
     calcMovingObjCost(cps_.points, f_mov_objs, g_mov_objs);
+    // ROS_INFO_STREAM("moving obj cost takes " << (ros::Time::now() - t1).toSec() * 1000 << "ms");
+
     calcSwarmCost(cps_.points, f_swarm, g_swarm);
     calcTerminalCost(cps_.points, f_terminal, g_terminal);
 

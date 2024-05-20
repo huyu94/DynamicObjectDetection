@@ -20,8 +20,8 @@
 
 
     <include file="$(find plan_manage)/launch/simulator.launch">
-        <arg name="init_x_" value="10"/>
-        <arg name="init_y_" value="-10"/>
+        <arg name="init_x_" value="0"/>
+        <arg name="init_y_" value="-0"/>
         <arg name="init_z_" value="0.1"/>
         <arg name="odom_topic" value="$(arg odom_topic_)"/>
         <arg name="drone_id" value="$(arg drone_id)"/>
