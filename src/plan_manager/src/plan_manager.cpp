@@ -249,10 +249,17 @@ namespace fast_planner
 
         updateTrajInfo(rebound_traj,ros::Time::now());
 
+
+
+        static double sum_time = 0;
+        static int count_success = 0;
+        sum_time += (t_search + t_opt + t_refine).toSec();
+        count_success++;
         ROS_INFO_STREAM("total_time : " << (t_search + t_opt + t_refine).toSec() 
                         << ", search_time : " << t_search.toSec()
                         << ", opt_time : " << t_opt.toSec() 
-                        << ", refine_time : " << t_refine.toSec());
+                        << ", refine_time : " << t_refine.toSec()
+                        << ", avg time : " << sum_time / count_success);
         // cout << "total time:\033[42m" << (t_search + t_opt + t_refine).toSec() << "\033[0m,optimize:" << t_opt.toSec() << ",refine:" << t_refine.toSec() << endl;
 
         
